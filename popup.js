@@ -2967,6 +2967,7 @@ function openDetailsModal(type, customDates = null) {
         </td>
       </tr>
     `;
+  } else {
     modalBody.innerHTML = candidates.map(c => {
       let badgeStyle = "background:rgba(255,255,255,0.08);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);";
       const f = String(c.factory).trim().toLowerCase();
