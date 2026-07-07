@@ -2935,35 +2935,10 @@ function openDetailsModal(type, customDates = null) {
   
   if (candidates.length === 0) {
     const datesStr = (customDates || []).join(", ") || `${state.startDate} -> ${state.endDate}`;
-    let sample = "";
-    if (state.candidates && state.candidates.length > 1) {
-      const hList = [];
-      for (let j = 1; j < Math.min(state.candidates.length, 50); j++) {
-        const r = state.candidates[j];
-        if (r.length > 16) {
-          const cp = r[2] ? r[2].trim() : "";
-          const cn = r[1] ? r[1].trim() : "";
-          const ck = cp || cn || `row_${j}`;
-          const hist = state.candidateHistory[ck];
-          const histDates = hist && hist.interviewDates ? hist.interviewDates.join(",") : "None";
-          hList.push(`${r[1]}: status='${r[13]}', key='${ck}', intDates=[${histDates}], rawInt='${r[12]}'`);
-        }
-      }
-      sample = hList.slice(0, 8).join("<br/>");
-    }
     modalBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted">
-          Không có ứng viên nào.<br/>
-          <small style="color: #ff8c00; font-size: 11px; display: block; margin-top: 10px; line-height: 1.4; text-align: left; max-height: 200px; overflow-y: auto;">
-            <strong>Thông tin chẩn đoán (Debug Info):</strong><br/>
-            Loại: ${type}<br/>
-            Dải ngày lọc: [${datesStr}]<br/>
-            Target dates array: ${JSON.stringify(dates)}<br/>
-            Tổng số ứng viên trong bộ nhớ: ${state.candidates ? state.candidates.length : 0}<br/>
-            Mẫu 8 dòng đầu:<br/>
-            ${sample}
-          </small>
+        <td colspan="7" class="text-center text-muted" style="padding: 20px;">
+          Không có ứng viên nào trong khoảng thời gian này.
         </td>
       </tr>
     `;
