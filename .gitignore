@@ -1,0 +1,9 @@
+.vercel
+google_creds.json
+api_config.json
+telegram_config.json
+auto_sort_listener.log
+auto_sort_listener.out
+*.log
+*.out
+scratch/

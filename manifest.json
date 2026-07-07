@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Pegatron Recruitment Dashboard",
+  "version": "1.0.0",
+  "description": "Báo cáo thống kê data tuyển dụng Pegatron 2026 thời gian thực.",
+  "icons": {
+    "128": "icon.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://docs.google.com/spreadsheets/d/1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20/*"
+  ]
+}
