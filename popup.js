@@ -2275,6 +2275,7 @@ function loadCache() {
 
 // Initialization and Event Listeners
 document.addEventListener("DOMContentLoaded", () => {
+  setupMainNavigation();
   // Tab Navigation switching
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -3048,9 +3049,1271 @@ function getTomorrowDateStr() {
   if (!baseDateStr) return "";
   const parts = baseDateStr.split("-");
   const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  dateObj.setDate(dateObj.getDate() + 1);
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+// ============================================================================
+// INTEGRATED DASHBOARD TABS, MARKETING AND FINANCE MANAGEMENT
+// ============================================================================
+
+let unlockedSections = {
+  marketing: false,
+  finance: false
+};
+
+// --- Main Dashboard Tab Switching and Password modal logic ---
+function setupMainNavigation() {
+  const buttons = document.querySelectorAll(".main-tab-btn");
+  const sections = document.querySelectorAll(".main-section");
+  const pwdModal = document.getElementById("password-modal");
+  const pwdInput = document.getElementById("password-input");
+  const pwdError = document.getElementById("password-error");
+  const pwdSubmit = document.getElementById("password-submit-btn");
+  const pwdCancel = document.getElementById("password-cancel-btn");
+  const pwdClose = document.getElementById("close-password-btn");
+  
+  let targetSection = "sale";
+  let pendingButton = null;
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const clickedBtn = e.currentTarget;
+      const section = clickedBtn.getAttribute("data-section");
+      
+      if (section === "sale") {
+        switchSection("sale", clickedBtn);
+      } else if (section === "marketing") {
+        if (unlockedSections.marketing) {
+          switchSection("marketing", clickedBtn);
+        } else {
+          showPasswordPrompt("marketing", clickedBtn);
+        }
+      } else if (section === "finance") {
+        if (unlockedSections.finance) {
+          switchSection("finance", clickedBtn);
+        } else {
+          showPasswordPrompt("finance", clickedBtn);
+        }
+      }
+    });
+  });
+
+  function switchSection(sectName, btnEl) {
+    sections.forEach(s => {
+      s.classList.remove("active");
+      s.style.display = "none";
+    });
+    
+    buttons.forEach(b => b.classList.remove("active"));
+    btnEl.classList.add("active");
+    
+    const activeSection = document.getElementById(`section-${sectName}`);
+    if (activeSection) {
+      activeSection.classList.add("active");
+      activeSection.style.display = "flex";
+    }
+    
+    if (sectName === "marketing") {
+      initMarketingDashboard();
+    } else if (sectName === "finance") {
+      initFinanceDashboard();
+    }
+  }
+
+  function showPasswordPrompt(sect, btn) {
+    targetSection = sect;
+    pendingButton = btn;
+    
+    document.getElementById("password-modal-title").textContent = `Mở khóa Báo Cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}`;
+    document.getElementById("password-prompt-text").textContent = `Vui lòng nhập mã PIN bảo mật để truy cập Báo cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}.`;
+    
+    pwdInput.value = "";
+    pwdError.style.display = "none";
+    pwdModal.style.display = "flex";
+    pwdModal.classList.add("active");
+    pwdInput.focus();
+  }
+
+  function handleVerifyPassword() {
+    const pin = pwdInput.value.trim();
+    let isCorrect = false;
+    
+    if (targetSection === "marketing" && pin === "888888") {
+      isCorrect = true;
+      unlockedSections.marketing = true;
+      pendingButton.textContent = "🔓 Báo cáo Marketing";
+    } else if (targetSection === "finance" && pin === "999999") {
+      isCorrect = true;
+      unlockedSections.finance = true;
+      pendingButton.textContent = "🔓 Báo cáo Tài chính";
+    }
+    
+    if (isCorrect) {
+      pwdModal.style.display = "none";
+      pwdModal.classList.remove("active");
+      switchSection(targetSection, pendingButton);
+    } else {
+      pwdError.style.display = "block";
+      pwdInput.value = "";
+      pwdInput.focus();
+    }
+  }
+
+  pwdSubmit.addEventListener("click", handleVerifyPassword);
+  pwdInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleVerifyPassword();
+  });
+  
+  const hideModal = () => {
+    pwdModal.style.display = "none";
+    pwdModal.classList.remove("active");
+  };
+  
+  pwdCancel.addEventListener("click", hideModal);
+  pwdClose.addEventListener("click", hideModal);
+}
+
+// ============================================================================
+// MARKETING DASHBOARD LOGIC
+// ============================================================================
+
+let mktRawData = [];
+let mktChartObj = null;
+
+function initMarketingDashboard() {
+  const refreshBtn = document.getElementById("mkt-refresh-btn");
+  if (refreshBtn && !refreshBtn.dataset.listenerAdded) {
+    refreshBtn.dataset.listenerAdded = "true";
+    refreshBtn.addEventListener("click", () => fetchMarketingData());
+  }
+  const selectBox = document.getElementById("mkt-campaign-select");
+  if (selectBox && !selectBox.dataset.listenerAdded) {
+    selectBox.dataset.listenerAdded = "true";
+    selectBox.addEventListener("change", () => renderMarketingDashboard());
+  }
+  fetchMarketingData();
+}
+
+async function fetchMarketingData() {
+  const tableBody = document.getElementById("mkt-table-body");
+  if (tableBody) {
+    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
+  }
+  
+  let mktUrl = "";
+  if (IS_CHROME_EXT) {
+    mktUrl = "https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=1245696062";
+  } else {
+    mktUrl = "/api/marketing";
+  }
+  
+  try {
+    const response = await fetch(mktUrl);
+    const text = await response.text();
+    mktRawData = parseCSV(text);
+    renderMarketingDashboard();
+  } catch (error) {
+    console.error("Lỗi tải dữ liệu marketing:", error);
+    if (tableBody) {
+      tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+    }
+  }
+}
+
+function renderMarketingDashboard() {
+  if (!mktRawData || mktRawData.length === 0) return;
+  
+  const selectBox = document.getElementById("mkt-campaign-select");
+  const colIndex = parseInt(selectBox ? selectBox.value : "0");
+  
+  let startIndex = -1;
+  for (let i = 0; i < mktRawData.length; i++) {
+    const cellA = mktRawData[i][0] || "";
+    if (cellA.includes("1/7") || cellA.toLowerCase().includes("báo cáo ngày")) {
+      startIndex = i;
+      break;
+    }
+  }
+  if (startIndex === -1) startIndex = 17; // Fallback
+  
+  const blocks = [];
+  for (let i = startIndex; i < mktRawData.length; i += 13) {
+    if (i + 12 >= mktRawData.length) break;
+    const block = mktRawData.slice(i, i + 13);
+    const dateVal = block[0][0] || "";
+    if (!dateVal || !dateVal.includes("/")) continue;
+    blocks.push(block);
+  }
+  
+  const chartData = {
+    labels: [],
+    spent: [],
+    leads: []
+  };
+  
+  let totalSpent = 0;
+  let totalLeads = 0;
+  let totalHires = 0;
+  let tableHTML = "";
+  
+  blocks.forEach(block => {
+    const date = block[0][0];
+    const spentStr = block[0][colIndex + 2] || "";
+    const leadsStr = block[1][colIndex + 2] || "";
+    const cplStr = block[2][colIndex + 2] || "";
+    const phonesStr = block[3][colIndex + 2] || "";
+    const cccdStr = block[4][colIndex + 2] || "";
+    const hiresStr = block[5][colIndex + 2] || "";
+    const cpoStr = block[12][colIndex + 2] || "";
+    
+    const spentVal = cleanNumber(spentStr);
+    const leadsVal = cleanNumber(leadsStr);
+    const hiresVal = cleanNumber(hiresStr);
+    
+    totalSpent += spentVal;
+    totalLeads += leadsVal;
+    totalHires += hiresVal;
+    
+    chartData.labels.push(date);
+    chartData.spent.push(spentVal);
+    chartData.leads.push(leadsVal);
+    
+    tableHTML += `
+      <tr>
+        <td><strong>${date}</strong></td>
+        <td style="text-align: right;">${spentStr || '0 đ'}</td>
+        <td style="text-align: right;">${leadsStr || '0'}</td>
+        <td style="text-align: right;">${cplStr || '-'}</td>
+        <td style="text-align: right;">${phonesStr || '0'}</td>
+        <td style="text-align: right;">${cccdStr || '0'}</td>
+        <td style="text-align: right;">${hiresStr || '0'}</td>
+        <td style="text-align: right;">${cpoStr || '-'}</td>
+      </tr>
+    `;
+  });
+  
+  const cpl = totalLeads > 0 ? Math.round(totalSpent / totalLeads) : 0;
+  
+  document.getElementById("mkt-metric-spent").textContent = formatVND(totalSpent);
+  document.getElementById("mkt-metric-leads").textContent = totalLeads;
+  document.getElementById("mkt-metric-cpl").textContent = formatVND(cpl);
+  document.getElementById("mkt-metric-hires").textContent = totalHires;
+  
+  const tableBody = document.getElementById("mkt-table-body");
+  if (tableBody) {
+    tableBody.innerHTML = tableHTML || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu</td></tr>`;
+  }
+  
+  renderMarketingChart(chartData);
+}
+
+function renderMarketingChart(data) {
+  const canvas = document.getElementById("mkt-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (mktChartObj) {
+    mktChartObj.destroy();
+  }
+  
+  mktChartObj = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Chi phí (VND)',
+          data: data.spent,
+          backgroundColor: 'rgba(6, 182, 212, 0.4)',
+          borderColor: '#06b6d4',
+          borderWidth: 1.5,
+          yAxisID: 'ySpent',
+          order: 2
+        },
+        {
+          label: 'Số Lead',
+          data: data.leads,
+          type: 'line',
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          pointBackgroundColor: '#f59e0b',
+          borderWidth: 2.5,
+          fill: true,
+          yAxisID: 'yLeads',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: { color: '#6e8fad', font: { size: 10 } }
+        },
+        ySpent: {
+          type: 'linear',
+          position: 'left',
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: {
+            color: '#6e8fad',
+            font: { size: 10 },
+            callback: (val) => val.toLocaleString('vi-VN') + ' đ'
+          }
+        },
+        yLeads: {
+          type: 'linear',
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#6e8fad', font: { size: 10 } }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#eef4ff', font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+// ============================================================================
+// FINANCE DASHBOARD LOGIC
+// ============================================================================
+
+let finCandidatesData = [];
+let finPnlChartObj = null;
+let finSelectedFile = null;
+let finStatsData = null;
+let finExpensesData = [];
+
+const finFetch = (path, options = {}) => {
+  const url = IS_CHROME_EXT ? `http://localhost:3001${path}` : path;
+  return fetch(url, options);
+};
+
+function initFinanceDashboard() {
+  const mainTabContainer = document.querySelector("#section-finance");
+  if (!mainTabContainer || mainTabContainer.dataset.initialized) return;
+  mainTabContainer.dataset.initialized = "true";
+
+  // Finance Tab Switching
+  document.querySelectorAll(".finance-tab-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const clickedBtn = e.currentTarget;
+      const targetTab = clickedBtn.getAttribute("data-tab");
+      
+      document.querySelectorAll(".finance-tab-btn").forEach(b => b.classList.remove("active"));
+      clickedBtn.classList.add("active");
+      
+      document.querySelectorAll(".finance-tab-content").forEach(p => p.style.display = "none");
+      document.getElementById(`fin-tab-${targetTab}`).style.display = "block";
+    });
+  });
+
+  // Reconcile sub-tabs toggling
+  document.querySelectorAll(".fin-recon-tab-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const clickedBtn = e.currentTarget;
+      const targetTab = clickedBtn.getAttribute("data-tab");
+      
+      document.querySelectorAll(".fin-recon-tab-btn").forEach(b => b.classList.remove("active"));
+      clickedBtn.classList.add("active");
+      
+      document.querySelectorAll(".fin-recon-table-panel").forEach(p => p.style.display = "none");
+      document.getElementById(`fin-recon-tab-${targetTab}`).style.display = "block";
+    });
+  });
+
+  const searchCandidatesInput = document.getElementById("fin-search-candidates");
+  if (searchCandidatesInput) {
+    searchCandidatesInput.addEventListener("input", filterFinCandidates);
+  }
+
+  document.querySelectorAll(".fin-month-filter-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      document.querySelectorAll(".fin-month-filter-btn").forEach(b => b.classList.remove("active"));
+      e.currentTarget.classList.add("active");
+      filterFinCandidates();
+    });
+  });
+
+  const pricingForm = document.getElementById("fin-pricing-form");
+  if (pricingForm) {
+    pricingForm.addEventListener("submit", saveFinPricing);
+  }
+  const pricingResetBtn = document.getElementById("fin-pricing-reset-btn");
+  if (pricingResetBtn) {
+    pricingResetBtn.addEventListener("click", resetFinPricingForm);
+  }
+
+  const expTabManual = document.getElementById("fin-exp-tab-manual");
+  const expTabSheet = document.getElementById("fin-exp-tab-sheet");
+  if (expTabManual && expTabSheet) {
+    expTabManual.addEventListener("click", () => switchFinExpenseTab('manual'));
+    expTabSheet.addEventListener("click", () => switchFinExpenseTab('sheet'));
+  }
+
+  ['fin-exp-ads','fin-exp-salary','fin-exp-phone','fin-exp-office','fin-exp-other'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener("input", () => fmtFinMoney(input));
+    }
+  });
+
+  const expMonthInput = document.getElementById("fin-exp-month");
+  if (expMonthInput) {
+    expMonthInput.addEventListener("change", (e) => onFinExpenseMonthChange(e.target.value));
+  }
+
+  const expenseSaveBtn = document.getElementById("fin-expense-save-btn");
+  if (expenseSaveBtn) {
+    expenseSaveBtn.addEventListener("click", saveFinExpense);
+  }
+  const expenseResetBtn = document.getElementById("fin-expense-reset-btn");
+  if (expenseResetBtn) {
+    expenseResetBtn.addEventListener("click", resetFinExpenseForm);
+  }
+
+  const expSyncSheetBtn = document.getElementById("fin-expense-sync-sheet-btn");
+  if (expSyncSheetBtn) {
+    expSyncSheetBtn.addEventListener("click", syncFinExpenseSheet);
+  }
+
+  setupFinDragAndDrop();
+  const executeReconBtn = document.getElementById("fin-execute-recon-btn");
+  if (executeReconBtn) {
+    executeReconBtn.addEventListener("click", executeFinReconciliation);
+  }
+
+  const syncBtn = document.getElementById("fin-sync-btn");
+  if (syncBtn) {
+    syncBtn.addEventListener("click", () => triggerFinSync(false));
+  }
+
+  const enableCustomRange = document.getElementById("fin-enable-custom-range");
+  if (enableCustomRange) {
+    enableCustomRange.addEventListener("change", toggleFinRangeFilter);
+  }
+  const statsMonthFilter = document.getElementById("fin-stats-month-filter");
+  if (statsMonthFilter) {
+    statsMonthFilter.addEventListener("change", updateFinOverviewStats);
+  }
+  const statsStartFilter = document.getElementById("fin-stats-start-filter");
+  const statsEndFilter = document.getElementById("fin-stats-end-filter");
+  if (statsStartFilter && statsEndFilter) {
+    statsStartFilter.addEventListener("change", updateFinOverviewStats);
+    statsEndFilter.addEventListener("change", updateFinOverviewStats);
+  }
+
+  const now = new Date();
+  const monthStr = now.toISOString().slice(0, 7);
+  if (document.getElementById('fin-exp-month')) document.getElementById('fin-exp-month').value = monthStr;
+  
+  loadFinCandidates();
+  loadFinPricingList();
+  loadFinExpensesList();
+  loadFinStats();
+  initFinReconCycleDropdown();
+}
+
+function showFinLoading(show) {
+  const loader = document.getElementById("fin-loading");
+  if (loader) loader.style.display = show ? "flex" : "none";
+}
+
+function loadFinCandidates() {
+  showFinLoading(true);
+  finFetch('/api/candidates')
+    .then(r => r.json())
+    .then(data => {
+      finCandidatesData = data;
+      renderFinCandidates(data);
+      showFinLoading(false);
+    })
+    .catch(err => {
+      console.error("Lỗi tải danh sách nhận việc:", err);
+      showFinLoading(false);
+    });
+}
+
+function renderFinCandidates(list) {
+  const body = document.getElementById('fin-candidates-body');
+  if (!body) return;
+  body.innerHTML = '';
+  
+  list.forEach(c => {
+    const tr = document.createElement('tr');
+    
+    let badgeStyle = '';
+    switch (c.status) {
+      case 'Đang làm việc':
+        badgeStyle = 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);';
+        break;
+      case 'Nghỉ việc':
+      case 'Đã nghỉ việc':
+        badgeStyle = 'background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.3);';
+        break;
+      case 'Hết hạn':
+        badgeStyle = 'background:rgba(100,116,139,0.2);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);';
+        break;
+      default:
+        badgeStyle = 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);';
+    }
+
+    const factoryStyle = getFinFactoryBadgeStyle(c.factory);
+
+    tr.innerHTML = `
+      <td style="font-weight: bold;">${c.employee_id || '-'}</td>
+      <td>${c.full_name}</td>
+      <td><span class="badge" style="${factoryStyle}">${c.factory}</span></td>
+      <td>${c.phone || '-'}</td>
+      <td>${c.cccd || '-'}</td>
+      <td>${c.boarding_date ? formatFinDate(c.boarding_date) : '-'}</td>
+      <td>${c.end_date ? formatFinDate(c.end_date) : '-'}</td>
+      <td><span class="badge" style="${badgeStyle}">${c.status || 'Đang làm việc'}</span></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+function getFinFactoryBadgeStyle(factory) {
+  const f = (factory || '').toUpperCase().trim();
+  if (f.includes('PGT') || f.includes('PEGATRON')) return 'background: rgba(59, 130, 246, 0.15); color: #60a5fa;';
+  if (f.includes('WIS') || f.includes('WISTRON')) return 'background: rgba(16, 185, 129, 0.15); color: #34d399;';
+  if (f.includes('BROTHER')) return 'background: rgba(245, 158, 11, 0.15); color: #fbbf24;';
+  if (f.includes('GOERTEK BN') || f.includes('GT BN')) return 'background: rgba(139, 92, 246, 0.15); color: #a78bfa;';
+  if (f.includes('GOERTEK NA') || f.includes('GT NA')) return 'background: rgba(236, 72, 153, 0.15); color: #f472b6;';
+  if (f.includes('FOX') || f.includes('FOXCONN')) return 'background: rgba(20, 184, 166, 0.15); color: #2dd4bf;';
+  if (f.includes('USI')) return 'background: rgba(99, 102, 241, 0.15); color: #818cf8;';
+  if (f.includes('SEV')) return 'background: rgba(244, 63, 94, 0.15); color: #fb7185;';
+  if (f.includes('CANON') || f.includes('CN')) return 'background: rgba(249, 115, 22, 0.15); color: #fb923c;';
+  return 'background: rgba(107, 114, 128, 0.15); color: #9ca3af;';
+}
+
+function formatFinDate(dateStr) {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('vi-VN');
+  } catch {
+    return dateStr;
+  }
+}
+
+function filterFinCandidates() {
+  const query = document.getElementById('fin-search-candidates').value.toLowerCase().trim();
+  const activeMonthBtn = document.querySelector('.fin-month-filter-btn.active');
+  const monthFilter = activeMonthBtn ? activeMonthBtn.getAttribute('data-month') : 'all';
+  
+  let filtered = finCandidatesData;
+  
+  if (monthFilter !== 'all') {
+    const targetMonth = parseInt(monthFilter);
+    filtered = filtered.filter(c => {
+      if (!c.boarding_date) return false;
+      const parts = c.boarding_date.split('-');
+      if (parts.length < 2) return false;
+      const month = parseInt(parts[1]);
+      return month === targetMonth;
+    });
+  }
+
+  if (query) {
+    filtered = filtered.filter(c => {
+      return (c.full_name || '').toLowerCase().includes(query) ||
+             (c.employee_id || '').toLowerCase().includes(query) ||
+             (c.phone || '').includes(query) ||
+             (c.cccd || '').includes(query) ||
+             (c.factory || '').toLowerCase().includes(query);
+    });
+  }
+  renderFinCandidates(filtered);
+}
+
+function triggerFinSync(silent) {
+  const icon = document.querySelector("#fin-sync-btn svg") || document.getElementById("fin-sync-btn");
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+
+  finFetch('/api/sync')
+    .then(r => r.json())
+    .then(res => {
+      if (icon) icon.style.animation = '';
+      if (res.status === 'success') {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('fin-sync-time-lbl').innerText = timeStr;
+        document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${res.time}`;
+        loadFinCandidates();
+        loadFinStats();
+        if (!silent) alert(`✓ Đã đồng bộ ${res.count} ứng viên lúc ${timeStr}`);
+      } else {
+        if (!silent) alert('⚠ Đồng bộ thất bại: ' + res.message);
+      }
+    })
+    .catch(err => {
+      if (icon) icon.style.animation = '';
+      if (!silent) alert('⚠ Lỗi kết nối: ' + err);
+    });
+}
+
+function loadFinPricingList() {
+  finFetch('/api/pricing')
+    .then(r => r.json())
+    .then(prices => {
+      const body = document.getElementById('fin-pricing-body');
+      if (!body) return;
+      body.innerHTML = '';
+      prices.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${p.factory}</strong></td>
+          <td>${formatVND(p.price)}</td>
+          <td><span class="badge ${p.unit === 'Giờ làm' ? 'badge-info' : p.unit === 'Tháng' ? 'badge-warning' : 'badge-success'}">${p.unit || 'Ngày'}</span></td>
+          <td>Từ ${formatFinDate(p.start_date)} đến ${formatFinDate(p.end_date)}</td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="editFinPricing(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
+            <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteFinPricing(${p.id})">Xóa</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    });
+}
+
+window.editFinPricing = function(p) {
+  document.getElementById('fin-price-id').value = p.id;
+  document.getElementById('fin-price-factory').value = p.factory;
+  document.getElementById('fin-price-value').value = p.price;
+  document.getElementById('fin-price-unit').value = p.unit || 'Ngày';
+  document.getElementById('fin-price-start').value = p.start_date;
+  document.getElementById('fin-price-end').value = p.end_date;
+  document.getElementById('fin-pricing-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+window.deleteFinPricing = function(id) {
+  if (confirm("Bạn có chắc chắn muốn xóa đơn giá này?")) {
+    finFetch(`/api/pricing/delete?id=${id}`)
+      .then(r => r.json())
+      .then(res => {
+        loadFinPricingList();
+        loadFinStats();
+      });
+  }
+};
+
+function saveFinPricing(e) {
+  e.preventDefault();
+  const id = document.getElementById('fin-price-id').value;
+  const factory = document.getElementById('fin-price-factory').value;
+  const price = document.getElementById('fin-price-value').value;
+  const unit = document.getElementById('fin-price-unit').value;
+  const start_date = document.getElementById('fin-price-start').value;
+  const end_date = document.getElementById('fin-price-end').value;
+
+  finFetch('/api/pricing/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id ? parseInt(id) : null, factory, price, unit, start_date, end_date })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.status === 'success') {
+      resetFinPricingForm();
+      loadFinPricingList();
+      loadFinStats();
+    } else {
+      alert("Lỗi lưu đơn giá");
+    }
+  });
+}
+
+function resetFinPricingForm() {
+  document.getElementById('fin-price-id').value = '';
+  document.getElementById('fin-price-value').value = '';
+  document.getElementById('fin-price-unit').value = 'Ngày';
+  document.getElementById('fin-price-start').value = '';
+  document.getElementById('fin-price-end').value = '';
+}
+
+function switchFinExpenseTab(mode) {
+  const isManual = mode === 'manual';
+  document.getElementById('fin-exp-panel-manual').style.display = isManual ? '' : 'none';
+  document.getElementById('fin-exp-panel-sheet').style.display = isManual ? 'none' : '';
+  
+  const manualBtn = document.getElementById('fin-exp-tab-manual');
+  const sheetBtn = document.getElementById('fin-exp-tab-sheet');
+  
+  if (manualBtn && sheetBtn) {
+    manualBtn.style.background = isManual ? 'var(--accent-blue, #3b82f6)' : 'transparent';
+    manualBtn.style.color = isManual ? '#fff' : 'var(--text-secondary)';
+    sheetBtn.style.background = !isManual ? 'var(--accent-blue, #3b82f6)' : 'transparent';
+    sheetBtn.style.color = !isManual ? '#fff' : 'var(--text-secondary)';
+  }
+}
+
+function parseFinMoneyVal(str) {
+  if (str === undefined || str === null) return 0;
+  let s = String(str).trim();
+  s = s.replace(/[đĐ\s]/g, '');
+  s = s.replace(/[\.,]/g, '');
+  return parseFloat(s) || 0;
+}
+
+function fmtFinMoney(input) {
+  const raw = parseFinMoneyVal(input.value);
+  if (raw === 0) { input.value = '0'; }
+  else { input.value = raw.toLocaleString('vi-VN'); }
+  calcFinExpenseTotal();
+}
+
+function calcFinExpenseTotal() {
+  const ids = ['fin-exp-ads','fin-exp-salary','fin-exp-phone','fin-exp-office','fin-exp-other'];
+  const total = ids.reduce((s, id) => s + parseFinMoneyVal(document.getElementById(id)?.value), 0);
+  const el = document.getElementById('fin-exp-total-preview');
+  if (el) el.innerText = formatVND(total);
+}
+
+function resetFinExpenseForm() {
+  document.getElementById('fin-exp-edit-id').value = '';
+  document.getElementById('fin-exp-month').value = '';
+  ['fin-exp-ads','fin-exp-salary','fin-exp-phone','fin-exp-office','fin-exp-other'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = 0;
+  });
+  document.getElementById('fin-exp-note').value = '';
+  calcFinExpenseTotal();
+}
+
+function loadFinExpensesList() {
+  finFetch('/api/expenses')
+    .then(r => r.json())
+    .then(data => {
+      finExpensesData = data;
+      const body = document.getElementById('fin-expenses-body');
+      if (!body) return;
+      body.innerHTML = '';
+      if (!data.length) {
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:1rem;">Chưa có dữ liệu chi phí</td></tr>';
+        return;
+      }
+      data.forEach(e => {
+        const total = (e.ads_cost||0) + (e.salary_cost||0) + (e.phone_cost||0) + (e.office_cost||0) + (e.other_cost||0);
+        const tr = document.createElement('tr');
+        const fv = v => v > 0 ? `<span style="color:#fff">${formatVND(v)}</span>` : '<span style="color:var(--text-muted)">-</span>';
+        tr.innerHTML = `
+          <td><strong style="color:var(--accent-cyan)">${e.month}</strong></td>
+          <td>${fv(e.ads_cost)}</td>
+          <td>${fv(e.salary_cost)}</td>
+          <td>${fv(e.phone_cost)}</td>
+          <td>${fv(e.office_cost)}</td>
+          <td>${fv(e.other_cost)}</td>
+          <td><strong style="color:var(--accent-rose)">${formatVND(total)}</strong></td>
+          <td>
+            <button class="btn btn-secondary" onclick="editFinExpense(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="padding:0.2rem 0.5rem; font-size:0.75rem;">✏️</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+    });
+}
+
+window.editFinExpense = function(e) {
+  switchFinExpenseTab('manual');
+  const fmt = v => (v && v > 0) ? v.toLocaleString('vi-VN') : '0';
+  document.getElementById('fin-exp-edit-id').value = e.id || '';
+  document.getElementById('fin-exp-month').value   = e.month || '';
+  document.getElementById('fin-exp-ads').value     = fmt(e.ads_cost);
+  document.getElementById('fin-exp-salary').value  = fmt(e.salary_cost);
+  document.getElementById('fin-exp-phone').value   = fmt(e.phone_cost);
+  document.getElementById('fin-exp-office').value  = fmt(e.office_cost);
+  document.getElementById('fin-exp-other').value   = fmt(e.other_cost);
+  document.getElementById('fin-exp-note').value    = e.note || '';
+  calcFinExpenseTotal();
+  document.getElementById('fin-exp-month').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+function onFinExpenseMonthChange(monthVal) {
+  if (!monthVal) return;
+  const existing = (finExpensesData || []).find(e => e.month === monthVal);
+  if (existing) {
+    const fmt = v => (v && v > 0) ? v.toLocaleString('vi-VN') : '0';
+    document.getElementById('fin-exp-edit-id').value = existing.id || '';
+    document.getElementById('fin-exp-ads').value     = fmt(existing.ads_cost);
+    document.getElementById('fin-exp-salary').value  = fmt(existing.salary_cost);
+    document.getElementById('fin-exp-phone').value   = fmt(existing.phone_cost);
+    document.getElementById('fin-exp-office').value  = fmt(existing.office_cost);
+    document.getElementById('fin-exp-other').value   = fmt(existing.other_cost);
+    document.getElementById('fin-exp-note').value    = existing.note || '';
+  } else {
+    document.getElementById('fin-exp-edit-id').value = '';
+    document.getElementById('fin-exp-ads').value     = '0';
+    document.getElementById('fin-exp-salary').value  = '0';
+    document.getElementById('fin-exp-phone').value   = '0';
+    document.getElementById('fin-exp-office').value  = '0';
+    document.getElementById('fin-exp-other').value   = '0';
+    document.getElementById('fin-exp-note').value    = '';
+  }
+  calcFinExpenseTotal();
+}
+
+function saveFinExpense() {
+  const month = document.getElementById('fin-exp-month').value;
+  if (!month) { alert('⚠ Vui lòng chọn tháng chi phí'); return; }
+  const payload = {
+    month,
+    ads_cost:    parseFinMoneyVal(document.getElementById('fin-exp-ads').value),
+    salary_cost: parseFinMoneyVal(document.getElementById('fin-exp-salary').value),
+    phone_cost:  parseFinMoneyVal(document.getElementById('fin-exp-phone').value),
+    office_cost: parseFinMoneyVal(document.getElementById('fin-exp-office').value),
+    other_cost:  parseFinMoneyVal(document.getElementById('fin-exp-other').value),
+    note: document.getElementById('fin-exp-note').value,
+    sheet_url: null
+  };
+  finFetch('/api/expenses/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.status === 'success') {
+      loadFinExpensesList();
+      loadFinStats();
+      resetFinExpenseForm();
+      alert('✓ Đã lưu chi phí tháng ' + month);
+    } else {
+      alert('⚠ Lỗi lưu: ' + (res.error || 'Unknown'));
+    }
+  })
+  .catch(() => alert('⚠ Lỗi kết nối server'));
+}
+
+function syncFinExpenseSheet() {
+  const url  = document.getElementById('fin-exp-sheet-url').value.trim();
+  const month = document.getElementById('fin-exp-sheet-month').value;
+  if (!url || !month) { alert('⚠ Vui lòng nhập link và chọn tháng'); return; }
+  const csvUrl = url.replace(/\/edit.*$/, '/export?format=csv');
+  finFetch(`/api/expenses/sync-sheet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ month, sheet_url: csvUrl })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.status === 'success') {
+      loadFinExpensesList();
+      loadFinStats();
+      alert('✓ Đồng bộ chi phí từ Sheet thành công!');
+    } else {
+      alert('⚠ ' + (res.message || 'Lỗi đồng bộ'));
+    }
+  })
+  .catch(() => alert('⚠ Lỗi kết nối'));
+}
+
+function initFinReconCycleDropdown() {
+  const dropdown = document.getElementById('fin-recon-cycle');
+  if (!dropdown) return;
+
+  const startYear = 2026;
+  const startMonth = 2; // February
+  const today = new Date();
+  const targetLimit = new Date(today.getFullYear(), today.getMonth() + 3, 1);
+  
+  const generatedMonths = [];
+  let loopDate = new Date(startYear, startMonth - 1, 1);
+  
+  while (loopDate <= targetLimit) {
+    const yyyy = loopDate.getFullYear();
+    const mm = String(loopDate.getMonth() + 1).padStart(2, '0');
+    generatedMonths.push(`${yyyy}-${mm}`);
+    loopDate.setMonth(loopDate.getMonth() + 1);
+  }
+  
+  generatedMonths.reverse();
+  
+  dropdown.innerHTML = '';
+  generatedMonths.forEach(m => {
+    const labelText = `Tháng ${m.split('-')[1]} / ${m.split('-')[0]}`;
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.innerText = labelText;
+    dropdown.appendChild(opt);
+  });
+
+  const curMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+  if (generatedMonths.includes(curMonth)) {
+    dropdown.value = curMonth;
+  } else {
+    dropdown.value = generatedMonths[0];
+  }
+}
+
+function setupFinDragAndDrop() {
+  const dropArea = document.getElementById('fin-drop-area');
+  if (!dropArea) return;
+  const fileInput = document.getElementById('fin-file-input');
+  
+  dropArea.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) setFinFile(e.target.files[0]);
+  });
+  
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+    }, false);
+  });
+
+  dropArea.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      setFinFile(files[0]);
+    }
+  }, false);
+}
+
+function setFinFile(file) {
+  finSelectedFile = file;
+  const lbl = document.getElementById('fin-selected-file-lbl');
+  if (lbl) {
+    lbl.innerText = `Đã chọn file: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+    lbl.style.display = 'block';
+  }
+}
+
+function executeFinReconciliation() {
+  if (!finSelectedFile) {
+    alert("Vui lòng kéo thả hoặc chọn file Excel/CSV trước!");
+    return;
+  }
+
+  const type = document.getElementById('fin-recon-type').value;
+  const factory = document.getElementById('fin-recon-factory').value;
+  const cycle = document.getElementById('fin-recon-cycle').value;
+
+  showFinLoading(true);
+
+  const formData = new FormData();
+  formData.append('file', finSelectedFile);
+
+  finFetch(`/api/reconcile?cycle_month=${cycle}&file_type=${type}&factory=${factory}`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(r => r.json())
+  .then(res => {
+    showFinLoading(false);
+    if (res.status === 'success') {
+      displayFinReconciliationResults(res);
+    } else {
+      alert("Lỗi đối soát: " + res.error);
+    }
+  })
+  .catch(err => {
+    showFinLoading(false);
+    alert("Lỗi kết nối đối soát: " + err);
+  });
+}
+
+function displayFinReconciliationResults(res) {
+  document.getElementById('fin-results-panel').style.display = 'block';
+  
+  document.getElementById('fin-res-total').innerText = res.summary.total_uploaded;
+  document.getElementById('fin-res-matched').innerText = res.summary.matched;
+  document.getElementById('fin-res-unmatched').innerText = res.summary.unmatched;
+  document.getElementById('fin-res-missing').innerText = Array.isArray(res.missing) ? res.missing.length : 0;
+  document.getElementById('fin-res-revenue').innerText = formatVND(res.summary.total_revenue);
+
+  const matchedBody = document.getElementById('fin-res-matched-body');
+  matchedBody.innerHTML = '';
+  res.matched.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight: bold;">${m.candidate.employee_id || '-'}</td>
+      <td>${m.candidate.full_name}</td>
+      <td>${m.candidate.phone || '-'} / ${m.candidate.cccd || '-'}</td>
+      <td>${formatFinDate(m.candidate.boarding_date)}</td>
+      <td>${m.units} (${m.candidate.unit || 'Ngày'})</td>
+      <td>${formatVND(m.price)}</td>
+      <td><strong style="color:var(--accent-emerald)">${formatVND(m.revenue)}</strong></td>
+    `;
+    matchedBody.appendChild(tr);
+  });
+
+  const unmatchedBody = document.getElementById('fin-res-unmatched-body');
+  unmatchedBody.innerHTML = '';
+  res.unmatched.forEach(m => {
+    const tr = document.createElement('tr');
+    const keys = Object.keys(m.row || {});
+    const nameKey = keys.find(k => k.toLowerCase().includes('tên') || k.toLowerCase().includes('name')) || keys[1];
+    const idKey = keys.find(k => k.toLowerCase().includes('mã') || k.toLowerCase().includes('id')) || keys[0];
+    
+    tr.innerHTML = `
+      <td><strong>${m.row[idKey] || '-'}</strong></td>
+      <td>${m.row[nameKey] || '-'}</td>
+      <td>${Object.entries(m.row).slice(2, 5).map(([k,v]) => `${k}:${v}`).join(', ')}</td>
+      <td style="color:var(--accent-rose)">${m.reason || 'Không khớp'}</td>
+    `;
+    unmatchedBody.appendChild(tr);
+  });
+
+  const missingBody = document.getElementById('fin-res-missing-body');
+  missingBody.innerHTML = '';
+  const missingArr = Array.isArray(res.missing) ? res.missing : [];
+  missingArr.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight: bold;">${m.employee_id || '-'}</td>
+      <td>${m.full_name}</td>
+      <td>${m.phone || '-'}</td>
+      <td>${m.cccd || '-'}</td>
+      <td>${formatFinDate(m.boarding_date)}</td>
+      <td style="color:var(--accent-rose)">${m.end_date ? formatFinDate(m.end_date) : '-'}</td>
+    `;
+    missingBody.appendChild(tr);
+  });
+}
+
+function loadFinStats() {
+  finFetch('/api/stats')
+    .then(r => r.json())
+    .then(data => {
+      finStatsData = data;
+      
+      const filter = document.getElementById('fin-stats-month-filter');
+      const startFilter = document.getElementById('fin-stats-start-filter');
+      const endFilter = document.getElementById('fin-stats-end-filter');
+      
+      if (filter && filter.options.length <= 1) {
+        const startYear = 2026;
+        const startMonth = 2;
+        const today = new Date();
+        const targetLimit = new Date(today.getFullYear(), today.getMonth() + 6, 1);
+        
+        const generatedMonths = [];
+        let loopDate = new Date(startYear, startMonth - 1, 1);
+        
+        while (loopDate <= targetLimit) {
+          const yyyy = loopDate.getFullYear();
+          const mm = String(loopDate.getMonth() + 1).padStart(2, '0');
+          generatedMonths.push(`${yyyy}-${mm}`);
+          loopDate.setMonth(loopDate.getMonth() + 1);
+        }
+        generatedMonths.reverse();
+        
+        filter.innerHTML = '<option value="latest">Tháng gần nhất</option>';
+        startFilter.innerHTML = '';
+        endFilter.innerHTML = '';
+        
+        generatedMonths.forEach(m => {
+          const labelText = `Tháng ${m.split('-')[1]} / ${m.split('-')[0]}`;
+          
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.innerText = labelText;
+          filter.appendChild(opt);
+          
+          const optStart = document.createElement('option');
+          optStart.value = m;
+          optStart.innerText = labelText;
+          startFilter.appendChild(optStart);
+          
+          const optEnd = document.createElement('option');
+          optEnd.value = m;
+          optEnd.innerText = labelText;
+          endFilter.appendChild(optEnd);
+        });
+        
+        if (generatedMonths.length >= 6) {
+          startFilter.value = generatedMonths[5];
+        } else {
+          startFilter.value = generatedMonths[generatedMonths.length - 1];
+        }
+        endFilter.value = generatedMonths[0];
+      }
+      
+      updateFinOverviewStats();
+    });
+}
+
+function toggleFinRangeFilter() {
+  const isRange = document.getElementById('fin-enable-custom-range')?.checked;
+  const singleWrapper = document.getElementById('fin-single-filter-wrapper');
+  const rangeWrapper = document.getElementById('fin-range-filter-wrapper');
+  if (singleWrapper && rangeWrapper) {
+    singleWrapper.style.display = isRange ? 'none' : 'flex';
+    rangeWrapper.style.display = isRange ? 'flex' : 'none';
+  }
+  updateFinOverviewStats();
+}
+
+function updateFinOverviewStats() {
+  if (!finStatsData) return;
+  
+  const isRange = document.getElementById('fin-enable-custom-range')?.checked;
+  const monthFilterVal = document.getElementById('fin-stats-month-filter')?.value;
+  const startFilterVal = document.getElementById('fin-stats-start-filter')?.value;
+  const endFilterVal = document.getElementById('fin-stats-end-filter')?.value;
+  
+  let targetStats = [];
+  let titleDesc = "";
+  
+  if (isRange) {
+    targetStats = finStatsData.monthly_stats.filter(s => {
+      return s.month >= startFilterVal && s.month <= endFilterVal;
+    });
+    titleDesc = `Từ ${startFilterVal} đến ${endFilterVal}`;
+  } else {
+    let targetMonth = monthFilterVal;
+    if (monthFilterVal === 'latest') {
+      if (finStatsData.monthly_stats.length > 0) {
+        targetMonth = finStatsData.monthly_stats[0].month;
+      }
+    }
+    
+    const stat = finStatsData.monthly_stats.find(s => s.month === targetMonth);
+    if (stat) targetStats = [stat];
+    titleDesc = `Tháng ${targetMonth?.split('-')[1]} / ${targetMonth?.split('-')[0]}`;
+  }
+  
+  let totalRevenue = targetStats.reduce((sum, s) => sum + s.revenue, 0);
+  let totalCost = targetStats.reduce((sum, s) => sum + s.cost, 0);
+  let totalPnl = totalRevenue - totalCost;
+  
+  document.getElementById('fin-stat-revenue').innerText = formatVND(totalRevenue);
+  document.getElementById('fin-stat-cost').innerText = formatVND(totalCost);
+  
+  const pnlEl = document.getElementById('fin-stat-pnl');
+  pnlEl.innerText = formatVND(totalPnl);
+  if (totalPnl < 0) {
+    pnlEl.style.backgroundImage = 'linear-gradient(135deg, #f43f5e 0%, #fda4af 100%)';
+    pnlEl.style.color = 'transparent';
+    pnlEl.style.webkitBackgroundClip = 'text';
+  } else {
+    pnlEl.style.backgroundImage = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+    pnlEl.style.color = 'transparent';
+    pnlEl.style.webkitBackgroundClip = 'text';
+  }
+  
+  document.getElementById('fin-stat-desc-1').innerText = titleDesc;
+  document.getElementById('fin-stat-desc-2').innerText = titleDesc;
+  document.getElementById('fin-stat-desc-3').innerText = titleDesc;
+  
+  const targetForecastMonth = isRange ? endFilterVal : (monthFilterVal === 'latest' ? '' : monthFilterVal);
+  const forecastUrl = targetForecastMonth ? `/api/stats?target_month=${targetForecastMonth}` : '/api/stats';
+  
+  finFetch(forecastUrl)
+    .then(r => r.json())
+    .then(resData => {
+      const forecast = resData.forecast;
+      document.getElementById('fin-stat-forecast').innerText = formatVND(forecast.estimated_revenue);
+      document.getElementById('fin-stat-desc-4').innerText = `Dự báo chu kỳ ${forecast.month}`;
+      
+      const forecastList = document.getElementById('fin-forecast-list');
+      if (forecastList) {
+        forecastList.innerHTML = '';
+        if (forecast.details && forecast.details.length > 0) {
+          forecast.details.forEach(item => {
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.borderBottom = '1px dashed rgba(255,255,255,0.05)';
+            div.style.paddingBottom = '4px';
+            div.innerHTML = `
+              <span style="font-weight:600;">${item.name} (${item.factory})</span>
+              <span style="color:var(--cyan);">${formatVND(item.value)}</span>
+            `;
+            forecastList.appendChild(div);
+          });
+        } else {
+          forecastList.innerHTML = '<p style="color: var(--text-secondary);">Chưa có dữ liệu dự báo</p>';
+        }
+      }
+    });
+
+  renderFinPnlChart(finStatsData.monthly_stats);
+}
+
+function renderFinPnlChart(stats) {
+  const canvas = document.getElementById('fin-pnl-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (finPnlChartObj) finPnlChartObj.destroy();
+  
+  // Sort stats chronological ascending (e.g. Feb before March)
+  const sortedStats = [...stats].sort((a,b) => a.month.localeCompare(b.month));
+  
+  const labels = sortedStats.map(s => s.month);
+  const revenues = sortedStats.map(s => s.revenue);
+  const costs = sortedStats.map(s => s.cost);
+  const pnls = sortedStats.map(s => s.pnl);
+  
+  finPnlChartObj = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Doanh thu',
+          data: revenues,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        },
+        {
+          label: 'Chi phí',
+          data: costs,
+          borderColor: '#f43f5e',
+          backgroundColor: 'rgba(244, 63, 94, 0.1)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        },
+        {
+          label: 'Lợi nhuận PnL',
+          data: pnls,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: { color: '#6e8fad' }
+        },
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: {
+            color: '#6e8fad',
+            callback: (val) => val.toLocaleString('vi-VN') + ' đ'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#eef4ff' }
+        }
+      }
+    }
+  });
+}
+

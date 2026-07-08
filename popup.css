@@ -1271,3 +1271,102 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Main Dashboard Tabs Selector */
+.main-dashboard-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 6px;
+}
+
+.main-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.main-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.main-tab-btn.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* General Layout Toggles */
+.main-section {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.main-section.active {
+  display: flex;
+}
+
+/* Finance Tabs & Panel Toggles */
+.finance-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.finance-tab-content.active {
+  display: block;
+}
+
+.fin-recon-table-panel {
+  display: none;
+}
+
+.fin-recon-table-panel.active {
+  display: block;
+}
+
+.finance-tab-btn, .fin-recon-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: var(--font-title);
+  font-weight: 500;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.finance-tab-btn:hover, .fin-recon-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.finance-tab-btn.active, .fin-recon-tab-btn.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Additional Color Tokens & Helper Utilities */
+:root {
+  --accent-rose: #f43f5e;
+  --accent-gold: #f59e0b;
+}
+
+.btn-secondary.active {
+  background: var(--accent-blue, #3b82f6) !important;
+  color: #fff !important;
+}
+
