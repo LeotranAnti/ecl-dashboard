@@ -3522,10 +3522,12 @@ function initFinanceDashboard() {
   const monthStr = now.toISOString().slice(0, 7);
   if (document.getElementById('fin-exp-month')) document.getElementById('fin-exp-month').value = monthStr;
   
-  loadFinCandidates();
-  loadFinPricingList();
-  loadFinExpensesList();
-  loadFinStats();
+  // Tạm khóa các lệnh gọi API ngầm tới port 3001 để tránh lỗi Failed to Fetch khi port này đang đóng.
+  // Khi anh bàn giao xong link Google Sheet tài chính, em sẽ kích hoạt lại độc lập 100% online.
+  // loadFinCandidates();
+  // loadFinPricingList();
+  // loadFinExpensesList();
+  // loadFinStats();
   initFinReconCycleDropdown();
 }
 
