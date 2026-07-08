@@ -1,11 +1,16 @@
 // api/sort-brother.js
-// Vercel Serverless Function - Sort Brother sheet khi có form mới
-// Được gọi bởi Google Drive Push Notification → tức thì khi form submit
+// Vercel Serverless Function — Sort Brother sheet tức thì
+// Chạy bởi: Vercel Cron Job (mỗi 1 phút, 24/7) + Google Drive Push Notification
 const crypto = require('crypto');
 
 const SPREADSHEET_ID = '1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4';
 const SHEET_NAME     = 'Câu trả lời biểu mẫu 1';
 const SECRET_TOKEN   = 'ecl-brother-sort-2026';
+const BROTHER_GID    = 128053512;
+
+// Lưu số dòng lần trước (trong memory của serverless instance)
+// Với cron job, mỗi lần gọi có thể là instance mới → luôn sort để an toàn
+let lastKnownRows = 0;
 
 // ── JWT / OAuth2 (không cần package ngoài) ──────────────────────────────────
 function b64url(buf) {
@@ -160,30 +165,50 @@ async function sortBrotherSheet(token) {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // Google Drive push notification gửi POST với header X-Goog-Channel-Token
   const driveToken = req.headers['x-goog-channel-token'];
   const queryToken = req.query && req.query.token;
+  const isCron     = !!req.headers['x-vercel-cron']; // Vercel cron header
 
-  // Xác thực: phải có đúng token
+  // Xác thực token
   if (driveToken !== SECRET_TOKEN && queryToken !== SECRET_TOKEN) {
-    // Google Drive cũng gửi SYNC message khi đăng ký — phải trả 200
     if (req.headers['x-goog-resource-state'] === 'sync') {
       return res.status(200).json({ ok: true, msg: 'sync ack' });
     }
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
-  // Với Drive push: chỉ sort khi có thay đổi thực sự (không phải sync)
+  // Với Drive push: skip SYNC và các event không phải thay đổi
   const state = req.headers['x-goog-resource-state'];
   if (state && state !== 'update' && state !== 'change') {
     return res.status(200).json({ ok: true, msg: `skip state=${state}` });
   }
 
   try {
-    const token  = await getAccessToken();
+    const token = await getAccessToken();
+    const base  = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
+    const hdrs  = { Authorization: `Bearer ${token}` };
+
+    // Kiểm tra số dòng hiện tại trước (1 API call nhẹ)
+    const checkResp = await fetch(
+      `${base}/values/${encodeURIComponent(SHEET_NAME + '!A:A')}`,
+      { headers: hdrs }
+    );
+    const checkData  = await checkResp.json();
+    const currentRows = (checkData.values || []).length;
+
+    // Với cron job: chỉ sort khi có dòng mới (tránh ghi thừa mỗi phút)
+    if (isCron && currentRows <= lastKnownRows && lastKnownRows > 0) {
+      lastKnownRows = currentRows;
+      return res.status(200).json({ ok: true, msg: 'no new data', rows: currentRows });
+    }
+
+    lastKnownRows = currentRows;
+
+    // Sort đầy đủ + copy dropdown
     const result = await sortBrotherSheet(token);
-    console.log('[sort-brother] ✅ Sorted:', result);
+    console.log(`[sort-brother] ✅ Sorted (cron=${isCron}):`, result);
     return res.status(200).json({ ok: true, ...result, ts: new Date().toISOString() });
+
   } catch (err) {
     console.error('[sort-brother] ❌', err.message);
     return res.status(500).json({ error: err.message });
