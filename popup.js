@@ -666,7 +666,7 @@ function applyFactoryFilter() {
   state.recruitments = mergedRecruitments;
   
   // Re-process metrics
-  const processed = processData(state.candidates, state.recruitments, {}, state.candidateHistory, false);
+  const processed = processData(state.candidates, state.recruitments, {}, state.candidateHistory, state.hasColorData);
   state.dailyStats = processed.dailyStats;
   state.datesList = processed.datesList;
   state.candidateHistory = processed.candidateHistory;
