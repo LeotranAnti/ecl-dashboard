@@ -318,25 +318,31 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         }
         
         // Save only the current active interviewDate from the sheet row (exclude KĐL, KNM, bùng pv, từ chối, ko đạt)
-        // Save only the current active interviewDate from the sheet row (exclude KĐL, KNM, bùng pv, từ chối, ko đạt)
         const isInterviewStatus = (status === "hẹn phỏng vấn" || status === "đã nhận việc" || status === "chuyển nhà máy khác");
+        
+        // Vì dữ liệu trên Sheet được sắp xếp giảm dần theo thời gian (dòng mới nhất ở trên cùng),
+        // Ta chỉ cho phép dòng đầu tiên duyệt qua (dòng mới nhất của ứng viên) cập nhật trạng thái hoạt động.
+        // Các dòng cũ duyệt sau (khi candidateHistory[candKey] đã có dữ liệu từ dòng trước đó) KHÔNG được phép ghi đè làm mất lịch hẹn tương lai.
+        const isFirstAppearance = !candidateHistoryArg[candKey] || (candidateHistory[candKey].interviewDates.length === 0 && candidateHistory[candKey].careDates.length === 0);
+        
         if (interviewDate && (status === "hẹn phỏng vấn" || isInterviewStatus) && !isInvalidStatus) {
-          // If the interview date is in the future, we update it dynamically
           if (interviewDate > todayStr) {
-            // Keep past frozen dates (< todayStr) and today's frozen date, and replace future dates with the new active date
             candidateHistory[candKey].interviewDates = [
               ...candidateHistory[candKey].interviewDates.filter(d => d <= todayStr),
               interviewDate
             ];
           } else {
-            // If it is today or a past date, it is frozen. Only append if not present in the cached list to prevent loss, but do NOT overwrite or remove existing ones.
             if (!candidateHistory[candKey].interviewDates.includes(interviewDate)) {
               candidateHistory[candKey].interviewDates.push(interviewDate);
             }
           }
         } else {
-          // If status is invalid, remove future dates from history, but keep today's and past frozen ones (<= todayStr)
-          candidateHistory[candKey].interviewDates = candidateHistory[candKey].interviewDates.filter(d => d <= todayStr);
+          // Chỉ cho phép xóa lịch hẹn tương lai nếu đây là dòng trạng thái mới nhất (duyệt lần đầu) và trạng thái đó thực sự bị hủy
+          // Nếu đã duyệt qua dòng active trước đó rồi thì bỏ qua không filter để tránh dòng cũ ghi đè.
+          const alreadyProcessedInCurrentRun = (candidateHistory[candKey].interviewDates.length > 0 && !isFirstAppearance);
+          if (!alreadyProcessedInCurrentRun) {
+            candidateHistory[candKey].interviewDates = candidateHistory[candKey].interviewDates.filter(d => d <= todayStr);
+          }
         }
         
         const isCareStatus = (status === "chăm sóc tiếp" || status === "đã nhận việc" || status === "hẹn phỏng vấn" || status === "bùng pv" || status === "knm" || status === "từ chối" || status === "ko đạt" || status === "chuyển nhà máy khác" || status === "khác");
