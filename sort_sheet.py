@@ -64,27 +64,27 @@ def parse_datetime(date_str):
 
 def normalize_phone_cccd(row_data):
     r = list(row_data)
-    # Cột Số điện thoại ở index 2 (Cột C), Cột CCCD ở index 3 (Cột D)
+    # Cột Số điện thoại ở index 2 (Cột C)
     if len(r) > 2:
         phone = str(r[2]).strip()
-        if phone.isdigit() and int(phone) == 0:
-            r[2] = '0'
-        elif phone.isdigit() and len(phone) == 9 and not phone.startswith('0'):
+        # Chỉ thêm số 0 đầu khi SĐT có đúng 9 chữ số và chưa có số 0
+        if phone.isdigit() and len(phone) == 9 and not phone.startswith('0'):
             r[2] = '0' + phone
-        elif phone.isdigit() and len(phone) > 0 and len(phone) < 9:
-            r[2] = phone.zfill(10)
+        # Nếu đã có đủ 10 chữ số hoặc có nội dung khác → giữ nguyên
+    
+    # Cột CCCD ở index 3 (Cột D)
     if len(r) > 3:
         cccd = str(r[3]).strip()
-        if cccd.isdigit() and int(cccd) == 0:
-            r[3] = '0'
-        elif cccd.isdigit() and len(cccd) > 0:
+        if cccd.isdigit() and len(cccd) > 1:
+            # CCCD mới 12 chữ số: chỉ thêm 0 nếu đang có 11 chữ số chưa có số 0 đầu
             if len(cccd) == 11 and not cccd.startswith('0'):
                 r[3] = '0' + cccd
+            # CMND cũ 9 chữ số: chỉ thêm 0 nếu có 8 chữ số chưa có số 0 đầu
             elif len(cccd) == 8 and not cccd.startswith('0'):
                 r[3] = '0' + cccd
-            elif len(cccd) < 12 and len(cccd) > 0:
-                r[3] = cccd.zfill(12)
+            # Các trường hợp khác (10, 12 chữ số...) → giữ nguyên như người dùng nhập
     return r
+
 
 def sort_single_worksheet(client, doc_id, doc_name, ws_name):
     print(f"[{doc_name} -> {ws_name}] Đang tải dữ liệu...")
@@ -134,15 +134,53 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
             clear_range = f"A{len(data_rows)+2}:{gspread.utils.rowcol_to_a1(num_rows, header_len)}"
             sheet.batch_clear([clear_range])
             
+        # ĐẶT ĐỊNH DẠNG PLAIN TEXT CHO CỘT C (SĐT) VÀ D (CCCD) TRƯỚC KHI GHI
+        # để tránh Google Sheets xóa mất số 0 ở đầu
+        try:
+            text_format_body = {
+                "requests": [
+                    {
+                        "repeatCell": {
+                            "range": {
+                                "sheetId": sheet.id,
+                                "startRowIndex": 1,         # Từ dòng 2
+                                "endRowIndex": num_rows,    # Đến hết dữ liệu
+                                "startColumnIndex": 2,      # Cột C (SĐT) - 0-indexed
+                                "endColumnIndex": 4         # Đến hết cột D (CCCD)
+                            },
+                            "cell": {
+                                "userEnteredFormat": {
+                                    "numberFormat": {"type": "TEXT"}
+                                }
+                            },
+                            "fields": "userEnteredFormat.numberFormat"
+                        }
+                    }
+                ]
+            }
+            spreadsheet.batch_update(text_format_body)
+        except Exception as fmt_err:
+            print(f"⚠️ Không thể set định dạng TEXT cho cột C/D: {fmt_err}")
+
         sheet.batch_update(updates)
+
         
         # COPY DROPDOWN & FORMAT CHO DÒNG MỚI (Áp dụng cho toàn bộ các dòng dữ liệu để đảm bảo không bị sót)
         # Sử dụng dòng 15 làm mẫu format/dropdown vì đây là dòng luôn có dữ liệu hoàn chỉnh
         print(f"[{doc_name} -> {ws_name}] Đang khôi phục Dropdown và định dạng cho các dòng mới...")
         try:
-            sample_row_idx = 15
             max_rows = len(data_rows) + 1
-            if sample_row_idx > 2 and max_rows > 1:
+            
+            # Tìm dòng có dữ liệu đầy đủ nhất để làm mẫu (tránh dùng dòng trống)
+            best_row_idx = 15  # fallback mặc định
+            best_count = 0
+            for i, row in enumerate(data_rows[:30], 2):  # Kiểm tra 30 dòng đầu
+                filled = sum(1 for c in row if str(c).strip())
+                if filled > best_count:
+                    best_count = filled
+                    best_row_idx = i
+            
+            if best_row_idx > 1 and max_rows > 1:
                 # Copy dropdowns and formats only starting from row 2 (startRowIndex=1) up to max_rows.
                 # To avoid APIError 400 when spreadsheet has active filters, we target destination row 2 to max_rows.
                 body = {
@@ -151,16 +189,16 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
                             "copyPaste": {
                                 "source": {
                                     "sheetId": sheet.id,
-                                    "startRowIndex": sample_row_idx - 1,
-                                    "endRowIndex": sample_row_idx,
-                                    "startColumnIndex": 7,
+                                    "startRowIndex": best_row_idx - 1,
+                                    "endRowIndex": best_row_idx,
+                                    "startColumnIndex": 1,   # Từ cột B - bao gồm cả cột G (Nguồn data)
                                     "endColumnIndex": header_len
                                 },
                                 "destination": {
                                     "sheetId": sheet.id,
-                                    "startRowIndex": 1, # Start pasting from row 2 (0-indexed 1)
+                                    "startRowIndex": 1,
                                     "endRowIndex": max_rows,
-                                    "startColumnIndex": 7,
+                                    "startColumnIndex": 1,
                                     "endColumnIndex": header_len
                                 },
                                 "pasteType": "PASTE_DATA_VALIDATION",
@@ -171,16 +209,16 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
                             "copyPaste": {
                                 "source": {
                                     "sheetId": sheet.id,
-                                    "startRowIndex": sample_row_idx - 1,
-                                    "endRowIndex": sample_row_idx,
-                                    "startColumnIndex": 7,
+                                    "startRowIndex": best_row_idx - 1,
+                                    "endRowIndex": best_row_idx,
+                                    "startColumnIndex": 1,
                                     "endColumnIndex": header_len
                                 },
                                 "destination": {
                                     "sheetId": sheet.id,
-                                    "startRowIndex": 1, # Start pasting from row 2 (0-indexed 1)
+                                    "startRowIndex": 1,
                                     "endRowIndex": max_rows,
-                                    "startColumnIndex": 7,
+                                    "startColumnIndex": 1,
                                     "endColumnIndex": header_len
                                 },
                                 "pasteType": "PASTE_FORMAT",

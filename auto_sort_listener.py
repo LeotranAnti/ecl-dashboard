@@ -61,10 +61,64 @@ def check_and_run_sort(doc_name, ws_name):
         log_message(f"❌ Lỗi chạy script sắp xếp [{doc_name} -> {ws_name}]: {result.stderr}")
         return False
 
+def run_brother_fast_poll():
+    """Thread riêng: quét Brother mỗi 3 giây — phản hồi gần như tức thì"""
+    BROTHER = {"doc_name": "Brother", "id": "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4", "ws_name": "Câu trả lời biểu mẫu 1"}
+    key = "Brother_Câu trả lời biểu mẫu 1"
+    last_rows = 0
+
+    log_message("⚡ [Brother-FastPoll] Khởi động thread quét nhanh (3 giây/lần)...")
+
+    # Khởi tạo mốc dòng
+    while True:
+        try:
+            client = get_gspread_client()
+            ws = client.open_by_key(BROTHER["id"]).worksheet(BROTHER["ws_name"])
+            last_rows = len(ws.col_values(1))
+            log_message(f"⚡ [Brother-FastPoll] Khởi tạo: {last_rows} dòng")
+            break
+        except Exception as e:
+            log_message(f"⚠️ [Brother-FastPoll] Lỗi khởi tạo: {e}. Thử lại sau 5 giây...")
+            time.sleep(5)
+
+    fail_count = 0
+    while True:
+        time.sleep(3)
+        try:
+            client = get_gspread_client()
+            ws = client.open_by_key(BROTHER["id"]).worksheet(BROTHER["ws_name"])
+            current_rows = len(ws.col_values(1))
+
+            if current_rows > last_rows:
+                log_message(f"🔔 [Brother-FastPoll] Form mới! ({last_rows} → {current_rows} dòng). Sort ngay...")
+                if check_and_run_sort(BROTHER["doc_name"], BROTHER["ws_name"]):
+                    try:
+                        client2 = get_gspread_client()
+                        ws2 = client2.open_by_key(BROTHER["id"]).worksheet(BROTHER["ws_name"])
+                        last_rows = len(ws2.col_values(1))
+                    except Exception:
+                        last_rows = current_rows
+                else:
+                    last_rows = current_rows
+            elif current_rows < last_rows:
+                last_rows = current_rows
+            fail_count = 0
+        except Exception as e:
+            fail_count += 1
+            if fail_count % 10 == 1:  # Chỉ log mỗi 10 lỗi liên tiếp để tránh spam
+                log_message(f"⚠️ [Brother-FastPoll] Lỗi (lần {fail_count}): {e}")
+            time.sleep(5)  # Nghỉ lâu hơn khi lỗi
+
+
 def run_listener():
     log_message("🚀 Khởi động dịch vụ tự động sắp xếp an toàn đa file (Pegatron, Brother, LG, Usi)...")
-    
-    # Khởi tạo API client
+
+    # Khởi động thread quét nhanh riêng cho Brother
+    import threading
+    brother_thread = threading.Thread(target=run_brother_fast_poll, daemon=True)
+    brother_thread.start()
+
+    # Khởi tạo API client cho vòng lặp chính
     client = None
     while client is None:
         try:
@@ -87,27 +141,27 @@ def run_listener():
             log_message(f"⚠️ Không thể khởi tạo mốc dòng cho {key}: {e}")
             last_known_state[key] = 0
 
-    log_message("⚡ Hệ thống giám sát đã sẵn sàng. Bắt đầu vòng lặp quét (30 giây/lần)...")
+    log_message("⚡ Hệ thống giám sát đã sẵn sàng. Bắt đầu vòng lặp quét (45 giây/lần)...")
 
     while True:
         try:
-            # Tạo mới client mỗi vòng quét lớn để tránh hết hạn phiên kết nối Google API
             client = get_gspread_client()
-            
+
             for item in MONITORED_SHEETS:
+                # Brother đã có thread riêng quét 3 giây — bỏ qua trong vòng lặp chính
+                if item['doc_name'] == 'Brother':
+                    continue
+
                 key = f"{item['doc_name']}_{item['ws_name']}"
                 try:
                     doc = client.open_by_key(item["id"])
                     ws = doc.worksheet(item["ws_name"])
-                    
-                    # Đọc số lượng dòng hiện có dựa trên cột A
                     current_rows = len(ws.col_values(1))
                     last_rows = last_known_state.get(key, 0)
-                    
+
                     if current_rows > last_rows:
                         log_message(f"🔔 Phát hiện form mới chèn vào trang [{item['doc_name']} -> {item['ws_name']}] ({last_rows} -> {current_rows} dòng).")
                         if check_and_run_sort(item['doc_name'], item['ws_name']):
-                            # Fetch lại số lượng dòng sau khi đã sắp xếp thành công để cập nhật mốc chính xác
                             try:
                                 doc_after = client.open_by_key(item["id"])
                                 ws_after = doc_after.worksheet(item["ws_name"])
@@ -117,15 +171,13 @@ def run_listener():
                         else:
                             last_known_state[key] = current_rows
                     else:
-                        # Cập nhật số dòng nếu dòng giảm đi (do thao tác xóa tay của quản trị viên)
                         last_known_state[key] = current_rows
                 except Exception as sheet_err:
                     log_message(f"⚠️ Lỗi khi quét trạng thái của {key}: {sheet_err}")
 
         except Exception as e:
             log_message(f"⚠️ Lỗi hệ thống trong vòng lặp chính: {e}")
-            
-        # Kiểm tra sự thay đổi của tất cả các file sau mỗi 45 giây (tăng nhẹ thời gian nghỉ để tránh vượt quá quota API)
+
         time.sleep(45)
 
 if __name__ == '__main__':

@@ -61,7 +61,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         now = datetime.now().strftime("%H:%M:%S")
         print(f"[{now}] {format % args}")
 
-        # ── 1. Proxy CSV từ Google Sheets ──────────────────────────────
+        # ── 1. Proxy CSV từ Google Sheets & Finance API ──────────────────────────────
         if self.path.startswith("/api/"):
             path_part = self.path[len("/api/"):]
             
@@ -79,64 +79,139 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 self._handle_interview_colors()
                 return
 
-            # ── 1b. Proxy CSV thông thường ─────────────────────────────
-            spreadsheet_id = "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" # Pegatron default
-            gid = "1671069143"
-            
-            if path_part == "candidates":
-                if factory == "Brother":
-                    spreadsheet_id = "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4";
-                    gid = "128053512";
-                elif factory == "LG":
-                    spreadsheet_id = "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk";
-                    gid = "1326786598";
-                elif factory == "Usi":
-                    spreadsheet_id = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
-                    gid = "254674118";
-                elif factory == "Fox QN":
-                    spreadsheet_id = "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw";
-                    gid = "1975095216";
-            elif path_part == "recruitments":
-                gid = "1084935408"; # Pegatron
-                if factory == "Brother":
-                    spreadsheet_id = "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4";
-                    gid = "2146286375";
-                elif factory == "LG":
-                    spreadsheet_id = "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk";
-                    gid = "1084935408";
-                elif factory == "Usi":
-                    spreadsheet_id = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
-                    gid = "481655667";
-                elif factory == "Fox QN":
-                    # Reuse Pegatron default recruitments spreadsheet for Fox QN mock
-                    spreadsheet_id = "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20";
-                    gid = "1084935408";
-            else:
-                self.send_error(404, "Sheet không tìm thấy")
+            # ── 1b. Proxy Marketing Google Sheets CSV ──────────────────
+            if path_part == "marketing":
+                spreadsheet_id = "1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ"
+                gid = "1245696062"
+                url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}"
+                try:
+                    print(f"[Proxy] Đang tải CSV Marketing...")
+                    req = urllib.request.Request(
+                        url,
+                        headers={"User-Agent": "Mozilla/5.0 (compatible; PegatronDashboard/1.0)"}
+                    )
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        data = resp.read()
+                    self._send_json_or_csv(data, "text/csv; charset=utf-8")
+                    print(f"[Proxy] ✅ Marketing ({len(data)} bytes)")
+                except Exception as e:
+                    print(f"[Proxy] ❌ Lỗi tải Marketing: {e}")
+                    self.send_error(502, f"Không thể tải Google Sheets Marketing: {e}")
                 return
 
-            url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}"
+            # ── 1c. Proxy CSV thông thường (candidates/recruitments) ─────────────────
+            if path_part in ["candidates", "recruitments"]:
+                spreadsheet_id = "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" # Pegatron default
+                gid = "1671069143"
+                
+                if path_part == "candidates":
+                    if factory == "Brother":
+                        spreadsheet_id = "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4";
+                        gid = "128053512";
+                    elif factory == "LG":
+                        spreadsheet_id = "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk";
+                        gid = "1326786598";
+                    elif factory == "Usi":
+                        spreadsheet_id = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
+                        gid = "254674118";
+                    elif factory == "Fox QN":
+                        spreadsheet_id = "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw";
+                        gid = "1975095216";
+                elif path_part == "recruitments":
+                    gid = "1084935408"; # Pegatron
+                    if factory == "Brother":
+                        spreadsheet_id = "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4";
+                        gid = "2146286375";
+                    elif factory == "LG":
+                        spreadsheet_id = "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk";
+                        gid = "1084935408";
+                    elif factory == "Usi":
+                        spreadsheet_id = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
+                        gid = "481655667";
+                    elif factory == "Fox QN":
+                        spreadsheet_id = "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20";
+                        gid = "1084935408";
+
+                url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}"
+                try:
+                    print(f"[Proxy] Đang tải CSV: {path_part} (Nhà máy: {factory})...")
+                    req = urllib.request.Request(
+                        url,
+                        headers={"User-Agent": "Mozilla/5.0 (compatible; PegatronDashboard/1.0)"}
+                    )
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        data = resp.read()
+                    self._send_json_or_csv(data, "text/csv; charset=utf-8")
+                    print(f"[Proxy] ✅ {path_part} (Nhà máy: {factory}) ({len(data)} bytes)")
+                except Exception as e:
+                    print(f"[Proxy] ❌ Lỗi: {e}")
+                    self.send_error(502, f"Lỗi Google Sheets: {e}")
+                return
+
+            # ── 1d. Proxy các API Tài chính sang Ruby Backend (port 3001) ─────────────
+            target_url = f"http://localhost:3001{self.path}"
             try:
-                print(f"[Proxy] Đang tải CSV: {path_part} (Nhà máy: {factory})...")
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; PegatronDashboard/1.0)"}
-                )
+                print(f"[Proxy Finance GET] {self.path} -> port 3001")
+                req = urllib.request.Request(target_url, method="GET")
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = resp.read()
-                self._send_json_or_csv(data, "text/csv; charset=utf-8")
-                print(f"[Proxy] ✅ {path_part} (Nhà máy: {factory}) ({len(data)} bytes)")
-
-            except urllib.error.URLError as e:
-                print(f"[Proxy] ❌ Lỗi kết nối: {e}")
-                self.send_error(502, f"Không thể kết nối Google Sheets: {e}")
+                    content_type = resp.headers.get("Content-Type", "application/json")
+                self._send_json_or_csv(data, content_type)
             except Exception as e:
-                print(f"[Proxy] ❌ Lỗi: {e}")
-                self.send_error(500, str(e))
+                print(f"[Proxy Finance GET] ❌ Lỗi kết nối Ruby Backend: {e}")
+                self.send_error(502, f"Không thể kết nối Finance server trên port 3001: {e}")
             return
 
         # ── 2. Phục vụ file tĩnh (popup.html, popup.css, popup.js ...) ──
         return super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith("/api/"):
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length) if content_length > 0 else b""
+            
+            target_url = f"http://localhost:3001{self.path}"
+            try:
+                print(f"[Proxy Finance POST] {self.path} -> port 3001")
+                headers = {}
+                for key, val in self.headers.items():
+                    if key.lower() not in ["host", "content-length"]:
+                        headers[key] = val
+                
+                req = urllib.request.Request(
+                    target_url,
+                    data=post_data,
+                    headers=headers,
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp_data = resp.read()
+                    content_type = resp.headers.get("Content-Type", "application/json")
+                    
+                    self.send_response(resp.status)
+                    for key, val in resp.headers.items():
+                        if key.lower() not in ["content-length", "transfer-encoding"]:
+                            self.send_header(key, val)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(resp_data)
+                    print(f"[Proxy Finance POST] ✅ {self.path} ({len(resp_data)} bytes)")
+            except urllib.error.HTTPError as e:
+                resp_data = e.read()
+                print(f"[Proxy Finance POST] ❌ HTTPError {e.code}: {resp_data[:100]}")
+                self.send_response(e.code)
+                for key, val in e.headers.items():
+                    if key.lower() not in ["content-length", "transfer-encoding"]:
+                        self.send_header(key, val)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(resp_data)
+            except Exception as e:
+                print(f"[Proxy Finance POST] ❌ Lỗi: {e}")
+                self.send_error(502, f"Không thể gửi POST đến Finance server trên port 3001: {e}")
+            return
+            
+        self.send_error(404)
 
     def _send_json_or_csv(self, data, content_type):
         self.send_response(200)
