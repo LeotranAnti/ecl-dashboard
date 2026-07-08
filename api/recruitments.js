@@ -17,6 +17,9 @@ module.exports = async (req, res) => {
   } else if (factory === "Usi") {
     spreadsheetId = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
     gid = "481655667"; // Usi 'Danh sách nhận việc' gid
+  } else if (factory === "Fox QN") {
+    spreadsheetId = "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw";
+    gid = "1084935408";
   }
   
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;
