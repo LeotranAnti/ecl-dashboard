@@ -3,533 +3,1118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pegatron HR Dashboard</title>
+  <title>Báo Cáo Kinh Doanh</title>
   <link rel="stylesheet" href="popup.css?v=3.0">
+  <script src="chart.min.js"></script>
 </head>
 <body>
   <div class="app-container">
-    <!-- Header -->
-    <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-      <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="logo-dot glow-emerald"></div>
-          <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ECL Dashboard - Cung ứng</h1>
-        </div>
-        <!-- Factory Navigation Tabs directly under title -->
-        <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
-          <button class="factory-tab-btn active" data-factory="All" style="font-size: 11px; padding: 4px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; color: #10b981; cursor: pointer; font-weight: bold; transition: all 0.2s; outline: none;">Tất cả nhà máy</button>
-          <button class="factory-tab-btn" data-factory="Pegatron" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Pegatron</button>
-          <button class="factory-tab-btn" data-factory="Brother" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Brother</button>
-          <button class="factory-tab-btn" data-factory="LG" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">LG</button>
-          <button class="factory-tab-btn" data-factory="Usi" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Usi</button>
-          <button class="factory-tab-btn" data-factory="Fox QN" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Fox QN</button>
-        </div>
-      </div>
-      <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <!-- Factory Selector Dropdown -->
-        <select id="dashboard-factory-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-          <option value="All">Tất cả nhà máy</option>
-          <option value="Pegatron">Pegatron</option>
-          <option value="Brother">Brother</option>
-          <option value="LG">LG</option>
-          <option value="Usi">Usi</option>
-          <option value="Fox QN">Fox QN</option>
-        </select>
-        <select id="dashboard-view-mode" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-          <option value="day">Theo ngày</option>
-          <option value="week">Theo tuần</option>
-          <option value="month">Theo tháng</option>
-          <option value="custom">Tùy chỉnh</option>
-        </select>
-        <div class="date-spinner-container" style="display: flex; gap: 4px; align-items: center; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
-          <button id="date-prev-btn" class="spinner-btn" title="Kỳ trước (Quá khứ)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">◀</button>
-          
-          <!-- Hidden real select to maintain backward compatibility -->
-          <select id="dashboard-date-select" style="display: none;"></select>
-          
-          <!-- Custom Dropdown -->
-          <div class="custom-dropdown" style="position: relative; display: inline-block;">
-            <div id="custom-dropdown-trigger" style="font-size: 12px; padding: 4px 8px; min-width: 160px; background: transparent; border: none; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
-              <span id="custom-dropdown-label">Đang tải...</span>
-              <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="custom-dropdown-arrow">▼</span>
-            </div>
-            <div id="custom-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 180px; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 4px 0;">
-              <!-- Dynamic options -->
-            </div>
-          </div>
-          
-          <button id="date-next-btn" class="spinner-btn" title="Kỳ sau (Tương lai)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">▶</button>
-        </div>
-        <div id="custom-date-container" style="display: none; gap: 8px; align-items: center;">
-          <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
-            <input type="date" id="custom-start-date" class="date-select" style="padding-right: 32px !important;">
-            <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
-              <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
-            </svg>
-          </div>
-          <span style="font-size:11px;color:var(--text-muted)">đến</span>
-          <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
-            <input type="date" id="custom-end-date" class="date-select" style="padding-right: 32px !important;">
-            <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
-              <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
-            </svg>
-          </div>
-        </div>
-        <span id="sync-status" class="sync-status text-muted">Đang cập nhật...</span>
-        <button id="refresh-btn" class="refresh-btn" title="Làm mới">
-          <svg class="icon-refresh" viewBox="0 0 24 24" width="16" height="16">
-            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 12c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- Main Metrics Grid (Today) -->
-    <section class="metrics-grid">
-      <div class="metric-card cyan-glow">
-        <div class="metric-info">
-          <span class="metric-label">Data Mới Hôm Nay</span>
-          <span id="metric-new-today" class="metric-value">0</span>
-          <div id="metric-new-today-sub" class="tomorrow-sub"></div>
-        </div>
-        <div class="metric-icon-bg bg-cyan">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          </svg>
-        </div>
-        <div class="metric-footer">
-          <span id="metric-new-diff" class="metric-trend text-cyan">Hôm qua: --</span>
-        </div>
-      </div>
-
-      <div class="metric-card amber-glow">
-        <div class="metric-info">
-          <span class="metric-label">Lịch Hẹn Hôm Nay</span>
-          <span id="metric-interview-today" class="metric-value">0</span>
-          <div id="metric-interview-today-sub" class="tomorrow-sub"></div>
-        </div>
-        <div class="metric-icon-bg bg-amber">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/>
-          </svg>
-        </div>
-        <div class="metric-footer">
-          <span id="metric-interview-diff" class="metric-trend text-amber">Hôm qua: --</span>
-        </div>
-      </div>
-
-      <div class="metric-card emerald-glow">
-        <div class="metric-info">
-          <span class="metric-label">Nhận Việc Hôm Nay</span>
-          <span id="metric-hire-today" class="metric-value">0</span>
-          <div id="metric-hire-today-sub" class="tomorrow-sub"></div>
-        </div>
-        <div class="metric-icon-bg bg-emerald">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
-          </svg>
-        </div>
-        <div class="metric-footer">
-          <span id="metric-hire-diff" class="metric-trend text-emerald">Hôm qua: --</span>
-        </div>
-      </div>
-
-      <div class="metric-card purple-glow">
-        <div class="metric-info">
-          <span class="metric-label">Đã Xử Lý Hôm Nay</span>
-          <span id="metric-processed-today" class="metric-value">0</span>
-          <div id="metric-processed-today-sub" class="tomorrow-sub"></div>
-        </div>
-        <div class="metric-icon-bg bg-purple">
-          <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-          </svg>
-        </div>
-        <div class="metric-footer">
-          <span id="metric-processed-diff" class="metric-trend text-purple">Hôm qua: --</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Lịch Hẹn Ngày Mai - Banner ngang -->
-    <div id="tomorrow-banner-card" class="tomorrow-banner">
-      <div class="tomorrow-icon">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-7-2h2v-4h-3v2h1zm0-6h2V9h-2z"/>
-        </svg>
-      </div>
-      <div class="tomorrow-info">
-        <span class="tomorrow-label">Lịch Hẹn Ngày Mai</span>
-        <span id="metric-interview-tomorrow-date" class="tomorrow-date">Đang tải...</span>
-        <div id="metric-interview-tomorrow-sub" class="tomorrow-sub"></div>
-      </div>
-      <div class="tomorrow-count">
-        <span id="metric-interview-tomorrow" class="tomorrow-value">0</span>
-        <span class="tomorrow-unit">lượt</span>
-      </div>
+    <!-- Main Dashboard Selection Tabs -->
+    <div class="main-dashboard-tabs" style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap;">
+      <button class="main-tab-btn active" data-section="sale">📊 Báo cáo Sale</button>
+      <button class="main-tab-btn" data-section="marketing">📢 Báo cáo Marketing (Khóa)</button>
+      <button class="main-tab-btn" data-section="finance">💰 Báo cáo Tài chính (Khóa)</button>
     </div>
 
-
-    <!-- Tab Navigation -->
-    <nav class="tab-navigation">
-      <button class="tab-btn active" data-tab="overview">Tổng Quan</button>
-      <button class="tab-btn" data-tab="analysis">Phân Tích Chi Tiết</button>
-      <button class="tab-btn" data-tab="history">Lịch Sử Ngày</button>
-    </nav>
-
-    <!-- Tab Content -->
-    <main class="tab-content">
-      <!-- Tab 1: Overview -->
-        <!-- Daily Summary (Today/Selected Day) -->
-        <div class="card-glass summary-stats-day" style="margin-bottom: 16px;">
-          <div class="card-header">
-            <h3 id="daily-charts-heading">Phân tích nguồn data theo ngày</h3>
+    <!-- SECTION 1: SALE REPORT (Original Dashboard) -->
+    <div id="section-sale" class="main-section active">
+      <!-- Header -->
+      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="logo-dot glow-emerald"></div>
+            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Kinh Doanh</h1>
           </div>
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Data Mới</span>
-              <canvas id="canvas-day-new" width="100" height="100"></canvas>
-              <div id="legend-day-new" class="pie-legend"></div>
+          <!-- Factory Navigation Tabs directly under title -->
+          <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
+            <button class="factory-tab-btn active" data-factory="All" style="font-size: 11px; padding: 4px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; color: #10b981; cursor: pointer; font-weight: bold; transition: all 0.2s; outline: none;">Tất cả nhà máy</button>
+            <button class="factory-tab-btn" data-factory="Pegatron" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Pegatron</button>
+            <button class="factory-tab-btn" data-factory="Brother" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Brother</button>
+            <button class="factory-tab-btn" data-factory="LG" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">LG</button>
+            <button class="factory-tab-btn" data-factory="Usi" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Usi</button>
+            <button class="factory-tab-btn" data-factory="Fox QN" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Fox QN</button>
+          </div>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <!-- Factory Selector Dropdown -->
+          <select id="dashboard-factory-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="All">Tất cả nhà máy</option>
+            <option value="Pegatron">Pegatron</option>
+            <option value="Brother">Brother</option>
+            <option value="LG">LG</option>
+            <option value="Usi">Usi</option>
+            <option value="Fox QN">Fox QN</option>
+          </select>
+          <select id="dashboard-view-mode" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="day">Theo ngày</option>
+            <option value="week">Theo tuần</option>
+            <option value="month">Theo tháng</option>
+            <option value="custom">Tùy chỉnh</option>
+          </select>
+          <div class="date-spinner-container" style="display: flex; gap: 4px; align-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
+            <button id="date-prev-btn" class="spinner-btn" title="Kỳ trước (Quá khứ)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">◀</button>
+            
+            <!-- Hidden real select to maintain backward compatibility -->
+            <select id="dashboard-date-select" style="display: none;"></select>
+            
+            <!-- Custom Dropdown -->
+            <div class="custom-dropdown" style="position: relative; display: inline-block;">
+              <div id="custom-dropdown-trigger" style="font-size: 12px; padding: 4px 8px; min-width: 160px; background: transparent; border: none; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
+                <span id="custom-dropdown-label">Đang tải...</span>
+                <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="custom-dropdown-arrow">▼</span>
+              </div>
+              <div id="custom-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 180px; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 4px 0;">
+                <!-- Dynamic options -->
+              </div>
             </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Lịch Hẹn</span>
-              <canvas id="canvas-day-interview" width="100" height="100"></canvas>
-              <div id="legend-day-interview" class="pie-legend"></div>
+            
+            <button id="date-next-btn" class="spinner-btn" title="Kỳ sau (Tương lai)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">▶</button>
+          </div>
+          <div id="custom-date-container" style="display: none; gap: 8px; align-items: center;">
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="custom-start-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
             </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-day-hire" width="100" height="100"></canvas>
-              <div id="legend-day-hire" class="pie-legend"></div>
+            <span style="font-size:11px;color:var(--text-muted)">đến</span>
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="custom-end-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
             </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-day-processed" width="100" height="100"></canvas>
-              <div id="legend-day-processed" class="pie-legend"></div>
-            </div>
+          </div>
+          <span id="sync-status" class="sync-status text-muted">Đang cập nhật...</span>
+          <button id="refresh-btn" class="refresh-btn" title="Làm mới">
+            <svg class="icon-refresh" viewBox="0 0 24 24" width="16" height="16">
+              <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 12c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Metrics Grid (Today) -->
+      <section class="metrics-grid">
+        <div class="metric-card cyan-glow">
+          <div class="metric-info">
+            <span class="metric-label">Data Mới Hôm Nay</span>
+            <span id="metric-new-today" class="metric-value">0</span>
+            <div id="metric-new-today-sub" class="tomorrow-sub"></div>
+          </div>
+          <div class="metric-icon-bg bg-cyan">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+          </div>
+          <div class="metric-footer">
+            <span id="metric-new-diff" class="metric-trend text-cyan">Hôm qua: --</span>
           </div>
         </div>
 
-        <!-- Daily Recruiter Summary (Today/Selected Day) -->
-        <div class="card-glass summary-stats-day-recruiter" style="margin-bottom: 16px;">
-          <div class="card-header">
-            <h3 id="daily-recruiter-charts-heading">Phân tích nhân sự theo ngày</h3>
+        <div class="metric-card amber-glow">
+          <div class="metric-info">
+            <span class="metric-label">Lịch Hẹn Hôm Nay</span>
+            <span id="metric-interview-today" class="metric-value">0</span>
+            <div id="metric-interview-today-sub" class="tomorrow-sub"></div>
           </div>
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Data Mới</span>
-              <canvas id="canvas-day-recruiter-new" width="100" height="100"></canvas>
-              <div id="legend-day-recruiter-new" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Lịch Hẹn</span>
-              <canvas id="canvas-day-recruiter-interview" width="100" height="100"></canvas>
-              <div id="legend-day-recruiter-interview" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-day-recruiter-hire" width="100" height="100"></canvas>
-              <div id="legend-day-recruiter-hire" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-day-recruiter-processed" width="100" height="100"></canvas>
-              <div id="legend-day-recruiter-processed" class="pie-legend"></div>
-            </div>
+          <div class="metric-icon-bg bg-amber">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/>
+            </svg>
+          </div>
+          <div class="metric-footer">
+            <span id="metric-interview-diff" class="metric-trend text-amber">Hôm qua: --</span>
           </div>
         </div>
 
-        <!-- Báo Cáo Công Việc Chi Tiết Hàng Ngày của Nhân Viên Chăm Sóc -->
-        <div class="card-glass" style="margin-bottom: 16px;">
-          <div class="card-header">
-            <h3 id="recruiter-report-heading">Báo cáo công việc nhân viên</h3>
-            <select id="recruiter-report-date" class="date-select" style="font-size:11px;padding:4px 8px;max-width:140px">
-              <!-- Dynamically populated -->
-            </select>
+        <div class="metric-card emerald-glow">
+          <div class="metric-info">
+            <span class="metric-label">Nhận Việc Hôm Nay</span>
+            <span id="metric-hire-today" class="metric-value">0</span>
+            <div id="metric-hire-today-sub" class="tomorrow-sub"></div>
           </div>
-          <div style="overflow-y:auto;max-height:220px">
-            <table class="history-table" style="font-size:11px">
-              <thead>
-                <tr>
-                  <th>Nhân sự</th>
-                  <th class="text-cyan text-center">Mới nhập</th>
-                  <th class="text-purple text-center">Đã xử lý</th>
-                  <th class="text-amber text-center">Hẹn PV</th>
-                  <th class="text-muted text-center">Chăm sóc lại</th>
-                  <th class="text-emerald text-center">N.Việc</th>
-                </tr>
-              </thead>
-              <tbody id="recruiter-report-body">
-                <tr><td colspan="6" class="text-center text-muted" style="padding:12px">Đang tải...</td></tr>
-              </tbody>
-            </table>
+          <div class="metric-icon-bg bg-emerald">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+            </svg>
+          </div>
+          <div class="metric-footer">
+            <span id="metric-hire-diff" class="metric-trend text-emerald">Hôm qua: --</span>
           </div>
         </div>
 
-        <!-- Data Chăm Sóc Theo Người Chăm Sóc -->
-        <div class="card-glass" style="margin-bottom: 16px;">
-          <div class="card-header">
-            <h3 id="recruiter-care-heading">Data chăm sóc theo người chăm sóc</h3>
-            <select id="recruiter-care-date" class="date-select" style="font-size:11px;padding:4px 8px;max-width:140px">
-              <!-- Dynamically populated -->
-            </select>
+        <div class="metric-card purple-glow">
+          <div class="metric-info">
+            <span class="metric-label">Đã Xử Lý Hôm Nay</span>
+            <span id="metric-processed-today" class="metric-value">0</span>
+            <div id="metric-processed-today-sub" class="tomorrow-sub"></div>
           </div>
-          <div style="overflow-y:auto;max-height:175px">
-            <table class="history-table" style="font-size:12px">
-              <thead>
-                <tr>
-                  <th>Người chăm sóc</th>
-                  <th class="text-purple text-center">Data</th>
-                  <th>Tỷ lệ</th>
-                </tr>
-              </thead>
-              <tbody id="recruiter-care-body">
-                <tr><td colspan="3" class="text-center text-muted" style="padding:12px">Đang tải...</td></tr>
-              </tbody>
-            </table>
+          <div class="metric-icon-bg bg-purple">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
           </div>
-        </div>
-
-
-        <!-- Weekly Summary -->
-        <div class="card-glass summary-stats">
-          <div class="card-header">
-            <h3>Tổng số tuần này</h3>
-          </div>
-          <div class="summary-grid">
-            <div class="sum-item">
-              <span class="sum-val text-cyan" id="sum-new">0</span>
-              <span class="sum-lbl">Mới đăng ký</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-amber" id="sum-interview">0</span>
-              <span class="sum-lbl">Hẹn phỏng vấn</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-emerald" id="sum-hire">0</span>
-              <span class="sum-lbl">Nhận việc</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-purple" id="sum-processed">0</span>
-              <span class="sum-lbl">Đã xử lý</span>
-            </div>
-          </div>
-          <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 16px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nguồn Data</h4>
-          <!-- Biểu đồ hình tròn cho tuần (Nguồn) -->
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Mới Đăng Ký</span>
-              <canvas id="canvas-week-new" width="100" height="100"></canvas>
-              <div id="legend-week-new" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
-              <canvas id="canvas-week-interview" width="100" height="100"></canvas>
-              <div id="legend-week-interview" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-week-hire" width="100" height="100"></canvas>
-              <div id="legend-week-hire" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-week-processed" width="100" height="100"></canvas>
-              <div id="legend-week-processed" class="pie-legend"></div>
-            </div>
-          </div>
-
-          <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 24px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nhân Sự</h4>
-          <!-- Biểu đồ hình tròn cho tuần (Nhân Sự) -->
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Mới Đăng Ký</span>
-              <canvas id="canvas-week-recruiter-new" width="100" height="100"></canvas>
-              <div id="legend-week-recruiter-new" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
-              <canvas id="canvas-week-recruiter-interview" width="100" height="100"></canvas>
-              <div id="legend-week-recruiter-interview" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-week-recruiter-hire" width="100" height="100"></canvas>
-              <div id="legend-week-recruiter-hire" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-week-recruiter-processed" width="100" height="100"></canvas>
-              <div id="legend-week-recruiter-processed" class="pie-legend"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Monthly Summary -->
-        <div class="card-glass summary-stats-month" style="margin-top: 16px;">
-          <div class="card-header">
-            <h3 id="month-summary-title">Tổng số tháng này</h3>
-          </div>
-          <div class="summary-grid">
-            <div class="sum-item">
-              <span class="sum-val text-cyan" id="sum-month-new">0</span>
-              <span class="sum-lbl">Mới đăng ký</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-amber" id="sum-month-interview">0</span>
-              <span class="sum-lbl">Hẹn phỏng vấn</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-emerald" id="sum-month-hire">0</span>
-              <span class="sum-lbl">Nhận việc</span>
-            </div>
-            <div class="sum-item">
-              <span class="sum-val text-purple" id="sum-month-processed">0</span>
-              <span class="sum-lbl">Đã xử lý</span>
-            </div>
-          </div>
-          <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 16px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nguồn Data</h4>
-          <!-- Biểu đồ hình tròn cho tháng (Nguồn) -->
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Mới Đăng Ký</span>
-              <canvas id="canvas-month-new" width="100" height="100"></canvas>
-              <div id="legend-month-new" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
-              <canvas id="canvas-month-interview" width="100" height="100"></canvas>
-              <div id="legend-month-interview" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-month-hire" width="100" height="100"></canvas>
-              <div id="legend-month-hire" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-month-processed" width="100" height="100"></canvas>
-              <div id="legend-month-processed" class="pie-legend"></div>
-            </div>
-          </div>
-
-          <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 24px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nhân Sự</h4>
-          <!-- Biểu đồ hình tròn cho tháng (Nhân Sự) -->
-          <div class="pie-charts-container">
-            <div class="pie-chart-box">
-              <span class="pie-title text-cyan">Mới Đăng Ký</span>
-              <canvas id="canvas-month-recruiter-new" width="100" height="100"></canvas>
-              <div id="legend-month-recruiter-new" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
-              <canvas id="canvas-month-recruiter-interview" width="100" height="100"></canvas>
-              <div id="legend-month-recruiter-interview" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-emerald">Nhận Việc</span>
-              <canvas id="canvas-month-recruiter-hire" width="100" height="100"></canvas>
-              <div id="legend-month-recruiter-hire" class="pie-legend"></div>
-            </div>
-            <div class="pie-chart-box">
-              <span class="pie-title text-purple">Đã Xử Lý</span>
-              <canvas id="canvas-month-recruiter-processed" width="100" height="100"></canvas>
-              <div id="legend-month-recruiter-processed" class="pie-legend"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 7-day Mini Bar Chart -->
-        <div class="card-glass chart-container" style="margin-top: 16px;">
-          <div class="card-header">
-            <h3 id="chart-title">Xu hướng tuần này</h3>
-            <div class="chart-legend">
-              <span class="legend-item"><span class="legend-color bg-cyan"></span>Mới</span>
-              <span class="legend-item"><span class="legend-color bg-amber"></span>Hẹn PV</span>
-              <span class="legend-item"><span class="legend-color bg-emerald"></span>Nhận việc</span>
-              <span class="legend-item"><span class="legend-color bg-purple"></span>Đã xử lý</span>
-            </div>
-          </div>
-          <div class="bar-chart" id="recent-bar-chart">
-            <!-- Dynamically populated by JS -->
-            <div class="chart-empty text-muted">Đang tải biểu đồ...</div>
+          <div class="metric-footer">
+            <span id="metric-processed-diff" class="metric-trend text-purple">Hôm qua: --</span>
           </div>
         </div>
       </section>
 
+      <!-- Lịch Hẹn Ngày Mai - Banner ngang -->
+      <div id="tomorrow-banner-card" class="tomorrow-banner">
+        <div class="tomorrow-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-7-2h2v-4h-3v2h1zm0-6h2V9h-2z"/>
+          </svg>
+        </div>
+        <div class="tomorrow-info">
+          <span class="tomorrow-label">Lịch Hẹn Ngày Mai</span>
+          <span id="metric-interview-tomorrow-date" class="tomorrow-date">Đang tải...</span>
+          <div id="metric-interview-tomorrow-sub" class="tomorrow-sub"></div>
+        </div>
+        <div class="tomorrow-count">
+          <span id="metric-interview-tomorrow" class="tomorrow-value">0</span>
+          <span class="tomorrow-unit">lượt</span>
+        </div>
+      </div>
 
-      <!-- Tab 2: Analysis -->
-      <section id="tab-analysis" class="tab-panel">
-        <div class="filter-bar" style="display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; align-items: center; width: 100%; gap: 10px;">
-            <label for="analysis-date" style="min-width: 80px;">Chọn Ngày:</label>
-            <select id="analysis-date" class="date-select">
-              <!-- Dynamically populated -->
-            </select>
+      <!-- Tab Navigation -->
+      <nav class="tab-navigation">
+        <button class="tab-btn active" data-tab="overview">Tổng Quan</button>
+        <button class="tab-btn" data-tab="analysis">Phân Tích Chi Tiết</button>
+        <button class="tab-btn" data-tab="history">Lịch Sử Ngày</button>
+      </nav>
+
+      <!-- Tab Content -->
+      <main class="tab-content">
+        <!-- Tab 1: Overview -->
+        <section id="tab-overview" class="tab-panel active">
+          <!-- Daily Summary (Today/Selected Day) -->
+          <div class="card-glass summary-stats-day" style="margin-bottom: 16px;">
+            <div class="card-header">
+              <h3 id="daily-charts-heading">Phân tích nguồn data theo ngày</h3>
+            </div>
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Data Mới</span>
+                <canvas id="canvas-day-new" width="100" height="100"></canvas>
+                <div id="legend-day-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Lịch Hẹn</span>
+                <canvas id="canvas-day-interview" width="100" height="100"></canvas>
+                <div id="legend-day-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-day-hire" width="100" height="100"></canvas>
+                <div id="legend-day-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-day-processed" width="100" height="100"></canvas>
+                <div id="legend-day-processed" class="pie-legend"></div>
+              </div>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; width: 100%; gap: 10px;">
-            <label for="analysis-group-by" style="min-width: 80px;">Nhóm theo:</label>
-            <select id="analysis-group-by" class="date-select">
-              <option value="reg">Ngày đăng ký mới (Dấu thời gian)</option>
-              <option value="care" selected>Ngày chăm sóc cuối (Đang xử lý)</option>
-            </select>
+
+          <!-- Daily Recruiter Summary (Today/Selected Day) -->
+          <div class="card-glass summary-stats-day-recruiter" style="margin-bottom: 16px;">
+            <div class="card-header">
+              <h3 id="daily-recruiter-charts-heading">Phân tích nhân sự theo ngày</h3>
+            </div>
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Data Mới</span>
+                <canvas id="canvas-day-recruiter-new" width="100" height="100"></canvas>
+                <div id="legend-day-recruiter-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Lịch Hẹn</span>
+                <canvas id="canvas-day-recruiter-interview" width="100" height="100"></canvas>
+                <div id="legend-day-recruiter-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-day-recruiter-hire" width="100" height="100"></canvas>
+                <div id="legend-day-recruiter-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-day-recruiter-processed" width="100" height="100"></canvas>
+                <div id="legend-day-recruiter-processed" class="pie-legend"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Báo Cáo Công Việc Chi Tiết Hàng Ngày của Nhân Viên Chăm Sóc -->
+          <div class="card-glass" style="margin-bottom: 16px;">
+            <div class="card-header">
+              <h3 id="recruiter-report-heading">Báo cáo công việc nhân viên</h3>
+              <select id="recruiter-report-date" class="date-select" style="font-size:11px;padding:4px 8px;max-width:140px">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div style="overflow-y:auto;max-height:220px">
+              <table class="history-table" style="font-size:11px">
+                <thead>
+                  <tr>
+                    <th>Nhân sự</th>
+                    <th class="text-cyan text-center">Mới nhập</th>
+                    <th class="text-purple text-center">Đã xử lý</th>
+                    <th class="text-amber text-center">Hẹn PV</th>
+                    <th class="text-muted text-center">Chăm sóc lại</th>
+                    <th class="text-emerald text-center">N.Việc</th>
+                  </tr>
+                </thead>
+                <tbody id="recruiter-report-body">
+                  <tr><td colspan="6" class="text-center text-muted" style="padding:12px">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Data Chăm Sóc Theo Người Chăm Sóc -->
+          <div class="card-glass" style="margin-bottom: 16px;">
+            <div class="card-header">
+              <h3 id="recruiter-care-heading">Data chăm sóc theo người chăm sóc</h3>
+              <select id="recruiter-care-date" class="date-select" style="font-size:11px;padding:4px 8px;max-width:140px">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div style="overflow-y:auto;max-height:175px">
+              <table class="history-table" style="font-size:12px">
+                <thead>
+                  <tr>
+                    <th>Người chăm sóc</th>
+                    <th class="text-purple text-center">Data</th>
+                    <th>Tỷ lệ</th>
+                  </tr>
+                </thead>
+                <tbody id="recruiter-care-body">
+                  <tr><td colspan="3" class="text-center text-muted" style="padding:12px">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Weekly Summary -->
+          <div class="card-glass summary-stats">
+            <div class="card-header">
+              <h3>Tổng số tuần này</h3>
+            </div>
+            <div class="summary-grid">
+              <div class="sum-item">
+                <span class="sum-val text-cyan" id="sum-new">0</span>
+                <span class="sum-lbl">Mới đăng ký</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-amber" id="sum-interview">0</span>
+                <span class="sum-lbl">Hẹn phỏng vấn</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-emerald" id="sum-hire">0</span>
+                <span class="sum-lbl">Nhận việc</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-purple" id="sum-processed">0</span>
+                <span class="sum-lbl">Đã xử lý</span>
+              </div>
+            </div>
+            <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 16px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nguồn Data</h4>
+            <!-- Biểu đồ hình tròn cho tuần (Nguồn) -->
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Mới Đăng Ký</span>
+                <canvas id="canvas-week-new" width="100" height="100"></canvas>
+                <div id="legend-week-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
+                <canvas id="canvas-week-interview" width="100" height="100"></canvas>
+                <div id="legend-week-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-week-hire" width="100" height="100"></canvas>
+                <div id="legend-week-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-week-processed" width="100" height="100"></canvas>
+                <div id="legend-week-processed" class="pie-legend"></div>
+              </div>
+            </div>
+
+            <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 24px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nhân Sự</h4>
+            <!-- Biểu đồ hình tròn cho tuần (Nhân Sự) -->
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Mới Đăng Ký</span>
+                <canvas id="canvas-week-recruiter-new" width="100" height="100"></canvas>
+                <div id="legend-week-recruiter-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
+                <canvas id="canvas-week-recruiter-interview" width="100" height="100"></canvas>
+                <div id="legend-week-recruiter-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-week-recruiter-hire" width="100" height="100"></canvas>
+                <div id="legend-week-recruiter-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-week-recruiter-processed" width="100" height="100"></canvas>
+                <div id="legend-week-recruiter-processed" class="pie-legend"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Summary -->
+          <div class="card-glass summary-stats-month" style="margin-top: 16px;">
+            <div class="card-header">
+              <h3 id="month-summary-title">Tổng số tháng này</h3>
+            </div>
+            <div class="summary-grid">
+              <div class="sum-item">
+                <span class="sum-val text-cyan" id="sum-month-new">0</span>
+                <span class="sum-lbl">Mới đăng ký</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-amber" id="sum-month-interview">0</span>
+                <span class="sum-lbl">Hẹn phỏng vấn</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-emerald" id="sum-month-hire">0</span>
+                <span class="sum-lbl">Nhận việc</span>
+              </div>
+              <div class="sum-item">
+                <span class="sum-val text-purple" id="sum-month-processed">0</span>
+                <span class="sum-lbl">Đã xử lý</span>
+              </div>
+            </div>
+            <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 16px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nguồn Data</h4>
+            <!-- Biểu đồ hình tròn cho tháng (Nguồn) -->
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Mới Đăng Ký</span>
+                <canvas id="canvas-month-new" width="100" height="100"></canvas>
+                <div id="legend-month-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
+                <canvas id="canvas-month-interview" width="100" height="100"></canvas>
+                <div id="legend-month-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-month-hire" width="100" height="100"></canvas>
+                <div id="legend-month-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-month-processed" width="100" height="100"></canvas>
+                <div id="legend-month-processed" class="pie-legend"></div>
+              </div>
+            </div>
+
+            <h4 style="font-size:10px; text-transform:uppercase; color:var(--text-muted); margin: 24px 0 8px 0; letter-spacing:0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom:4px;">Theo Nhân Sự</h4>
+            <!-- Biểu đồ hình tròn cho tháng (Nhân Sự) -->
+            <div class="pie-charts-container">
+              <div class="pie-chart-box">
+                <span class="pie-title text-cyan">Mới Đăng Ký</span>
+                <canvas id="canvas-month-recruiter-new" width="100" height="100"></canvas>
+                <div id="legend-month-recruiter-new" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-amber">Hẹn Phỏng Vấn</span>
+                <canvas id="canvas-month-recruiter-interview" width="100" height="100"></canvas>
+                <div id="legend-month-recruiter-interview" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-emerald">Nhận Việc</span>
+                <canvas id="canvas-month-recruiter-hire" width="100" height="100"></canvas>
+                <div id="legend-month-recruiter-hire" class="pie-legend"></div>
+              </div>
+              <div class="pie-chart-box">
+                <span class="pie-title text-purple">Đã Xử Lý</span>
+                <canvas id="canvas-month-recruiter-processed" width="100" height="100"></canvas>
+                <div id="legend-month-recruiter-processed" class="pie-legend"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7-day Mini Bar Chart -->
+          <div class="card-glass chart-container" style="margin-top: 16px;">
+            <div class="card-header">
+              <h3 id="chart-title">Xu hướng tuần này</h3>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-color bg-cyan"></span>Mới</span>
+                <span class="legend-item"><span class="legend-color bg-amber"></span>Hẹn PV</span>
+                <span class="legend-item"><span class="legend-color bg-emerald"></span>Nhận việc</span>
+                <span class="legend-item"><span class="legend-color bg-purple"></span>Đã xử lý</span>
+              </div>
+            </div>
+            <div class="bar-chart" id="recent-bar-chart">
+              <!-- Dynamically populated by JS -->
+              <div class="chart-empty text-muted">Đang tải biểu đồ...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Analysis -->
+        <section id="tab-analysis" class="tab-panel">
+          <div class="filter-bar" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; width: 100%; gap: 10px;">
+              <label for="analysis-date" style="min-width: 80px;">Chọn Ngày:</label>
+              <select id="analysis-date" class="date-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; width: 100%; gap: 10px;">
+              <label for="analysis-group-by" style="min-width: 80px;">Nhóm theo:</label>
+              <select id="analysis-group-by" class="date-select">
+                <option value="reg">Ngày đăng ký mới (Dấu thời gian)</option>
+                <option value="care" selected>Ngày chăm sóc cuối (Đang xử lý)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="analysis-sections">
+            <!-- Source distribution -->
+            <div class="card-glass dist-card">
+              <div class="card-header">
+                <h3>Phân phối theo Nguồn data</h3>
+              </div>
+              <div class="dist-list" id="source-dist-list">
+                <div class="text-muted">Đang phân tích nguồn...</div>
+              </div>
+            </div>
+
+            <!-- Recruiter distribution -->
+            <div class="card-glass dist-card">
+              <div class="card-header">
+                <h3>Phân phối theo Người chăm sóc</h3>
+              </div>
+              <div class="dist-list" id="recruiter-dist-list">
+                <div class="text-muted">Đang phân tích người chăm sóc...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 3: History -->
+        <section id="tab-history" class="tab-panel">
+          <div class="filter-bar history-search-bar">
+            <input type="text" id="history-search" class="search-input" placeholder="Tìm kiếm theo ngày (VD: 17/06)...">
+          </div>
+          <div class="card-glass history-table-wrapper">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th class="text-cyan">Mới</th>
+                  <th class="text-amber">Hẹn PV</th>
+                  <th class="text-emerald">N.Việc</th>
+                  <th class="text-purple">Đã xử lý</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <tr>
+                  <td colspan="5" class="text-center text-muted">Đang tải lịch sử...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="app-footer">
+        <p>Pegatron HR Automation &bull; Phiên bản 1.0.0</p>
+        <span id="auto-refresh-countdown" class="text-muted">Tự động làm mới trong 05:00</span>
+      </footer>
+    </div>
+
+    <!-- SECTION 2: MARKETING REPORT -->
+    <div id="section-marketing" class="main-section" style="display: none;">
+      <!-- Header -->
+      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="logo-dot glow-emerald" style="background-color: var(--cyan); box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.8);"></div>
+            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Marketing</h1>
           </div>
         </div>
+        <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="mkt-campaign-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="0">Tổng ADS Long</option>
+            <option value="3">PGT (Pegatron)</option>
+            <option value="6">Brother</option>
+            <option value="9">Foxconn</option>
+            <option value="12">Wistron</option>
+            <option value="15">ADS Đại Lý Huyền</option>
+            <option value="18">ADS Agent A</option>
+          </select>
+          <button id="mkt-refresh-btn" class="refresh-btn" title="Làm mới">
+            <svg class="icon-refresh" viewBox="0 0 24 24" width="16" height="16">
+              <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 12c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
 
-
-        <div class="analysis-sections">
-          <!-- Source distribution -->
-          <div class="card-glass dist-card">
-            <div class="card-header">
-              <h3>Phân phối theo Nguồn data</h3>
-            </div>
-            <div class="dist-list" id="source-dist-list">
-              <div class="text-muted">Đang phân tích nguồn...</div>
-            </div>
+      <!-- Metrics Grid -->
+      <section class="metrics-grid" style="margin-bottom: 20px;">
+        <div class="metric-card cyan-glow" style="min-height: 110px;">
+          <div class="metric-info">
+            <span class="metric-label">Tổng Chi Phí (Spent)</span>
+            <span id="mkt-metric-spent" class="metric-value">0 đ</span>
           </div>
-
-          <!-- Recruiter distribution -->
-          <div class="card-glass dist-card">
-            <div class="card-header">
-              <h3>Phân phối theo Người chăm sóc</h3>
-            </div>
-            <div class="dist-list" id="recruiter-dist-list">
-              <div class="text-muted">Đang phân tích người chăm sóc...</div>
-            </div>
+          <div class="metric-icon-bg bg-cyan">💰</div>
+        </div>
+        <div class="metric-card amber-glow" style="min-height: 110px;">
+          <div class="metric-info">
+            <span class="metric-label">Tổng Lead</span>
+            <span id="mkt-metric-leads" class="metric-value">0</span>
           </div>
+          <div class="metric-icon-bg bg-amber">📈</div>
+        </div>
+        <div class="metric-card emerald-glow" style="min-height: 110px;">
+          <div class="metric-info">
+            <span class="metric-label">Chi phí / Lead (CPL)</span>
+            <span id="mkt-metric-cpl" class="metric-value">0 đ</span>
+          </div>
+          <div class="metric-icon-bg bg-emerald">🎯</div>
+        </div>
+        <div class="metric-card purple-glow" style="min-height: 110px;">
+          <div class="metric-info">
+            <span class="metric-label">Số người nhận việc</span>
+            <span id="mkt-metric-hires" class="metric-value">0</span>
+          </div>
+          <div class="metric-icon-bg bg-purple">👥</div>
         </div>
       </section>
 
-      <!-- Tab 3: History -->
-      <section id="tab-history" class="tab-panel">
-        <div class="filter-bar history-search-bar">
-          <input type="text" id="history-search" class="search-input" placeholder="Tìm kiếm theo ngày (VD: 17/06)...">
+      <!-- Chart Canvas Container -->
+      <div class="card-glass" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h3>Biểu đồ Xu Hướng Chi Phí &amp; Leads</h3>
         </div>
-        <div class="card-glass history-table-wrapper">
+        <div style="height: 250px; position: relative;">
+          <canvas id="mkt-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Detailed Data Table -->
+      <div class="card-glass">
+        <div class="card-header">
+          <h3>Chi Tiết Báo Cáo Ngày</h3>
+        </div>
+        <div style="overflow-y: auto; max-height: 300px;">
           <table class="history-table">
             <thead>
               <tr>
                 <th>Ngày</th>
-                <th class="text-cyan">Mới</th>
-                <th class="text-amber">Hẹn PV</th>
-                <th class="text-emerald">N.Việc</th>
-                <th class="text-purple">Đã xử lý</th>
+                <th style="text-align: right;">Chi Phí (Spent)</th>
+                <th style="text-align: right;">Số Lead</th>
+                <th style="text-align: right;">CPL</th>
+                <th style="text-align: right;">Số điện thoại</th>
+                <th style="text-align: right;">Số CCCD</th>
+                <th style="text-align: right;">Nhận việc</th>
+                <th style="text-align: right;">CPO</th>
               </tr>
             </thead>
-            <tbody id="history-table-body">
+            <tbody id="mkt-table-body">
               <tr>
-                <td colspan="5" class="text-center text-muted">Đang tải lịch sử...</td>
+                <td colspan="8" class="text-center text-muted">Không có dữ liệu</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
 
-    <!-- Footer -->
-    <footer class="app-footer">
-      <p>Pegatron HR Automation &bull; Phiên bản 1.0.0</p>
-      <span id="auto-refresh-countdown" class="text-muted">Tự động làm mới trong 05:00</span>
-    </footer>
+    <!-- SECTION 3: FINANCE REPORT -->
+    <div id="section-finance" class="main-section" style="display: none;">
+      <!-- Header -->
+      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="logo-dot glow-emerald" style="background-color: var(--amber); box-shadow: 0 0 10px rgba(var(--amber-rgb), 0.8);"></div>
+            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--amber) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Tài Chính</h1>
+          </div>
+        </div>
+        <!-- Finance Navigation Tabs -->
+        <div class="factory-nav-tabs" style="display: flex; gap: 4px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
+          <button class="finance-tab-btn active" data-tab="overview" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">📊 Tổng quan</button>
+          <button class="finance-tab-btn" data-tab="candidates" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">👥 Danh sách nhận việc</button>
+          <button class="finance-tab-btn" data-tab="pricing" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">💲 Đơn giá &amp; Chi phí</button>
+          <button class="finance-tab-btn" data-tab="reconcile" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">🔍 Đối soát Bảng công/kê</button>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button class="sync-btn" id="fin-sync-btn" title="Đồng bộ Google Sheets" style="font-size:11px; padding: 6px 12px; border-radius:6px; cursor:pointer;">
+            <span id="fin-sync-time-lbl" style="font-weight:500;">Chưa đồng bộ</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Finance Content Panels -->
+      <!-- Tab 1: Overview -->
+      <div id="fin-tab-overview" class="finance-tab-content active">
+        <!-- Controls row -->
+        <div class="controls-row" style="margin-bottom: 1.5rem; justify-content: space-between; align-items: center; display: flex; flex-wrap: wrap; gap: 10px;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary);">Báo cáo Kết quả Kinh doanh</h2>
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="checkbox" id="fin-enable-custom-range" style="cursor: pointer;">
+              <label for="fin-enable-custom-range" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; cursor: pointer;">Lọc theo khoảng:</label>
+            </div>
+            
+            <div id="fin-single-filter-wrapper" style="display: flex; gap: 0.5rem; align-items: center;">
+              <label for="fin-stats-month-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Chọn tháng:</label>
+              <select id="fin-stats-month-filter" class="search-input" style="width: 160px; padding: 0.4rem 0.8rem;">
+                <option value="latest" selected>Tháng gần nhất</option>
+              </select>
+            </div>
+            
+            <div id="fin-range-filter-wrapper" style="display: none; gap: 0.5rem; align-items: center;">
+              <label for="fin-stats-start-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Từ:</label>
+              <select id="fin-stats-start-filter" class="search-input" style="width: 140px; padding: 0.4rem 0.8rem;"></select>
+              
+              <label for="fin-stats-end-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Đến:</label>
+              <select id="fin-stats-end-filter" class="search-input" style="width: 140px; padding: 0.4rem 0.8rem;"></select>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Stats Grid -->
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card" style="min-height: 110px;">
+            <div class="stat-label">Doanh thu tạm tính (Tháng hiện tại)</div>
+            <div class="stat-value" id="fin-stat-revenue">0 đ</div>
+            <div class="stat-desc" id="fin-stat-desc-1">--</div>
+          </div>
+          <div class="stat-card" style="min-height: 110px;">
+            <div class="stat-label">Tổng chi phí vận hành</div>
+            <div class="stat-value" id="fin-stat-cost">0 đ</div>
+            <div class="stat-desc" id="fin-stat-desc-2">--</div>
+          </div>
+          <div class="stat-card" style="min-height: 110px;">
+            <div class="stat-label">Lợi nhuận ròng (PnL)</div>
+            <div class="stat-value" id="fin-stat-pnl">0 đ</div>
+            <div class="stat-desc" id="fin-stat-desc-3">--</div>
+          </div>
+          <div class="stat-card" style="min-height: 110px;">
+            <div class="stat-label">Dự báo Doanh thu (Tháng tới)</div>
+            <div class="stat-value" id="fin-stat-forecast">0 đ</div>
+            <div class="stat-desc" id="fin-stat-desc-4">--</div>
+          </div>
+        </div>
+
+        <!-- Charts Container -->
+        <div class="charts-container" style="margin-bottom: 20px;">
+          <div class="chart-card">
+            <div class="card-header">
+              <h3 class="card-title">Xu hướng Lợi nhuận P&amp;L theo tháng</h3>
+            </div>
+            <div style="height: 250px; position: relative;">
+              <canvas id="fin-pnl-chart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="card-header">
+              <h3 class="card-title">Dự báo chi tiết (Tháng tới)</h3>
+            </div>
+            <div style="font-size: 0.85rem; line-height: 1.6;">
+              <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Ước tính doanh thu dựa trên số ngày làm việc dự kiến của các ứng viên đang hoạt động bước sang tháng kế tiếp.
+              </p>
+              <div id="fin-forecast-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <p style="color: var(--text-secondary);">Chưa có dữ liệu dự báo</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Candidates -->
+      <div id="fin-tab-candidates" class="finance-tab-content" style="display: none;">
+        <div class="controls-row" style="margin-bottom: 15px;">
+          <input type="text" class="search-input" id="fin-search-candidates" placeholder="Tìm kiếm tên, SĐT, CCCD, nhà máy..." style="width: 320px;">
+          <div style="font-size: 0.85rem; color: var(--text-secondary);" id="fin-sync-status-lbl">
+            Đồng bộ lần cuối: Chưa rõ
+          </div>
+        </div>
+        <div class="controls-row" style="margin-bottom: 1.5rem; justify-content: flex-start; gap: 0.75rem; display: flex;">
+          <button class="btn btn-secondary fin-month-filter-btn active" data-month="all">Tất cả</button>
+          <button class="btn btn-secondary fin-month-filter-btn" data-month="3">Tháng 3</button>
+          <button class="btn btn-secondary fin-month-filter-btn" data-month="4">Tháng 4</button>
+          <button class="btn btn-secondary fin-month-filter-btn" data-month="5">Tháng 5</button>
+          <button class="btn btn-secondary fin-month-filter-btn" data-month="6">Tháng 6</button>
+          <button class="btn btn-secondary fin-month-filter-btn" data-month="7">Tháng 7</button>
+        </div>
+
+        <div class="data-table-container">
+          <table id="fin-candidates-table">
+            <thead>
+              <tr>
+                <th>Mã NV</th>
+                <th>Họ và tên</th>
+                <th>Nhà máy</th>
+                <th>Số điện thoại</th>
+                <th>Số CCCD</th>
+                <th>Ngày nhận việc</th>
+                <th>Ngày kết thúc</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="fin-candidates-body">
+              <tr><td colspan="8" class="text-center text-muted">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Pricing & Cost -->
+      <div id="fin-tab-pricing" class="finance-tab-content" style="display: none;">
+        <div style="display: grid; grid-template-columns: 55% 1fr; gap: 1.5rem; align-items: start;">
+          <!-- Section 1: Factory Pricing -->
+          <div class="chart-card" style="min-width:0; padding: 1.25rem;">
+            <h3 class="card-title" style="margin-bottom: 1rem;">Cấu hình Đơn giá Nhà máy theo Thời kỳ</h3>
+            <form id="fin-pricing-form">
+              <input type="hidden" id="fin-price-id">
+              <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                <div class="form-group">
+                  <label for="fin-price-factory">Tên Nhà máy</label>
+                  <select id="fin-price-factory" required>
+                    <option value="PGT">Pegatron (PGT)</option>
+                    <option value="Usi">Usi</option>
+                    <option value="Wistron">Wistron (WIS)</option>
+                    <option value="Brother HD">Brother HD</option>
+                    <option value="Goertek BN">Goertek BN</option>
+                    <option value="Foxconn QN">Foxconn QN (Fox QN)</option>
+                    <option value="Goertek NA">Goertek NA</option>
+                    <option value="Sev">Sev</option>
+                    <option value="Canon">Canon (CN)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="fin-price-value">Đơn giá (đ / Đơn vị)</label>
+                  <input type="number" id="fin-price-value" placeholder="VD: 9500" required>
+                </div>
+                <div class="form-group">
+                  <label for="fin-price-unit">Đơn vị tính</label>
+                  <select id="fin-price-unit" required>
+                    <option value="Ngày" selected>Ngày (Công)</option>
+                    <option value="Giờ làm">Giờ làm</option>
+                    <option value="Tháng">Tháng</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="fin-price-start">Từ ngày</label>
+                  <input type="date" id="fin-price-start" required>
+                </div>
+                <div class="form-group">
+                  <label for="fin-price-end">Đến ngày</label>
+                  <input type="date" id="fin-price-end" required>
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" id="fin-pricing-reset-btn">Hủy</button>
+                <button type="submit" class="btn">Lưu cấu hình</button>
+              </div>
+            </form>
+
+            <div class="data-table-container" style="margin-top: 1rem; max-height: 220px; overflow-y: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nhà máy</th>
+                    <th>Đơn giá</th>
+                    <th>Đơn vị tính</th>
+                    <th>Khoảng thời gian hiệu lực</th>
+                    <th style="text-align: right;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="fin-pricing-body">
+                  <tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 2: Operating Expenses -->
+          <div class="chart-card" style="min-width:0; padding: 1.25rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
+              <h3 class="card-title" style="margin-bottom:0;">Chi phí Vận hành hàng tháng</h3>
+              <!-- Mode toggle tabs -->
+              <div style="display:flex; gap:0.35rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:0.5rem; padding:0.2rem;">
+                <button type="button" id="fin-exp-tab-manual" style="font-size:0.75rem; font-weight:600; padding:0.3rem 0.7rem; border-radius:0.35rem; border:none; cursor:pointer; background:var(--accent-blue, #3b82f6); color:#fff; transition:all 0.2s;">
+                  ✏️ Thủ công
+                </button>
+                <button type="button" id="fin-exp-tab-sheet" style="font-size:0.75rem; font-weight:600; padding:0.3rem 0.7rem; border-radius:0.35rem; border:none; cursor:pointer; background:transparent; color:var(--text-secondary); transition:all 0.2s;">
+                  🔗 Google Sheet
+                </button>
+              </div>
+            </div>
+
+            <!-- Mode 1: Manual -->
+            <div id="fin-exp-panel-manual">
+              <input type="hidden" id="fin-exp-edit-id" value="">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+                <div class="form-group">
+                  <label for="fin-exp-month">📅 Tháng chi phí</label>
+                  <input type="month" id="fin-exp-month" required>
+                </div>
+                <div class="form-group">
+                  <label for="fin-exp-ads">📢 Quảng cáo (Ads FB)</label>
+                  <input type="text" id="fin-exp-ads" value="0" placeholder="0 đ">
+                </div>
+                <div class="form-group">
+                  <label for="fin-exp-salary">👥 Lương Nhân Sự</label>
+                  <input type="text" id="fin-exp-salary" value="0" placeholder="0 đ">
+                </div>
+                <div class="form-group">
+                  <label for="fin-exp-phone">📞 Điện thoại</label>
+                  <input type="text" id="fin-exp-phone" value="0" placeholder="0 đ">
+                </div>
+                <div class="form-group">
+                  <label for="fin-exp-office">🏢 Thuê Văn Phòng</label>
+                  <input type="text" id="fin-exp-office" value="0" placeholder="0 đ">
+                </div>
+                <div class="form-group">
+                  <label for="fin-exp-other">🍽️ Tiếp khách &amp; Khác</label>
+                  <input type="text" id="fin-exp-other" value="0" placeholder="0 đ">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:0.5rem;">
+                <label for="fin-exp-note">📝 Ghi chú</label>
+                <input type="text" id="fin-exp-note" placeholder="VD: Lương tháng đủ, ads giảm do nghỉ lễ...">
+              </div>
+              <!-- Live total preview -->
+              <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.15); border-radius:0.5rem; padding:0.5rem 0.85rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:500;">Tổng chi phí tháng</span>
+                <span id="fin-exp-total-preview" style="font-weight:700; font-size:1rem; color:var(--accent-rose, #f43f5e);">0 đ</span>
+              </div>
+              <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button type="button" class="btn btn-secondary" id="fin-expense-reset-btn" style="font-size:0.82rem; padding:0.45rem 0.9rem;">Hủy</button>
+                <button type="button" class="btn" id="fin-expense-save-btn" style="font-size:0.82rem; padding:0.45rem 0.9rem;">💾 Lưu chi phí</button>
+              </div>
+            </div>
+
+            <!-- Mode 2: Google Sheet -->
+            <div id="fin-exp-panel-sheet" style="display:none;">
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="fin-exp-sheet-month">📅 Tháng chi phí</label>
+                <input type="month" id="fin-exp-sheet-month">
+              </div>
+              <div class="form-group" style="margin-bottom:0.6rem;">
+                <label for="fin-exp-sheet-url">🔗 Link Google Sheet chi phí</label>
+                <input type="url" id="fin-exp-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+              </div>
+              <div style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:0.5rem; padding:0.6rem 0.85rem; margin-bottom:0.6rem; font-size:0.78rem; color:var(--accent-gold, #f59e0b);">
+                💡 Sheet cần có các cột: <strong>Loại chi phí</strong> và <strong>Số tiền</strong>. Hệ thống sẽ tự khớp theo tên danh mục.
+              </div>
+              <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button type="button" class="btn" id="fin-expense-sync-sheet-btn" style="font-size:0.82rem; padding:0.45rem 0.9rem;">🔄 Đồng bộ từ Sheet</button>
+              </div>
+            </div>
+
+            <!-- Expense Table -->
+            <div class="data-table-container" style="margin-top:0.85rem; max-height:200px; overflow-y:auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tháng</th>
+                    <th>Ads FB</th>
+                    <th>Lương NS</th>
+                    <th>ĐT</th>
+                    <th>VP</th>
+                    <th>Khác</th>
+                    <th style="color:var(--accent-rose, #f43f5e);">Tổng</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="fin-expenses-body">
+                  <tr><td colspan="8" class="text-center text-muted">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Reconcile -->
+      <div id="fin-tab-reconcile" class="finance-tab-content" style="display: none;">
+        <div class="chart-card" style="margin-bottom: 1.5rem;">
+          <h3 class="card-title" style="margin-bottom: 1.5rem;">Đối soát Bảng công / Bảng kê từ nhà máy</h3>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="fin-recon-type">Loại file tải lên</label>
+              <select id="fin-recon-type">
+                <option value="timesheet">Bảng công (Tính doanh thu tạm tính &amp; Khớp thừa thiếu)</option>
+                <option value="invoice">Bảng kê quyết toán (Khớp doanh thu chốt thanh toán)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fin-recon-factory">Nhà máy đối chiếu</label>
+              <select id="fin-recon-factory">
+                <option value="PGT">Pegatron (PGT)</option>
+                <option value="Usi">Usi</option>
+                <option value="Wistron">Wistron (WIS)</option>
+                <option value="Brother HD">Brother HD</option>
+                <option value="Goertek BN">Goertek BN</option>
+                <option value="Foxconn QN">Foxconn QN (Fox QN)</option>
+                <option value="Goertek NA">Goertek NA</option>
+                <option value="Sev">Sev</option>
+                <option value="Canon">Canon (CN)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fin-recon-cycle">Tháng chu kỳ đối soát (25 tháng trước - 25 tháng này)</label>
+              <select id="fin-recon-cycle" class="search-input" style="width: 100%; min-width: 0; box-sizing: border-box;">
+              </select>
+            </div>
+          </div>
+
+          <div class="upload-area" id="fin-drop-area">
+            <div class="upload-icon">📂</div>
+            <p style="font-weight: 500; margin-bottom: 0.25rem;">Kéo thả file Excel (.xlsx) hoặc CSV vào đây</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary);">Hoặc nhấn để chọn file từ máy tính</p>
+            <input type="file" id="fin-file-input" style="display: none;" accept=".xlsx,.csv">
+            <p id="fin-selected-file-lbl" style="margin-top: 1rem; font-weight: bold; color: var(--success-color, #10b981); display: none;"></p>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="btn" id="fin-execute-recon-btn">Bắt đầu chạy đối soát</button>
+          </div>
+        </div>
+
+        <!-- Reconciliation Results Panel -->
+        <div class="results-panel" id="fin-results-panel" style="display: none;">
+          <div class="stats-grid">
+            <div class="stat-card" style="background: rgba(255, 255, 255, 0.03); min-height: 110px;">
+              <div class="stat-label">Tổng số dòng xử lý</div>
+              <div class="stat-value" id="fin-res-total">0</div>
+            </div>
+            <div class="stat-card" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); min-height: 110px;">
+              <div class="stat-label">Khớp thành công</div>
+              <div class="stat-value" id="fin-res-matched" style="color: var(--success-color, #10b981);">0</div>
+            </div>
+            <div class="stat-card" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); min-height: 110px;">
+              <div class="stat-label">Thừa (Không có trong Master)</div>
+              <div class="stat-value" id="fin-res-unmatched" style="color: var(--danger-color, #f43f5e);">0</div>
+            </div>
+            <div class="stat-card" style="background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.2); min-height: 110px;">
+              <div class="stat-label">Thiếu (Chưa có trong file gửi)</div>
+              <div class="stat-value" id="fin-res-missing" style="color: var(--warning-color, #f59e0b);">0</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header">
+              <h3 class="card-title">Kết quả tổng hợp doanh thu đối soát</h3>
+              <div class="stat-value" id="fin-res-revenue" style="color: var(--success-color, #10b981); font-size: 1.5rem;">0 đ</div>
+            </div>
+
+            <div class="recon-tabs">
+              <button class="fin-recon-tab-btn active" data-tab="matched">Khớp thành công</button>
+              <button class="fin-recon-tab-btn" data-tab="unmatched">Nhân viên thừa (Cần kiểm tra)</button>
+              <button class="fin-recon-tab-btn" data-tab="missing">Nhân viên thiếu (Chưa tính phí)</button>
+            </div>
+
+            <!-- Tab matched -->
+            <div class="fin-recon-table-panel active" id="fin-recon-tab-matched">
+              <div class="data-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã NV</th>
+                      <th>Họ và tên</th>
+                      <th>Định danh khớp</th>
+                      <th>Ngày nhận việc</th>
+                      <th>Số công / Đơn vị tính</th>
+                      <th>Đơn giá áp dụng</th>
+                      <th>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fin-res-matched-body">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab unmatched (Thừa) -->
+            <div class="fin-recon-table-panel" id="fin-recon-tab-unmatched" style="display: none;">
+              <div class="data-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã NV nhận được</th>
+                      <th>Tên nhận được</th>
+                      <th>Thông tin đối soát</th>
+                      <th>Lý do lỗi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fin-res-unmatched-body">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab missing (Thiếu) -->
+            <div class="fin-recon-table-panel" id="fin-recon-tab-missing" style="display: none;">
+              <div class="data-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã NV</th>
+                      <th>Họ và tên</th>
+                      <th>Số ĐT</th>
+                      <th>Số CCCD</th>
+                      <th>Ngày nhận việc</th>
+                      <th>Hạn tính phí</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fin-res-missing-body">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Modal Gate for Locked Tabs -->
+    <div id="password-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content" style="max-width: 400px; padding: 20px;">
+        <div class="modal-header" style="border-bottom: none; padding: 0 0 10px 0;">
+          <h3 id="password-modal-title">Xác thực quyền truy cập</h3>
+          <button id="close-password-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 10px 0;">
+          <p id="password-prompt-text" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">Vui lòng nhập mã PIN để truy cập báo cáo này.</p>
+          <input type="password" id="password-input" class="search-input" placeholder="Nhập mã PIN..." style="width: 100%; text-align: center; font-size: 18px; letter-spacing: 4px; padding: 10px;" maxLength="6">
+          <div id="password-error" style="color: var(--accent-rose, #f43f5e); font-size: 12px; margin-top: 8px; text-align: center; display: none;">Mã PIN không chính xác!</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+          <button id="password-cancel-btn" class="btn btn-secondary" style="padding: 8px 16px;">Hủy</button>
+          <button id="password-submit-btn" class="btn" style="padding: 8px 16px;">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay for Finance Operations -->
+    <div class="loading-overlay" id="fin-loading" style="display: none;">
+      <div class="spinner"></div>
+      <p style="font-weight: 500; margin-top: 10px;">Đang xử lý dữ liệu...</p>
+    </div>
     <!-- Modal Chi Tiết Ứng Viên -->
     <div id="details-modal" class="modal-overlay">
       <div class="modal-content">
@@ -544,8 +1129,8 @@
                 <tr>
                   <th>Tên ứng viên</th>
                   <th>Nhà máy</th>
-                  <th>Số điện thoại</th>
-                  <th>Số CCCD</th>
+                  <th class="text-left">Số điện thoại</th>
+                  <th class="text-left">Số CCCD</th>
                   <th>Người chăm sóc</th>
                   <th>Trạng thái</th>
                   <th>Thông tin lịch hẹn</th>
