@@ -983,9 +983,9 @@ h1 {
   background: rgba(17, 25, 40, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
+  width: 95%;
+  max-width: 1000px;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
