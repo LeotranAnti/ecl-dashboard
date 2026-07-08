@@ -3388,7 +3388,8 @@ let finStatsData = null;
 let finExpensesData = [];
 
 const finFetch = (path, options = {}) => {
-  const url = IS_CHROME_EXT ? `http://localhost:3001${path}` : path;
+  // Luôn gọi về backend tài chính local chạy ở port 3001 của anh để đọc DB SQLite và đối soát
+  const url = `http://localhost:3001${path}`;
   return fetch(url, options);
 };
 
