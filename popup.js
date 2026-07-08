@@ -3238,13 +3238,14 @@ function renderMarketingDashboard() {
   
   let startIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
-    const cellA = mktRawData[i][0] || "";
-    if (cellA.includes("1/7") || cellA.toLowerCase().includes("báo cáo ngày")) {
+    const cellA = mktRawData[i][0] ? mktRawData[i][0].trim() : "";
+    // Tìm dòng đầu tiên thực sự chứa ngày (ví dụ: '1/7' hoặc '01/07')
+    if (/^\d+\/\d+/.test(cellA)) {
       startIndex = i;
       break;
     }
   }
-  if (startIndex === -1) startIndex = 17; // Fallback
+  if (startIndex === -1) startIndex = 8; // Fallback mặc định là dòng index 8 (dòng thứ 9)
   
   const blocks = [];
   for (let i = startIndex; i < mktRawData.length; i += 13) {
