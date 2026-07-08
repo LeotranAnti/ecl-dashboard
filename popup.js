@@ -186,6 +186,16 @@ function cleanSource(src) {
   return src;
 }
 
+// Clean and parse numbers for Marketing calculation
+function cleanNumber(str) {
+  if (str === undefined || str === null) return 0;
+  let s = String(str).trim();
+  s = s.replace(/[đĐ\s]/g, ""); // Xóa ký tự đ và khoảng trắng
+  s = s.replace(/\./g, "");     // Xóa dấu chấm phân tách phần nghìn
+  s = s.replace(/,/g, "");      // Xóa dấu phẩy
+  return parseFloat(s) || 0;
+}
+
 // Format date for UI: YYYY-MM-DD -> DD/MM/YYYY
 function formatUIDate(dateStr) {
   if (!dateStr) return "";
