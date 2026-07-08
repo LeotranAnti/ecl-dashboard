@@ -1,9 +1,3 @@
 {
-  "cleanUrls": true,
-  "crons": [
-    {
-      "path": "/api/sort-brother?token=ecl-brother-sort-2026",
-      "schedule": "* * * * *"
-    }
-  ]
+  "cleanUrls": true
 }
