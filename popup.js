@@ -3426,9 +3426,7 @@ let finStatsData = null;
 let finExpensesData = [];
 
 const finFetch = (path, options = {}) => {
-  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  const url = isLocal ? `http://localhost:3001${path}` : path;
-  return fetch(url, options);
+  return fetch(path, options);
 };
 
 function initFinanceDashboard() {
@@ -3549,12 +3547,22 @@ function initFinanceDashboard() {
   const monthStr = now.toISOString().slice(0, 7);
   if (document.getElementById('fin-exp-month')) document.getElementById('fin-exp-month').value = monthStr;
   
-  // Tạm khóa các lệnh gọi API ngầm tới port 3001 để tránh lỗi Failed to Fetch khi port này đang đóng.
-  // Khi anh bàn giao xong link Google Sheet tài chính, em sẽ kích hoạt lại độc lập 100% online.
-  // loadFinCandidates();
-  // loadFinPricingList();
-  // loadFinExpensesList();
-  // loadFinStats();
+  const lastSyncTime = localStorage.getItem('fin_last_sync_time');
+  if (lastSyncTime) {
+    document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTime}`;
+    try {
+      const parts = lastSyncTime.split(' ');
+      const timePart = parts.find(p => p.includes(':'));
+      if (timePart) {
+        document.getElementById('fin-sync-time-lbl').innerText = timePart.substring(0, 5);
+      }
+    } catch(e) {}
+  }
+
+  loadFinCandidates();
+  loadFinPricingList();
+  loadFinExpensesList();
+  loadFinStats();
   initFinReconCycleDropdown();
 }
 
@@ -3565,17 +3573,25 @@ function showFinLoading(show) {
 
 function loadFinCandidates() {
   showFinLoading(true);
-  finFetch('/api/candidates')
-    .then(r => r.json())
-    .then(data => {
-      finCandidatesData = data;
-      renderFinCandidates(data);
-      showFinLoading(false);
-    })
-    .catch(err => {
-      console.error("Lỗi tải danh sách nhận việc:", err);
-      showFinLoading(false);
-    });
+  const cached = localStorage.getItem('fin_candidates');
+  if (cached) {
+    finCandidatesData = JSON.parse(cached);
+    renderFinCandidates(finCandidatesData);
+    showFinLoading(false);
+  } else {
+    finFetch('/api/finance')
+      .then(r => r.json())
+      .then(data => {
+        finCandidatesData = data;
+        localStorage.setItem('fin_candidates', JSON.stringify(data));
+        renderFinCandidates(data);
+        showFinLoading(false);
+      })
+      .catch(err => {
+        console.error("Lỗi tải danh sách nhận việc:", err);
+        showFinLoading(false);
+      });
+  }
 }
 
 function renderFinCandidates(list) {
@@ -3675,20 +3691,24 @@ function triggerFinSync(silent) {
   const icon = document.querySelector("#fin-sync-btn svg") || document.getElementById("fin-sync-btn");
   if (icon) icon.style.animation = 'spin 0.8s linear infinite';
 
-  finFetch('/api/sync')
+  finFetch('/api/finance')
     .then(r => r.json())
-    .then(res => {
+    .then(data => {
       if (icon) icon.style.animation = '';
-      if (res.status === 'success') {
+      if (Array.isArray(data)) {
+        finCandidatesData = data;
+        localStorage.setItem('fin_candidates', JSON.stringify(data));
         const now = new Date();
         const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        const lastSyncTimeStr = now.toLocaleString('vi-VN');
+        localStorage.setItem('fin_last_sync_time', lastSyncTimeStr);
         document.getElementById('fin-sync-time-lbl').innerText = timeStr;
-        document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${res.time}`;
-        loadFinCandidates();
+        document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTimeStr}`;
+        renderFinCandidates(data);
         loadFinStats();
-        if (!silent) alert(`✓ Đã đồng bộ ${res.count} ứng viên lúc ${timeStr}`);
+        if (!silent) alert(`✓ Đã đồng bộ ${data.length} ứng viên lúc ${timeStr}`);
       } else {
-        if (!silent) alert('⚠ Đồng bộ thất bại: ' + res.message);
+        if (!silent) alert('⚠ Đồng bộ thất bại: Dữ liệu không hợp lệ');
       }
     })
     .catch(err => {
@@ -3697,28 +3717,74 @@ function triggerFinSync(silent) {
     });
 }
 
-function loadFinPricingList() {
-  finFetch('/api/pricing')
-    .then(r => r.json())
-    .then(prices => {
-      const body = document.getElementById('fin-pricing-body');
-      if (!body) return;
-      body.innerHTML = '';
-      prices.forEach(p => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${p.factory}</strong></td>
-          <td>${formatVND(p.price)}</td>
-          <td><span class="badge ${p.unit === 'Giờ làm' ? 'badge-info' : p.unit === 'Tháng' ? 'badge-warning' : 'badge-success'}">${p.unit || 'Ngày'}</span></td>
-          <td>Từ ${formatFinDate(p.start_date)} đến ${formatFinDate(p.end_date)}</td>
-          <td style="text-align: right;">
-            <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="editFinPricing(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
-            <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteFinPricing(${p.id})">Xóa</button>
-          </td>
-        `;
-        body.appendChild(tr);
-      });
+function getLocalPricing() {
+  const data = localStorage.getItem('fin_pricing');
+  if (!data) {
+    const defaultPricing = [
+      { id: 1, factory: 'PGT', price: 9500, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' },
+      { id: 2, factory: 'Wistron', price: 18000, unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+      { id: 3, factory: 'Brother HD', price: 72000, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' },
+      { id: 4, factory: 'Goertek NA', price: 8000, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' }
+    ];
+    localStorage.setItem('fin_pricing', JSON.stringify(defaultPricing));
+    return defaultPricing;
+  }
+  return JSON.parse(data);
+}
+
+function saveLocalPricing(item) {
+  const list = getLocalPricing();
+  if (item.id) {
+    const idx = list.findIndex(p => p.id === parseInt(item.id));
+    if (idx !== -1) {
+      list[idx] = {
+        id: parseInt(item.id),
+        factory: item.factory,
+        price: parseFloat(item.price) || 0,
+        unit: item.unit,
+        start_date: item.start_date,
+        end_date: item.end_date
+      };
+    }
+  } else {
+    const nextId = list.length > 0 ? Math.max(...list.map(p => p.id)) + 1 : 1;
+    list.push({
+      id: nextId,
+      factory: item.factory,
+      price: parseFloat(item.price) || 0,
+      unit: item.unit,
+      start_date: item.start_date,
+      end_date: item.end_date
     });
+  }
+  localStorage.setItem('fin_pricing', JSON.stringify(list));
+}
+
+function deleteLocalPricing(id) {
+  let list = getLocalPricing();
+  list = list.filter(p => p.id !== parseInt(id));
+  localStorage.setItem('fin_pricing', JSON.stringify(list));
+}
+
+function loadFinPricingList() {
+  const prices = getLocalPricing();
+  const body = document.getElementById('fin-pricing-body');
+  if (!body) return;
+  body.innerHTML = '';
+  prices.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${p.factory}</strong></td>
+      <td>${formatVND(p.price)}</td>
+      <td><span class="badge ${p.unit === 'Giờ làm' ? 'badge-info' : p.unit === 'Tháng' ? 'badge-warning' : 'badge-success'}">${p.unit || 'Ngày'}</span></td>
+      <td>Từ ${formatFinDate(p.start_date)} đến ${formatFinDate(p.end_date)}</td>
+      <td style="text-align: right;">
+        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="editFinPricing(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
+        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteFinPricing(${p.id})">Xóa</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
 }
 
 window.editFinPricing = function(p) {
@@ -3733,12 +3799,9 @@ window.editFinPricing = function(p) {
 
 window.deleteFinPricing = function(id) {
   if (confirm("Bạn có chắc chắn muốn xóa đơn giá này?")) {
-    finFetch(`/api/pricing/delete?id=${id}`)
-      .then(r => r.json())
-      .then(res => {
-        loadFinPricingList();
-        loadFinStats();
-      });
+    deleteLocalPricing(id);
+    loadFinPricingList();
+    loadFinStats();
   }
 };
 
@@ -3751,21 +3814,10 @@ function saveFinPricing(e) {
   const start_date = document.getElementById('fin-price-start').value;
   const end_date = document.getElementById('fin-price-end').value;
 
-  finFetch('/api/pricing/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: id ? parseInt(id) : null, factory, price, unit, start_date, end_date })
-  })
-  .then(r => r.json())
-  .then(res => {
-    if (res.status === 'success') {
-      resetFinPricingForm();
-      loadFinPricingList();
-      loadFinStats();
-    } else {
-      alert("Lỗi lưu đơn giá");
-    }
-  });
+  saveLocalPricing({ id: id ? parseInt(id) : null, factory, price, unit, start_date, end_date });
+  resetFinPricingForm();
+  loadFinPricingList();
+  loadFinStats();
 }
 
 function resetFinPricingForm() {
@@ -3825,37 +3877,65 @@ function resetFinExpenseForm() {
   calcFinExpenseTotal();
 }
 
+function getLocalExpenses() {
+  const data = localStorage.getItem('fin_expenses');
+  if (!data) return [];
+  return JSON.parse(data);
+}
+
+function saveLocalExpense(item) {
+  const list = getLocalExpenses();
+  const month = item.month;
+  const idx = list.findIndex(e => e.month === month);
+  
+  const expenseRecord = {
+    id: idx !== -1 ? list[idx].id : (list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1),
+    month: item.month,
+    ads_cost: parseFloat(item.ads_cost) || 0,
+    salary_cost: parseFloat(item.salary_cost) || 0,
+    phone_cost: parseFloat(item.phone_cost) || 0,
+    office_cost: parseFloat(item.office_cost) || 0,
+    other_cost: parseFloat(item.other_cost) || 0,
+    note: item.note || "",
+    sheet_url: item.sheet_url || null
+  };
+
+  if (idx !== -1) {
+    list[idx] = expenseRecord;
+  } else {
+    list.push(expenseRecord);
+  }
+  localStorage.setItem('fin_expenses', JSON.stringify(list));
+}
+
 function loadFinExpensesList() {
-  finFetch('/api/expenses')
-    .then(r => r.json())
-    .then(data => {
-      finExpensesData = data;
-      const body = document.getElementById('fin-expenses-body');
-      if (!body) return;
-      body.innerHTML = '';
-      if (!data.length) {
-        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:1rem;">Chưa có dữ liệu chi phí</td></tr>';
-        return;
-      }
-      data.forEach(e => {
-        const total = (e.ads_cost||0) + (e.salary_cost||0) + (e.phone_cost||0) + (e.office_cost||0) + (e.other_cost||0);
-        const tr = document.createElement('tr');
-        const fv = v => v > 0 ? `<span style="color:#fff">${formatVND(v)}</span>` : '<span style="color:var(--text-muted)">-</span>';
-        tr.innerHTML = `
-          <td><strong style="color:var(--accent-cyan)">${e.month}</strong></td>
-          <td>${fv(e.ads_cost)}</td>
-          <td>${fv(e.salary_cost)}</td>
-          <td>${fv(e.phone_cost)}</td>
-          <td>${fv(e.office_cost)}</td>
-          <td>${fv(e.other_cost)}</td>
-          <td><strong style="color:var(--accent-rose)">${formatVND(total)}</strong></td>
-          <td>
-            <button class="btn btn-secondary" onclick="editFinExpense(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="padding:0.2rem 0.5rem; font-size:0.75rem;">✏️</button>
-          </td>
-        `;
-        body.appendChild(tr);
-      });
-    });
+  const data = getLocalExpenses();
+  finExpensesData = data;
+  const body = document.getElementById('fin-expenses-body');
+  if (!body) return;
+  body.innerHTML = '';
+  if (!data.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:1rem;">Chưa có dữ liệu chi phí</td></tr>';
+    return;
+  }
+  data.forEach(e => {
+    const total = (e.ads_cost||0) + (e.salary_cost||0) + (e.phone_cost||0) + (e.office_cost||0) + (e.other_cost||0);
+    const tr = document.createElement('tr');
+    const fv = v => v > 0 ? `<span style="color:#fff">${formatVND(v)}</span>` : '<span style="color:var(--text-muted)">-</span>';
+    tr.innerHTML = `
+      <td><strong style="color:var(--accent-cyan)">${e.month}</strong></td>
+      <td>${fv(e.ads_cost)}</td>
+      <td>${fv(e.salary_cost)}</td>
+      <td>${fv(e.phone_cost)}</td>
+      <td>${fv(e.office_cost)}</td>
+      <td>${fv(e.other_cost)}</td>
+      <td><strong style="color:var(--accent-rose)">${formatVND(total)}</strong></td>
+      <td>
+        <button class="btn btn-secondary" onclick="editFinExpense(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="padding:0.2rem 0.5rem; font-size:0.75rem;">✏️</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
 }
 
 window.editFinExpense = function(e) {
@@ -3910,23 +3990,11 @@ function saveFinExpense() {
     note: document.getElementById('fin-exp-note').value,
     sheet_url: null
   };
-  finFetch('/api/expenses/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-  .then(r => r.json())
-  .then(res => {
-    if (res.status === 'success') {
-      loadFinExpensesList();
-      loadFinStats();
-      resetFinExpenseForm();
-      alert('✓ Đã lưu chi phí tháng ' + month);
-    } else {
-      alert('⚠ Lỗi lưu: ' + (res.error || 'Unknown'));
-    }
-  })
-  .catch(() => alert('⚠ Lỗi kết nối server'));
+  saveLocalExpense(payload);
+  loadFinExpensesList();
+  loadFinStats();
+  resetFinExpenseForm();
+  alert('✓ Đã lưu chi phí tháng ' + month);
 }
 
 function syncFinExpenseSheet() {
@@ -3934,22 +4002,72 @@ function syncFinExpenseSheet() {
   const month = document.getElementById('fin-exp-sheet-month').value;
   if (!url || !month) { alert('⚠ Vui lòng nhập link và chọn tháng'); return; }
   const csvUrl = url.replace(/\/edit.*$/, '/export?format=csv');
-  finFetch(`/api/expenses/sync-sheet`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, sheet_url: csvUrl })
-  })
-  .then(r => r.json())
-  .then(res => {
-    if (res.status === 'success') {
+  
+  showFinLoading(true);
+  fetch(csvUrl)
+    .then(r => r.text())
+    .then(csvText => {
+      showFinLoading(false);
+      const parsedRows = parseCSV(csvText);
+      if (parsedRows.length <= 1) {
+        alert("⚠ CSV trống hoặc không hợp lệ");
+        return;
+      }
+      const headers = parsedRows[0].map(h => h.trim().toLowerCase());
+      
+      let ads = 0, salary = 0, phone = 0, office = 0, other = 0;
+      let noteParts = [];
+
+      const catIdx = headers.findIndex(h => h.includes("loại") || h.includes("danh mục") || h.includes("category"));
+      const valIdx = headers.findIndex(h => h.includes("số tiền") || h.includes("chi phí") || h.includes("amount") || h.includes("giá trị"));
+      const descIdx = headers.findIndex(h => h.includes("nội dung") || h.includes("ghi chú") || h.includes("note") || h.includes("description"));
+
+      for (let i = 1; i < parsedRows.length; i++) {
+        const row = parsedRows[i];
+        if (row.length <= 1) continue;
+
+        if (catIdx !== -1 && valIdx !== -1) {
+          const category = (row[catIdx] || "").toLowerCase();
+          const rawValStr = row[valIdx] || "0";
+          const val = parseFloat(rawValStr.replace(/[^\d\.]/g, "")) || 0;
+          const desc = row[descIdx] || "";
+
+          if (category.includes("ads") || category.includes("quảng cáo") || category.includes("mkt") || category.includes("marketing")) {
+            ads += val;
+          } else if (category.includes("lương") || category.includes("salary") || category.includes("ctv")) {
+            salary += val;
+          } else if (category.includes("điện thoại") || category.includes("cước") || category.includes("phone")) {
+            phone += val;
+          } else if (category.includes("văn phòng") || category.includes("thuê") || category.includes("office")) {
+            office += val;
+          } else {
+            other += val;
+          }
+          if (desc) {
+            noteParts.push(`${category}: ${desc}`);
+          }
+        }
+      }
+
+      const note = noteParts.join("; ").substring(0, 200);
+      saveLocalExpense({
+        month,
+        ads_cost: ads,
+        salary_cost: salary,
+        phone_cost: phone,
+        office_cost: office,
+        other_cost: other,
+        note,
+        sheet_url: csvUrl
+      });
       loadFinExpensesList();
       loadFinStats();
       alert('✓ Đồng bộ chi phí từ Sheet thành công!');
-    } else {
-      alert('⚠ ' + (res.message || 'Lỗi đồng bộ'));
-    }
-  })
-  .catch(() => alert('⚠ Lỗi kết nối'));
+    })
+    .catch(err => {
+      showFinLoading(false);
+      alert('⚠ Lỗi kết nối hoặc CORS: ' + err);
+    });
 }
 
 function initFinReconCycleDropdown() {
@@ -4125,66 +4243,206 @@ function displayFinReconciliationResults(res) {
   });
 }
 
-function loadFinStats() {
-  finFetch('/api/stats')
-    .then(r => r.json())
-    .then(data => {
-      finStatsData = data;
-      
-      const filter = document.getElementById('fin-stats-month-filter');
-      const startFilter = document.getElementById('fin-stats-start-filter');
-      const endFilter = document.getElementById('fin-stats-end-filter');
-      
-      if (filter && filter.options.length <= 1) {
-        const startYear = 2026;
-        const startMonth = 2;
-        const today = new Date();
-        const targetLimit = new Date(today.getFullYear(), today.getMonth() + 6, 1);
-        
-        const generatedMonths = [];
-        let loopDate = new Date(startYear, startMonth - 1, 1);
-        
-        while (loopDate <= targetLimit) {
-          const yyyy = loopDate.getFullYear();
-          const mm = String(loopDate.getMonth() + 1).padStart(2, '0');
-          generatedMonths.push(`${yyyy}-${mm}`);
-          loopDate.setMonth(loopDate.getMonth() + 1);
+function getCycleRange(paymentMonthStr) {
+  const parts = paymentMonthStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  
+  let workYear = year;
+  let workMonth = month - 2;
+  if (workMonth <= 0) {
+    workMonth += 12;
+    workYear -= 1;
+  }
+  
+  const cycleEnd = new Date(workYear, workMonth - 1, 25);
+  
+  let startYear = workYear;
+  let startMonth = workMonth - 1;
+  if (startMonth <= 0) {
+    startMonth += 12;
+    startYear -= 1;
+  }
+  const cycleStart = new Date(startYear, startMonth - 1, 26);
+  
+  return { cycleStart, cycleEnd };
+}
+
+function calculateMonthRevenue(paymentMonthStr, candidates) {
+  const { cycleStart, cycleEnd } = getCycleRange(paymentMonthStr);
+  const prices = getLocalPricing();
+  let totalRevenue = 0;
+  const details = [];
+
+  candidates.forEach(c => {
+    if (!c.boarding_date) return;
+    const bDate = new Date(c.boarding_date);
+    const endDate = c.end_date ? new Date(c.end_date) : null;
+    const resignationDate = c.resignation_date ? new Date(c.resignation_date) : null;
+
+    let endLimit = endDate;
+    if (resignationDate) {
+      endLimit = endDate ? new Date(Math.min(endDate, resignationDate)) : resignationDate;
+    }
+    if (!endLimit) return;
+
+    if (endLimit >= cycleStart && bDate <= cycleEnd) {
+      const overlapStart = new Date(Math.max(bDate, cycleStart));
+      const overlapEnd = new Date(Math.min(endLimit, cycleEnd));
+      if (overlapStart > overlapEnd) return;
+
+      const days = Math.round((overlapEnd - overlapStart) / (24 * 60 * 60 * 1000)) + 1;
+
+      const pRule = prices.find(p => {
+        if (p.factory.toUpperCase().trim() !== c.factory.toUpperCase().trim()) return false;
+        const sd = p.start_date ? new Date(p.start_date) : null;
+        const ed = p.end_date ? new Date(p.end_date) : null;
+        if (sd && bDate < sd) return false;
+        if (ed && bDate > ed) return false;
+        return true;
+      });
+
+      const price = pRule ? pRule.price : 0;
+      const unit = pRule ? (pRule.unit || 'Ngày') : 'Ngày';
+
+      const billingLimitDays = (c.factory === 'Canon' || c.factory === 'CN') ? 180 : 90;
+      const tenureStart = Math.round((overlapStart - bDate) / (24 * 60 * 60 * 1000)) + 1;
+
+      let candidateVal = 0;
+
+      if (unit === 'Tháng' && (c.factory === 'Canon' || c.factory === 'CN')) {
+        if (days >= 30) {
+          candidateVal = price;
+        } else if (days >= 14) {
+          candidateVal = 0.5 * price;
         }
-        generatedMonths.reverse();
-        
-        filter.innerHTML = '<option value="latest">Tháng gần nhất</option>';
-        startFilter.innerHTML = '';
-        endFilter.innerHTML = '';
-        
-        generatedMonths.forEach(m => {
-          const labelText = `Tháng ${m.split('-')[1]} / ${m.split('-')[0]}`;
-          
-          const opt = document.createElement('option');
-          opt.value = m;
-          opt.innerText = labelText;
-          filter.appendChild(opt);
-          
-          const optStart = document.createElement('option');
-          optStart.value = m;
-          optStart.innerText = labelText;
-          startFilter.appendChild(optStart);
-          
-          const optEnd = document.createElement('option');
-          optEnd.value = m;
-          optEnd.innerText = labelText;
-          endFilter.appendChild(optEnd);
-        });
-        
-        if (generatedMonths.length >= 6) {
-          startFilter.value = generatedMonths[5];
+        if (candidateVal > 0) {
+          if (tenureStart <= 30) {
+            candidateVal *= 0.75;
+          } else if (tenureStart <= 60) {
+            candidateVal *= 0.85;
+          } else if (tenureStart <= 90) {
+            candidateVal *= 0.90;
+          }
+        }
+      } else {
+        const projectedUnits = (unit === 'Giờ làm') ? (days * 8.0) : (days * 1.0);
+        let isEligible = true;
+        if (unit === 'Giờ làm') {
+          if (projectedUnits < 40.0) isEligible = false;
         } else {
-          startFilter.value = generatedMonths[generatedMonths.length - 1];
+          if (projectedUnits < 5.0) isEligible = false;
         }
-        endFilter.value = generatedMonths[0];
+
+        if (isEligible && tenureStart <= billingLimitDays) {
+          let effectiveValue = 0;
+          for (let d = 0; d < days; d++) {
+            const currentDayTenure = tenureStart + d;
+            if (currentDayTenure > billingLimitDays) break;
+            const dayUnit = (unit === 'Giờ làm') ? 8.0 : 1.0;
+            let dayVal = dayUnit * price;
+            if (currentDayTenure <= 30) {
+              dayVal *= 0.75;
+            } else if (currentDayTenure <= 60) {
+              dayVal *= 0.85;
+            } else if (currentDayTenure <= 90) {
+              dayVal *= 0.90;
+            }
+            effectiveValue += dayVal;
+          }
+          candidateVal = effectiveValue;
+        }
       }
-      
-      updateFinOverviewStats();
+
+      if (candidateVal > 0) {
+        totalRevenue += candidateVal;
+        details.push({
+          name: c.full_name,
+          factory: c.factory,
+          overlap_days: days,
+          price: price,
+          value: candidateVal
+        });
+      }
+    }
+  });
+
+  return { totalRevenue, details };
+}
+
+function loadFinStats() {
+  const startYear = 2026;
+  const startMonth = 2; // February
+  const today = new Date();
+  const targetLimit = new Date(today.getFullYear(), today.getMonth() + 3, 1);
+  
+  const generatedMonths = [];
+  let loopDate = new Date(startYear, startMonth - 1, 1);
+  while (loopDate <= targetLimit) {
+    const yyyy = loopDate.getFullYear();
+    const mm = String(loopDate.getMonth() + 1).padStart(2, '0');
+    generatedMonths.push(`${yyyy}-${mm}`);
+    loopDate.setMonth(loopDate.getMonth() + 1);
+  }
+  generatedMonths.reverse();
+
+  const candidates = finCandidatesData || [];
+  const expenses = getLocalExpenses();
+
+  const monthly_stats = [];
+  generatedMonths.forEach(m => {
+    const { totalRevenue } = calculateMonthRevenue(m, candidates);
+    const expRow = expenses.find(e => e.month === m);
+    const cost = expRow ? ((expRow.ads_cost||0) + (expRow.salary_cost||0) + (expRow.phone_cost||0) + (expRow.office_cost||0) + (expRow.other_cost||0)) : 0;
+    monthly_stats.push({
+      month: m,
+      revenue: totalRevenue,
+      cost: cost,
+      pnl: totalRevenue - cost
     });
+  });
+
+  finStatsData = {
+    monthly_stats: monthly_stats
+  };
+
+  const filter = document.getElementById('fin-stats-month-filter');
+  const startFilter = document.getElementById('fin-stats-start-filter');
+  const endFilter = document.getElementById('fin-stats-end-filter');
+  
+  if (filter && filter.options.length <= 1) {
+    filter.innerHTML = '<option value="latest">Tháng gần nhất</option>';
+    startFilter.innerHTML = '';
+    endFilter.innerHTML = '';
+    
+    generatedMonths.forEach(m => {
+      const labelText = `Tháng ${m.split('-')[1]} / ${m.split('-')[0]}`;
+      
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.innerText = labelText;
+      filter.appendChild(opt);
+      
+      const optStart = document.createElement('option');
+      optStart.value = m;
+      optStart.innerText = labelText;
+      startFilter.appendChild(optStart);
+      
+      const optEnd = document.createElement('option');
+      optEnd.value = m;
+      optEnd.innerText = labelText;
+      endFilter.appendChild(optEnd);
+    });
+    
+    if (generatedMonths.length >= 6) {
+      startFilter.value = generatedMonths[5];
+    } else {
+      startFilter.value = generatedMonths[generatedMonths.length - 1];
+    }
+    endFilter.value = generatedMonths[0];
+  }
+
+  updateFinOverviewStats();
 }
 
 function toggleFinRangeFilter() {
@@ -4208,12 +4466,14 @@ function updateFinOverviewStats() {
   
   let targetStats = [];
   let titleDesc = "";
+  let forecastMonth = "";
   
   if (isRange) {
     targetStats = finStatsData.monthly_stats.filter(s => {
       return s.month >= startFilterVal && s.month <= endFilterVal;
     });
     titleDesc = `Từ ${startFilterVal} đến ${endFilterVal}`;
+    forecastMonth = endFilterVal;
   } else {
     let targetMonth = monthFilterVal;
     if (monthFilterVal === 'latest') {
@@ -4225,6 +4485,7 @@ function updateFinOverviewStats() {
     const stat = finStatsData.monthly_stats.find(s => s.month === targetMonth);
     if (stat) targetStats = [stat];
     titleDesc = `Tháng ${targetMonth?.split('-')[1]} / ${targetMonth?.split('-')[0]}`;
+    forecastMonth = targetMonth;
   }
   
   let totalRevenue = targetStats.reduce((sum, s) => sum + s.revenue, 0);
@@ -4250,37 +4511,32 @@ function updateFinOverviewStats() {
   document.getElementById('fin-stat-desc-2').innerText = titleDesc;
   document.getElementById('fin-stat-desc-3').innerText = titleDesc;
   
-  const targetForecastMonth = isRange ? endFilterVal : (monthFilterVal === 'latest' ? '' : monthFilterVal);
-  const forecastUrl = targetForecastMonth ? `/api/stats?target_month=${targetForecastMonth}` : '/api/stats';
+  const { totalRevenue: forecastRevenue, details: forecastDetails } = calculateMonthRevenue(forecastMonth, finCandidatesData || []);
   
-  finFetch(forecastUrl)
-    .then(r => r.json())
-    .then(resData => {
-      const forecast = resData.forecast;
-      document.getElementById('fin-stat-forecast').innerText = formatVND(forecast.estimated_revenue);
-      document.getElementById('fin-stat-desc-4').innerText = `Dự báo chu kỳ ${forecast.month}`;
-      
-      const forecastList = document.getElementById('fin-forecast-list');
-      if (forecastList) {
-        forecastList.innerHTML = '';
-        if (forecast.details && forecast.details.length > 0) {
-          forecast.details.forEach(item => {
-            const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.style.borderBottom = '1px dashed rgba(255,255,255,0.05)';
-            div.style.paddingBottom = '4px';
-            div.innerHTML = `
-              <span style="font-weight:600;">${item.name} (${item.factory})</span>
-              <span style="color:var(--cyan);">${formatVND(item.value)}</span>
-            `;
-            forecastList.appendChild(div);
-          });
-        } else {
-          forecastList.innerHTML = '<p style="color: var(--text-secondary);">Chưa có dữ liệu dự báo</p>';
-        }
-      }
-    });
+  document.getElementById('fin-stat-forecast').innerText = formatVND(forecastRevenue);
+  document.getElementById('fin-stat-desc-4').innerText = `Dự báo chu kỳ ${forecastMonth}`;
+  
+  const forecastList = document.getElementById('fin-forecast-list');
+  if (forecastList) {
+    forecastList.innerHTML = '';
+    const validDetails = forecastDetails.filter(d => d.value > 0).sort((a,b) => b.value - a.value).slice(0, 10);
+    if (validDetails.length > 0) {
+      validDetails.forEach(item => {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.borderBottom = '1px dashed rgba(255,255,255,0.05)';
+        div.style.paddingBottom = '4px';
+        div.innerHTML = `
+          <span style="font-weight:600;">${item.name} (${item.factory})</span>
+          <span style="color:var(--cyan);">${formatVND(item.value)}</span>
+        `;
+        forecastList.appendChild(div);
+      });
+    } else {
+      forecastList.innerHTML = '<p style="color: var(--text-secondary);">Chưa có dữ liệu dự báo</p>';
+    }
+  }
 
   renderFinPnlChart(finStatsData.monthly_stats);
 }
@@ -4291,7 +4547,6 @@ function renderFinPnlChart(stats) {
   const ctx = canvas.getContext('2d');
   if (finPnlChartObj) finPnlChartObj.destroy();
   
-  // Sort stats chronological ascending (e.g. Feb before March)
   const sortedStats = [...stats].sort((a,b) => a.month.localeCompare(b.month));
   
   const labels = sortedStats.map(s => s.month);
@@ -4357,4 +4612,5 @@ function renderFinPnlChart(stats) {
     }
   });
 }
+
 
