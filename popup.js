@@ -3230,6 +3230,16 @@ async function fetchMarketingData() {
   }
 }
 
+function parseMktDate(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split("/");
+  if (parts.length < 2) return null;
+  const d = parts[0].padStart(2, '0');
+  const m = parts[1].padStart(2, '0');
+  const y = "2026"; // Default year for current datasets
+  return `${y}-${m}-${d}`;
+}
+
 function renderMarketingDashboard() {
   if (!mktRawData || mktRawData.length === 0) return;
   
@@ -3239,13 +3249,12 @@ function renderMarketingDashboard() {
   let startIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
     const cellA = mktRawData[i][0] ? mktRawData[i][0].trim() : "";
-    // Tìm dòng đầu tiên thực sự chứa ngày (ví dụ: '1/7' hoặc '01/07')
     if (/^\d+\/\d+/.test(cellA)) {
       startIndex = i;
       break;
     }
   }
-  if (startIndex === -1) startIndex = 8; // Fallback mặc định là dòng index 8 (dòng thứ 9)
+  if (startIndex === -1) startIndex = 8;
   
   const blocks = [];
   for (let i = startIndex; i < mktRawData.length; i += 13) {
@@ -3253,8 +3262,25 @@ function renderMarketingDashboard() {
     const block = mktRawData.slice(i, i + 13);
     const dateVal = block[0][0] || "";
     if (!dateVal || !dateVal.includes("/")) continue;
-    blocks.push(block);
+    
+    const stdDate = parseMktDate(dateVal);
+    if (stdDate) {
+      blocks.push({
+        date: stdDate,
+        displayDate: dateVal,
+        data: block
+      });
+    }
   }
+
+  // Lọc theo khoảng ngày (startDate -> endDate) nếu được chọn trên UI
+  let filteredBlocks = blocks;
+  if (state.startDate && state.endDate) {
+    filteredBlocks = blocks.filter(b => b.date >= state.startDate && b.date <= state.endDate);
+  }
+
+  // Sắp xếp tăng dần theo thời gian (ví dụ: ngày 13/6 hiển thị trước ngày 01/07) để vẽ biểu đồ đúng
+  filteredBlocks.sort((a, b) => a.date.localeCompare(b.date));
   
   const chartData = {
     labels: [],
@@ -3267,8 +3293,9 @@ function renderMarketingDashboard() {
   let totalHires = 0;
   let tableHTML = "";
   
-  blocks.forEach(block => {
-    const date = block[0][0];
+  filteredBlocks.forEach(item => {
+    const block = item.data;
+    const date = item.displayDate;
     const spentStr = block[0][colIndex + 2] || "";
     const leadsStr = block[1][colIndex + 2] || "";
     const cplStr = block[2][colIndex + 2] || "";
@@ -3312,7 +3339,7 @@ function renderMarketingDashboard() {
   
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
-    tableBody.innerHTML = tableHTML || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu</td></tr>`;
+    tableBody.innerHTML = tableHTML || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
   }
   
   renderMarketingChart(chartData);
