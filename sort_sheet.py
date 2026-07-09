@@ -162,77 +162,36 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
         except Exception as fmt_err:
             print(f"⚠️ Không thể set định dạng TEXT cho cột C/D: {fmt_err}")
 
-        sheet.batch_update(updates)
-
-        
-        # COPY DROPDOWN & FORMAT CHO DÒNG MỚI (Áp dụng cho toàn bộ các dòng dữ liệu để đảm bảo không bị sót)
-        print(f"[{doc_name} -> {ws_name}] Đang khôi phục Dropdown và định dạng cho các dòng mới...")
+        # SỬ DỤNG TRỰC TIẾP LỆNH SORT RANGE CỦA GOOGLE SHEETS API
+        # Lệnh này sẽ di chuyển các dòng dựa trên cột A (Dấu thời gian) giảm dần
+        # Bảo toàn 100% định dạng, màu sắc và Dropbox gốc của anh
+        print(f"[{doc_name} -> {ws_name}] Đang chạy lệnh sắp xếp trực tiếp trên Google Sheets...")
         try:
-            max_rows = len(data_rows) + 1
-            
-            # Tìm dòng có dữ liệu đầy đủ nhất để làm mẫu (ví dụ: dòng có cột H, I, N được điền)
-            best_row_idx = 3  # mặc định chọn dòng 3 (Nguyễn Văn Hoành) có sẵn Dropbox
-            best_count = 0
-            for i, row in enumerate(data_rows, 2):
-                if len(row) > 13:
-                    # Kiểm tra xem dòng có điền đầy đủ các thông tin chăm sóc như Nguồn data, Tình trạng không
-                    filled = sum(1 for c in [row[7], row[8], row[13]] if str(c).strip())
-                    if filled > best_count:
-                        best_count = filled
-                        best_row_idx = i
-                        if best_count == 3: # Đã tìm thấy dòng hoàn hảo
-                            break
-            
-            if best_row_idx > 1 and max_rows > 1:
-                # Target destination rộng ra (đến max_rows + 100) để đảm bảo các dòng trống tiếp theo cũng được áp dụng sẵn Data Validation
-                dest_end_row = max(max_rows + 100, 1000)
-                body = {
-                    "requests": [
-                        {
-                            "copyPaste": {
-                                "source": {
-                                    "sheetId": sheet.id,
-                                    "startRowIndex": best_row_idx - 1,
-                                    "endRowIndex": best_row_idx,
-                                    "startColumnIndex": 1,   # Từ cột B
-                                    "endColumnIndex": header_len
-                                },
-                                "destination": {
-                                    "sheetId": sheet.id,
-                                    "startRowIndex": 1,      # Áp dụng từ dòng 2 (index 1)
-                                    "endRowIndex": dest_end_row,
-                                    "startColumnIndex": 1,
-                                    "endColumnIndex": header_len
-                                },
-                                "pasteType": "PASTE_DATA_VALIDATION",
-                                "pasteOrientation": "NORMAL"
-                            }
-                        },
-                        {
-                            "copyPaste": {
-                                "source": {
-                                    "sheetId": sheet.id,
-                                    "startRowIndex": best_row_idx - 1,
-                                    "endRowIndex": best_row_idx,
-                                    "startColumnIndex": 1,
-                                    "endColumnIndex": header_len
-                                },
-                                "destination": {
-                                    "sheetId": sheet.id,
-                                    "startRowIndex": 1,
-                                    "endRowIndex": dest_end_row,
-                                    "startColumnIndex": 1,
-                                    "endColumnIndex": header_len
-                                },
-                                "pasteType": "PASTE_FORMAT",
-                                "pasteOrientation": "NORMAL"
-                            }
+            sort_request = {
+                "requests": [
+                    {
+                        "sortRange": {
+                            "range": {
+                                "sheetId": sheet.id,
+                                "startRowIndex": 1,          # Bỏ qua tiêu đề (dòng 1), bắt đầu sắp xếp từ dòng 2
+                                "endRowIndex": num_rows,     # Đến dòng cuối cùng
+                                "startColumnIndex": 0,       # Cột A (Dấu thời gian)
+                                "endColumnIndex": header_len # Đến cột cuối cùng của header
+                            },
+                            "sortSpecs": [
+                                {
+                                    "dimensionIndex": 0,     # Sắp xếp theo cột A (index 0)
+                                    "sortOrder": "DESCENDING" # Đẩy thời gian mới nhất lên trên đầu
+                                }
+                            ]
                         }
-                    ]
-                }
-                spreadsheet.batch_update(body)
-        except Exception as format_err:
-            print(f"⚠️ Lỗi copy format/dropdown cho {ws_name}: {format_err}")
+                    }
+                ]
+            }
+            spreadsheet.batch_update(sort_request)
+        except Exception as sort_err:
+            print(f"❌ Không thể thực hiện sortRange trực tiếp: {sort_err}")
+            return False
             
         print(f"✅ Sắp xếp thành công cho [{doc_name} -> {ws_name}]!")
         return True
