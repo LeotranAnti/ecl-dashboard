@@ -67,7 +67,7 @@ def run_brother_fast_poll():
     key = "Brother_Câu trả lời biểu mẫu 1"
     last_rows = 0
 
-    log_message("⚡ [Brother-FastPoll] Khởi động thread quét nhanh (3 giây/lần)...")
+    log_message("⚡ [Brother-FastPoll] Khởi động thread quét nhanh (10 giây/lần)...")
 
     # Khởi tạo mốc dòng
     while True:
@@ -83,7 +83,7 @@ def run_brother_fast_poll():
 
     fail_count = 0
     while True:
-        time.sleep(3)
+        time.sleep(10)
         try:
             client = get_gspread_client()
             ws = client.open_by_key(BROTHER["id"]).worksheet(BROTHER["ws_name"])

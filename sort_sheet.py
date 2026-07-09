@@ -166,23 +166,26 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
 
         
         # COPY DROPDOWN & FORMAT CHO DÒNG MỚI (Áp dụng cho toàn bộ các dòng dữ liệu để đảm bảo không bị sót)
-        # Sử dụng dòng 15 làm mẫu format/dropdown vì đây là dòng luôn có dữ liệu hoàn chỉnh
         print(f"[{doc_name} -> {ws_name}] Đang khôi phục Dropdown và định dạng cho các dòng mới...")
         try:
             max_rows = len(data_rows) + 1
             
-            # Tìm dòng có dữ liệu đầy đủ nhất để làm mẫu (tránh dùng dòng trống)
-            best_row_idx = 15  # fallback mặc định
+            # Tìm dòng có dữ liệu đầy đủ nhất để làm mẫu (ví dụ: dòng có cột H, I, N được điền)
+            best_row_idx = 3  # mặc định chọn dòng 3 (Nguyễn Văn Hoành) có sẵn Dropbox
             best_count = 0
-            for i, row in enumerate(data_rows[:30], 2):  # Kiểm tra 30 dòng đầu
-                filled = sum(1 for c in row if str(c).strip())
-                if filled > best_count:
-                    best_count = filled
-                    best_row_idx = i
+            for i, row in enumerate(data_rows, 2):
+                if len(row) > 13:
+                    # Kiểm tra xem dòng có điền đầy đủ các thông tin chăm sóc như Nguồn data, Tình trạng không
+                    filled = sum(1 for c in [row[7], row[8], row[13]] if str(c).strip())
+                    if filled > best_count:
+                        best_count = filled
+                        best_row_idx = i
+                        if best_count == 3: # Đã tìm thấy dòng hoàn hảo
+                            break
             
             if best_row_idx > 1 and max_rows > 1:
-                # Copy dropdowns and formats only starting from row 2 (startRowIndex=1) up to max_rows.
-                # To avoid APIError 400 when spreadsheet has active filters, we target destination row 2 to max_rows.
+                # Target destination rộng ra (đến max_rows + 100) để đảm bảo các dòng trống tiếp theo cũng được áp dụng sẵn Data Validation
+                dest_end_row = max(max_rows + 100, 1000)
                 body = {
                     "requests": [
                         {
@@ -191,13 +194,13 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
                                     "sheetId": sheet.id,
                                     "startRowIndex": best_row_idx - 1,
                                     "endRowIndex": best_row_idx,
-                                    "startColumnIndex": 1,   # Từ cột B - bao gồm cả cột G (Nguồn data)
+                                    "startColumnIndex": 1,   # Từ cột B
                                     "endColumnIndex": header_len
                                 },
                                 "destination": {
                                     "sheetId": sheet.id,
-                                    "startRowIndex": 1,
-                                    "endRowIndex": max_rows,
+                                    "startRowIndex": 1,      # Áp dụng từ dòng 2 (index 1)
+                                    "endRowIndex": dest_end_row,
                                     "startColumnIndex": 1,
                                     "endColumnIndex": header_len
                                 },
@@ -217,7 +220,7 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
                                 "destination": {
                                     "sheetId": sheet.id,
                                     "startRowIndex": 1,
-                                    "endRowIndex": max_rows,
+                                    "endRowIndex": dest_end_row,
                                     "startColumnIndex": 1,
                                     "endColumnIndex": header_len
                                 },
@@ -229,7 +232,7 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
                 }
                 spreadsheet.batch_update(body)
         except Exception as format_err:
-            print(f"⚠️ Bỏ qua copy format/dropdown cho {ws_name}: {format_err}")
+            print(f"⚠️ Lỗi copy format/dropdown cho {ws_name}: {format_err}")
             
         print(f"✅ Sắp xếp thành công cho [{doc_name} -> {ws_name}]!")
         return True
