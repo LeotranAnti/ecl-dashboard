@@ -4462,19 +4462,13 @@ function getCycleRange(paymentMonthStr) {
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10);
   
-  let workYear = year;
-  let workMonth = month - 2;
-  if (workMonth <= 0) {
-    workMonth += 12;
-    workYear -= 1;
-  }
+  // Chu kỳ của tháng M: từ ngày 26 tháng M-1 đến ngày 25 tháng M
+  const cycleEnd = new Date(year, month - 1, 25);
   
-  const cycleEnd = new Date(workYear, workMonth - 1, 25);
-  
-  let startYear = workYear;
-  let startMonth = workMonth - 1;
-  if (startMonth <= 0) {
-    startMonth += 12;
+  let startYear = year;
+  let startMonth = month - 1;
+  if (startMonth === 0) {
+    startMonth = 12;
     startYear -= 1;
   }
   const cycleStart = new Date(startYear, startMonth - 1, 26);
@@ -4498,11 +4492,13 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
     if (resignationDate) {
       endLimit = endDate ? new Date(Math.min(endDate, resignationDate)) : resignationDate;
     }
-    if (!endLimit) return;
 
-    if (endLimit >= cycleStart && bDate <= cycleEnd) {
+    // Nếu không có ngày kết thúc/nghỉ việc, coi như làm việc vô thời hạn (lấy mốc rất xa trong tương lai)
+    const effectiveEndLimit = endLimit || new Date(2099, 11, 31);
+
+    if (effectiveEndLimit >= cycleStart && bDate <= cycleEnd) {
       const overlapStart = new Date(Math.max(bDate, cycleStart));
-      const overlapEnd = new Date(Math.min(endLimit, cycleEnd));
+      const overlapEnd = new Date(Math.min(effectiveEndLimit, cycleEnd));
       if (overlapStart > overlapEnd) return;
 
       const days = Math.round((overlapEnd - overlapStart) / (24 * 60 * 60 * 1000)) + 1;
