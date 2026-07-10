@@ -4599,8 +4599,14 @@ function loadFinStats() {
       endFilter.appendChild(optEnd);
     });
     
+    const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    
     if (prevVal && [...filter.options].some(o => o.value === prevVal)) {
       filter.value = prevVal;
+    } else if (generatedMonths.includes(currentMonth)) {
+      filter.value = currentMonth;
+    } else {
+      filter.value = "latest";
     }
     
     if (prevStart && [...startFilter.options].some(o => o.value === prevStart)) {
