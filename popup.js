@@ -3686,6 +3686,7 @@ function loadFinCandidates() {
       });
       finCandidatesData = data;
       renderFinCandidates(data);
+      loadFinStats(); // Cập nhật lại thống kê tài chính và các dropdown tháng
       showFinLoading(false);
     })
     .catch(err => {
