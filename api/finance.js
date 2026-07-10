@@ -74,9 +74,16 @@ function normalizeCccd(cccd) {
 
 const https = require("https");
 
-function fetchUrl(url) {
+function fetchUrl(url, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      return reject(new Error("Too many redirects"));
+    }
     https.get(url, (res) => {
+      // Tự động chuyển hướng nếu nhận được mã trạng thái 3xx
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(fetchUrl(res.headers.location, redirectCount + 1));
+      }
       let data = "";
       res.on("data", (chunk) => {
         data += chunk;
