@@ -783,6 +783,7 @@ h1 {
   gap: 12px;
   margin-top: 4px;
   font-size: 11px;
+  text-transform: none !important;
 }
 .tomorrow-sub > span {
   display: inline-flex;
@@ -795,6 +796,7 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
   user-select: none;
+  text-transform: none !important;
 }
 .tomorrow-sub > span:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -825,6 +827,7 @@ h1 {
   border-radius: 6px;
   font-size: 11px;
   width: auto;
+  text-transform: none !important;
 }
 .metric-card .tomorrow-sub > span:hover {
   background: rgba(255, 255, 255, 0.08);
