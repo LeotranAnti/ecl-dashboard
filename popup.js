@@ -4649,6 +4649,7 @@ function updateFinOverviewStats() {
   let targetStats = [];
   let titleDesc = "";
   let forecastMonth = "";
+  let selectedMonthStr = "";
   
   if (isRange) {
     targetStats = finStatsData.monthly_stats.filter(s => {
@@ -4656,6 +4657,7 @@ function updateFinOverviewStats() {
     });
     titleDesc = `Từ ${startFilterVal} đến ${endFilterVal}`;
     forecastMonth = endFilterVal;
+    selectedMonthStr = endFilterVal; // Dùng tháng kết thúc để ghi nhãn
   } else {
     let targetMonth = monthFilterVal;
     if (monthFilterVal === 'latest') {
@@ -4666,37 +4668,117 @@ function updateFinOverviewStats() {
     
     const stat = finStatsData.monthly_stats.find(s => s.month === targetMonth);
     if (stat) targetStats = [stat];
-    titleDesc = `Tháng ${targetMonth?.split('-')[1]} / ${targetMonth?.split('-')[0]}`;
+    titleDesc = `${targetMonth?.split('-')[1]}/${targetMonth?.split('-')[0]}`;
     forecastMonth = targetMonth;
+    selectedMonthStr = targetMonth;
   }
+  
+  // Xác định tháng trước để so sánh (MoM)
+  let prevMonthStr = "";
+  if (selectedMonthStr) {
+    const parts = selectedMonthStr.split('-');
+    let y = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+    prevMonthStr = `${y}-${String(m).padStart(2, '0')}`;
+  }
+  const prevStat = finStatsData.monthly_stats.find(s => s.month === prevMonthStr);
   
   let totalRevenue = targetStats.reduce((sum, s) => sum + s.revenue, 0);
   let totalCost = targetStats.reduce((sum, s) => sum + s.cost, 0);
   let totalPnl = totalRevenue - totalCost;
   
+  // Cập nhật giá trị số liệu lớn
   document.getElementById('fin-stat-revenue').innerText = formatVND(totalRevenue);
   document.getElementById('fin-stat-cost').innerText = formatVND(totalCost);
+  document.getElementById('fin-stat-pnl').innerText = formatVND(totalPnl);
   
-  const pnlEl = document.getElementById('fin-stat-pnl');
-  pnlEl.innerText = formatVND(totalPnl);
-  if (totalPnl < 0) {
-    pnlEl.style.backgroundImage = 'linear-gradient(135deg, #f43f5e 0%, #fda4af 100%)';
-    pnlEl.style.color = 'transparent';
-    pnlEl.style.webkitBackgroundClip = 'text';
+  // Cập nhật tiêu đề động dạng "DOANH THU THÁNG 07/2026 (TẠM TÍNH)"
+  const titleFormatted = titleDesc || "--/----";
+  document.getElementById('fin-label-revenue').innerText = `DOANH THU THÁNG ${titleFormatted} (TẠM TÍNH)`;
+  document.getElementById('fin-label-cost').innerText = `TỔNG CHI PHÍ VẬN HÀNH (THÁNG ${titleFormatted})`;
+  document.getElementById('fin-label-pnl').innerText = `LỢI NHUẬN RÒNG P&L (THÁNG ${titleFormatted})`;
+  
+  // Tính toán Tháng tới cho dự báo
+  let nextMonthStr = "";
+  if (forecastMonth) {
+    const parts = forecastMonth.split('-');
+    let y = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    m += 1;
+    if (m === 13) {
+      m = 1;
+      y += 1;
+    }
+    nextMonthStr = `${y}-${String(m).padStart(2, '0')}`;
+  }
+  const nextMonthFormatted = nextMonthStr ? `${nextMonthStr.split('-')[1]}/${nextMonthStr.split('-')[0]}` : "--/----";
+  document.getElementById('fin-label-forecast').innerText = `DỰ BÁO DOANH THU (THÁNG ${nextMonthFormatted})`;
+  
+  // CARD 1: Doanh thu chân card
+  document.getElementById('fin-stat-desc-1').innerHTML = `Tỷ lệ chính xác: <span style="color:#fb923c;font-weight:700">100%</span> (dự kiến)`;
+  
+  // CARD 2: Chi phí chân card (MoM)
+  if (prevStat && prevStat.cost > 0) {
+    const diffPct = ((totalCost - prevStat.cost) / prevStat.cost) * 100;
+    const isDown = diffPct < 0;
+    const arrow = isDown ? '▼' : '▲';
+    const color = isDown ? '#10b981' : '#f43f5e'; // Giảm chi phí là xanh lá, tăng là đỏ
+    document.getElementById('fin-stat-desc-2').innerHTML = `<span style="color:${color};font-weight:700;">${arrow} ${diffPct.toFixed(1)}%</span> so với tháng trước`;
   } else {
-    pnlEl.style.backgroundImage = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
-    pnlEl.style.color = 'transparent';
-    pnlEl.style.webkitBackgroundClip = 'text';
+    document.getElementById('fin-stat-desc-2').innerText = `-- so với tháng trước`;
   }
   
-  document.getElementById('fin-stat-desc-1').innerText = titleDesc;
-  document.getElementById('fin-stat-desc-2').innerText = titleDesc;
-  document.getElementById('fin-stat-desc-3').innerText = titleDesc;
+  // CARD 3: PnL chân card (MoM)
+  if (prevStat) {
+    const prevPnl = prevStat.revenue - prevStat.cost;
+    if (prevPnl !== 0) {
+      const diffPct = ((totalPnl - prevPnl) / Math.abs(prevPnl)) * 100;
+      const isUp = diffPct >= 0;
+      const arrow = isUp ? '▲' : '▼';
+      const color = isUp ? '#10b981' : '#f43f5e'; // Tăng PnL là xanh, giảm là đỏ
+      document.getElementById('fin-stat-desc-3').innerHTML = `<span style="color:${color};font-weight:700;">${arrow} ${isUp ? '+' : ''}${diffPct.toFixed(1)}%</span> so với tháng trước`;
+    } else {
+      document.getElementById('fin-stat-desc-3').innerText = `-- so với tháng trước`;
+    }
+  } else {
+    document.getElementById('fin-stat-desc-3').innerText = `-- so với tháng trước`;
+  }
   
-  const { totalRevenue: forecastRevenue, details: forecastDetails } = calculateMonthRevenue(forecastMonth, finCandidatesData || []);
+  // CARD 4: Dự báo doanh thu chân card (Đếm số lao động đang làm việc trong tháng đó)
+  const activeWorkersCount = (finCandidatesData || []).filter(c => {
+    // Ứng viên đang hoạt động trong tháng được chọn (chưa nghỉ việc hoặc nghỉ việc sau tháng đó)
+    if (!c.boarding_date) return false;
+    const boardingMonth = c.boarding_date.substring(3, 10); // Format DD/MM/YYYY -> MM/YYYY
+    const parts = c.boarding_date.split('/');
+    if (parts.length < 3) return false;
+    let bYear = parseInt(parts[2], 10);
+    if (bYear < 100) bYear += 2000;
+    const boardingStr = `${bYear}-${parts[1]}`; // YYYY-MM
+    
+    // Check xem đã nhận việc trước hoặc trong tháng được chọn hay chưa
+    if (boardingStr > selectedMonthStr) return false;
+    
+    // Check xem ngày nghỉ việc (nếu có) có lớn hơn tháng được chọn hay không
+    if (c.end_date) {
+      const eParts = c.end_date.split('/');
+      if (eParts.length === 3) {
+        let eYear = parseInt(eParts[2], 10);
+        if (eYear < 100) eYear += 2000;
+        const endStr = `${eYear}-${eParts[1]}`;
+        if (endStr < selectedMonthStr) return false;
+      }
+    }
+    return true;
+  }).length;
   
+  const { totalRevenue: forecastRevenue, details: forecastDetails } = calculateMonthRevenue(nextMonthStr, finCandidatesData || []);
   document.getElementById('fin-stat-forecast').innerText = formatVND(forecastRevenue);
-  document.getElementById('fin-stat-desc-4').innerText = `Dự báo chu kỳ ${forecastMonth}`;
+  document.getElementById('fin-stat-desc-4').innerHTML = `<span style="font-weight:700;color:var(--text-primary);">${activeWorkersCount} lao động</span> — so với tháng trước`;
   
   const forecastList = document.getElementById('fin-forecast-list');
   if (forecastList) {
