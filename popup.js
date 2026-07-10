@@ -4507,8 +4507,9 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
         if (p.factory.toUpperCase().trim() !== c.factory.toUpperCase().trim()) return false;
         const sd = p.start_date ? new Date(p.start_date) : null;
         const ed = p.end_date ? new Date(p.end_date) : null;
-        if (sd && bDate < sd) return false;
-        if (ed && bDate > ed) return false;
+        // So khớp đơn giá có hiệu lực trong chu kỳ làm việc thực tế (nằm trong khoảng cycleStart và cycleEnd)
+        if (sd && cycleEnd < sd) return false;
+        if (ed && cycleStart > ed) return false;
         return true;
       });
 
