@@ -3661,23 +3661,26 @@ function loadFinCandidates() {
     .then(csvText => {
       const rows = parseCSV(csvText);
       if (rows.length < 2) { showFinLoading(false); return; }
-      const headers = rows[0];
       // Map cột: STT, Nhà máy, Nguồn, Mã NV, Họ và tên, SĐT, CCCD, Ngày nhận việc, Ngày kết thúc
-      const data = rows.slice(1).filter(r => r[0] && r[4]).map(r => ({
-        stt:          r[0]  || '',
-        factory:      r[1]  || '',
-        source:       r[2]  || '',
-        employee_id:  r[3]  || '',
-        name:         r[4]  || '',
-        phone:        r[5]  || '',
-        cccd:         r[6]  || '',
-        hire_date:    r[7]  || '',
-        end_date:     r[8]  || '',
-        // các cột bổ sung nếu có
-        work_hours:   r[9]  || '',
-        work_days:    r[10] || '',
-        revenue:      r[11] || '',
-      }));
+      const data = rows.slice(1).filter(r => r[0] && r[4]).map(r => {
+        const hasEndDate = r[8] && r[8].trim() !== '';
+        return {
+          stt:           r[0]  || '',
+          factory:       r[1]  || '',
+          source:        r[2]  || '',
+          employee_id:   r[3]  || '',
+          full_name:     r[4]  || '',
+          phone:         r[5]  || '',
+          cccd:          r[6]  || '',
+          boarding_date: r[7]  || '',
+          end_date:      r[8]  || '',
+          status:        hasEndDate ? 'Nghỉ việc' : 'Đang làm việc',
+          // các cột bổ sung nếu có
+          work_hours:    r[9]  || '',
+          work_days:     r[10] || '',
+          revenue:       r[11] || '',
+        };
+      });
       finCandidatesData = data;
       renderFinCandidates(data);
       showFinLoading(false);
@@ -3743,8 +3746,22 @@ function getFinFactoryBadgeStyle(factory) {
 }
 
 function formatFinDate(dateStr) {
+  if (!dateStr || dateStr.trim() === '') return '-';
   try {
-    const d = new Date(dateStr);
+    const cleanStr = dateStr.trim();
+    // Hỗ trợ định dạng dạng D/M/YY hoặc DD/MM/YYYY (ví dụ: 02/03/26 hoặc 02/03/2026)
+    if (cleanStr.includes('/')) {
+      const parts = cleanStr.split('/');
+      if (parts.length === 3) {
+        let day = parseInt(parts[0], 10);
+        let month = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        if (year < 100) year += 2000; // 26 -> 2026
+        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+      }
+    }
+    const d = new Date(cleanStr);
+    if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('vi-VN');
   } catch {
     return dateStr;
@@ -3806,12 +3823,24 @@ function triggerFinSync(silent) {
     // Parse candidates
     const candRows = parseCSV(candCsv);
     if (candRows.length > 1) {
-      finCandidatesData = candRows.slice(1).filter(r => r[0] && r[4]).map(r => ({
-        stt: r[0]||'', factory: r[1]||'', source: r[2]||'', employee_id: r[3]||'',
-        name: r[4]||'', phone: r[5]||'', cccd: r[6]||'',
-        hire_date: r[7]||'', end_date: r[8]||'',
-        work_hours: r[9]||'', work_days: r[10]||'', revenue: r[11]||'',
-      }));
+      finCandidatesData = candRows.slice(1).filter(r => r[0] && r[4]).map(r => {
+        const hasEndDate = r[8] && r[8].trim() !== '';
+        return {
+          stt:           r[0]||'',
+          factory:       r[1]||'',
+          source:        r[2]||'',
+          employee_id:   r[3]||'',
+          full_name:     r[4]||'',
+          phone:         r[5]||'',
+          cccd:          r[6]||'',
+          boarding_date: r[7]||'',
+          end_date:      r[8]||'',
+          status:        hasEndDate ? 'Nghỉ việc' : 'Đang làm việc',
+          work_hours:    r[9]||'',
+          work_days:     r[10]||'',
+          revenue:       r[11]||'',
+        };
+      });
       renderFinCandidates(finCandidatesData);
     }
 
