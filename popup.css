@@ -1766,3 +1766,45 @@ h1 {
   background: rgba(244,63,94,0.04) !important;
 }
 
+/* Định dạng khoảng cách và độ rộng cột bảng Danh sách nhận việc */
+#fin-candidates-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+#fin-candidates-table th, 
+#fin-candidates-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Căn trái cho cột thông tin dạng text */
+#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1), /* Mã NV */
+#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2), /* Họ và tên */
+#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4), /* SĐT */
+#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5)  /* CCCD */ {
+  text-align: left;
+}
+
+/* Căn giữa cho cột dạng phân loại/ngày tháng/trạng thái */
+#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3), /* Nhà máy */
+#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6), /* Ngày nhận việc */
+#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7), /* Ngày kết thúc */
+#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8)  /* Trạng thái */ {
+  text-align: center;
+}
+
+/* Tỷ lệ độ rộng tối ưu cho từng cột */
+#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { width: 12%; } /* Mã NV */
+#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { width: 18%; } /* Họ và tên */
+#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { width: 10%; } /* Nhà máy */
+#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { width: 16%; } /* Số điện thoại */
+#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { width: 14%; } /* Số CCCD */
+#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { width: 10%; } /* Ngày nhận việc */
+#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { width: 10%; } /* Ngày kết thúc */
+#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { width: 10%; } /* Trạng thái */
+
