@@ -668,25 +668,25 @@
         <!-- Controls row -->
         <div class="controls-row" style="margin-bottom: 1.5rem; justify-content: space-between; align-items: center; display: flex; flex-wrap: wrap; gap: 10px;">
           <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary);">Báo cáo Kết quả Kinh doanh</h2>
-          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <input type="checkbox" id="fin-enable-custom-range" style="cursor: pointer;">
-              <label for="fin-enable-custom-range" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; cursor: pointer;">Lọc theo khoảng:</label>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <input type="checkbox" id="fin-enable-custom-range" style="cursor: pointer; width: 15px; height: 15px; margin: 0;">
+              <label for="fin-enable-custom-range" style="font-size: 0.9rem; color: var(--text-primary); font-weight: 600; cursor: pointer; user-select: none;">Lọc theo khoảng:</label>
             </div>
             
             <div id="fin-single-filter-wrapper" style="display: flex; gap: 0.5rem; align-items: center;">
-              <label for="fin-stats-month-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Chọn tháng:</label>
-              <select id="fin-stats-month-filter" class="search-input" style="width: 160px; padding: 0.4rem 0.8rem;">
+              <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Chọn tháng:</span>
+              <select id="fin-stats-month-filter" class="search-input" style="width: 170px; padding: 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 500; border-radius: 6px;">
                 <option value="latest" selected>Tháng gần nhất</option>
               </select>
             </div>
             
             <div id="fin-range-filter-wrapper" style="display: none; gap: 0.5rem; align-items: center;">
-              <label for="fin-stats-start-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Từ:</label>
-              <select id="fin-stats-start-filter" class="search-input" style="width: 140px; padding: 0.4rem 0.8rem;"></select>
+              <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Từ:</span>
+              <select id="fin-stats-start-filter" class="search-input" style="width: 140px; padding: 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 500; border-radius: 6px;"></select>
               
-              <label for="fin-stats-end-filter" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Đến:</label>
-              <select id="fin-stats-end-filter" class="search-input" style="width: 140px; padding: 0.4rem 0.8rem;"></select>
+              <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; margin-left: 0.25rem;">Đến:</span>
+              <select id="fin-stats-end-filter" class="search-input" style="width: 140px; padding: 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 500; border-radius: 6px;"></select>
             </div>
           </div>
         </div>
