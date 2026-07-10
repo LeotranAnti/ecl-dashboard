@@ -72,6 +72,24 @@ function normalizeCccd(cccd) {
   return cleaned;
 }
 
+const https = require("https");
+
+function fetchUrl(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        resolve(data);
+      });
+    }).on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-cache");
@@ -80,8 +98,7 @@ module.exports = async (req, res) => {
   const url = "https://docs.google.com/spreadsheets/d/1Rx9rDMe1t8A76Sj-4nBsYjbO49dzw-beYMYFF0ffk1E/export?format=csv&gid=0";
 
   try {
-    const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
-    const csvText = await response.text();
+    const csvText = await fetchUrl(url);
     const parsedRows = parseCSV(csvText);
 
     if (parsedRows.length <= 1) {
