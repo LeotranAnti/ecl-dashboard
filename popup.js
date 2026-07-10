@@ -3260,12 +3260,13 @@ async function fetchMarketingData() {
 
 function updateCampaignSelector() {
   const selectBox = document.getElementById("mkt-campaign-select");
-  if (!selectBox || !mktRawData || mktRawData.length < 9) return;
+  if (!selectBox || !mktRawData) return;
   
-  // Tìm dòng tiêu đề (Dòng 9, index 8)
-  const headerRow = mktRawData[8];
+  // Tìm dòng tiêu đề (dòng có phần tử đầu tiên là 'Ngày')
+  const headerRow = mktRawData.find(row => row && row[0] && row[0].trim() === "Ngày");
+  if (!headerRow) return;
+  
   let optionsHTML = "";
-  
   // Cột C (Tổng - index 2) trở đi
   for (let idx = 2; idx < headerRow.length; idx++) {
     const name = headerRow[idx] ? headerRow[idx].trim() : "";
@@ -3290,12 +3291,14 @@ function renderMarketingDashboard() {
   if (!mktRawData || mktRawData.length === 0) return;
   
   const selectBox = document.getElementById("mkt-campaign-select");
-  const colIndex = parseInt(selectBox ? selectBox.value : "2"); // Mặc định lấy cột 2 (Tổng)
+  let colIndex = parseInt(selectBox ? selectBox.value : "2"); // Mặc định lấy cột 2 (Tổng)
+  if (isNaN(colIndex)) colIndex = 2;
   
   let startIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
     const cellA = mktRawData[i][0] ? mktRawData[i][0].trim() : "";
-    if (/^\d+\/\d+/.test(cellA)) {
+    // Đảm bảo bỏ qua dòng tiêu đề 'Ngày' bằng cách check xem cellA có bắt đầu bằng số (ngày) không
+    if (/^\d+\/\d+/.test(cellA) && cellA !== "Ngày") {
       startIndex = i;
       break;
     }
