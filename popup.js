@@ -4632,7 +4632,7 @@ function loadFinStats() {
     const prevStart = startFilter.value;
     const prevEnd = endFilter.value;
 
-    filter.innerHTML = '<option value="latest">Tháng gần nhất</option>';
+    filter.innerHTML = '';
     startFilter.innerHTML = '';
     endFilter.innerHTML = '';
     
@@ -4661,8 +4661,8 @@ function loadFinStats() {
       filter.value = prevVal;
     } else if (generatedMonths.includes(currentMonth)) {
       filter.value = currentMonth;
-    } else {
-      filter.value = "latest";
+    } else if (generatedMonths.length > 0) {
+      filter.value = generatedMonths[0]; // Mặc định chọn tháng mới nhất trong danh sách
     }
     
     if (prevStart && [...startFilter.options].some(o => o.value === prevStart)) {
@@ -4716,7 +4716,7 @@ function updateFinOverviewStats() {
     selectedMonthStr = endFilterVal; // Dùng tháng kết thúc để ghi nhãn
   } else {
     let targetMonth = monthFilterVal;
-    if (monthFilterVal === 'latest') {
+    if (!targetMonth || targetMonth === 'latest') {
       if (finStatsData.monthly_stats.length > 0) {
         targetMonth = finStatsData.monthly_stats[0].month;
       }
