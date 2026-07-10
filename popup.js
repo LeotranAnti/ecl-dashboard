@@ -4570,7 +4570,11 @@ function loadFinStats() {
   const startFilter = document.getElementById('fin-stats-start-filter');
   const endFilter = document.getElementById('fin-stats-end-filter');
   
-  if (filter && filter.options.length <= 1) {
+  if (filter && startFilter && endFilter) {
+    const prevVal = filter.value;
+    const prevStart = startFilter.value;
+    const prevEnd = endFilter.value;
+
     filter.innerHTML = '<option value="latest">Tháng gần nhất</option>';
     startFilter.innerHTML = '';
     endFilter.innerHTML = '';
@@ -4594,12 +4598,23 @@ function loadFinStats() {
       endFilter.appendChild(optEnd);
     });
     
-    if (generatedMonths.length >= 6) {
+    if (prevVal && [...filter.options].some(o => o.value === prevVal)) {
+      filter.value = prevVal;
+    }
+    
+    if (prevStart && [...startFilter.options].some(o => o.value === prevStart)) {
+      startFilter.value = prevStart;
+    } else if (generatedMonths.length >= 6) {
       startFilter.value = generatedMonths[5];
-    } else {
+    } else if (generatedMonths.length > 0) {
       startFilter.value = generatedMonths[generatedMonths.length - 1];
     }
-    endFilter.value = generatedMonths[0];
+    
+    if (prevEnd && [...endFilter.options].some(o => o.value === prevEnd)) {
+      endFilter.value = prevEnd;
+    } else if (generatedMonths.length > 0) {
+      endFilter.value = generatedMonths[0];
+    }
   }
 
   updateFinOverviewStats();
