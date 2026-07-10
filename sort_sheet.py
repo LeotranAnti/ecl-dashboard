@@ -62,7 +62,7 @@ def parse_datetime(date_str):
     except Exception:
         return datetime.min
 
-def normalize_phone_cccd(row_data):
+def normalize_phone_cccd(row_data, doc_name = ""):
     r = list(row_data)
     # Cột Số điện thoại ở index 2 (Cột C)
     if len(r) > 2:
@@ -83,6 +83,20 @@ def normalize_phone_cccd(row_data):
             elif len(cccd) == 8 and not cccd.startswith('0'):
                 r[3] = '0' + cccd
             # Các trường hợp khác (10, 12 chữ số...) → giữ nguyên như người dùng nhập
+            
+    # TỰ ĐỘNG ĐIỀN GIÁ TRỊ MẶC ĐỊNH CHO DÒNG MỚI NỘP (Của Brother và các nhà máy nếu có cột tương ứng)
+    # Cột H (Nguồn data - index 7), Cột I (Người chăm sóc/Người giới thiệu - index 8), Cột N (Tình trạng - index 13)
+    if doc_name in ["Brother", "Pegatron"]:
+        # Điền mặc định Nguồn data là 'Hãy chọn' nếu đang trống rỗng
+        if len(r) > 7 and str(r[7]).strip() == "":
+            r[7] = "Hãy chọn"
+        # Điền mặc định Người chăm sóc/Người giới thiệu là 'Hãy chọn' nếu đang trống rỗng
+        if len(r) > 8 and str(r[8]).strip() == "":
+            r[8] = "Hãy chọn"
+        # Điền mặc định Tình trạng là 'Hãy chọn' nếu đang trống rỗng
+        if len(r) > 13 and str(r[13]).strip() == "":
+            r[13] = "Hãy chọn"
+            
     return r
 
 
@@ -113,7 +127,7 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
         header_len = len(header)
 
         for row_idx, row in enumerate(data_rows, 2): # Dòng dữ liệu bắt đầu từ dòng 2
-            new_row = normalize_phone_cccd(row)
+            new_row = normalize_phone_cccd(row, doc_name)
             
             # Đảm bảo new_row có độ dài bằng header_len
             while len(new_row) < header_len:
@@ -162,37 +176,131 @@ def sort_single_worksheet(client, doc_id, doc_name, ws_name):
         except Exception as fmt_err:
             print(f"⚠️ Không thể set định dạng TEXT cho cột C/D: {fmt_err}")
 
-        # SỬ DỤNG TRỰC TIẾP LỆNH SORT RANGE CỦA GOOGLE SHEETS API
-        # Lệnh này sẽ di chuyển các dòng dựa trên cột A (Dấu thời gian) giảm dần
-        # Bảo toàn 100% định dạng, màu sắc và Dropbox gốc của anh
-        print(f"[{doc_name} -> {ws_name}] Đang chạy lệnh sắp xếp trực tiếp trên Google Sheets...")
+        header = all_values[0]
+        data_rows = all_values[1:]
+        
+        # Sắp xếp theo Dấu thời gian (Cột A) mới nhất lên đầu bằng thuật toán parse Python chuẩn xác
+        data_rows.sort(key=lambda r: parse_datetime(r[0] if len(r) > 0 else ""), reverse=True)
+        
+        print(f"[{doc_name} -> {ws_name}] Đang ghi cập nhật dữ liệu...")
+        updates = []
+        header_len = len(header)
+
+        for row_idx, row in enumerate(data_rows, 2):
+            new_row = normalize_phone_cccd(row, doc_name)
+            while len(new_row) < header_len:
+                new_row.append("")
+            new_row = new_row[:header_len]
+
+            # Ghi đè giá trị chữ của dòng (giữ nguyên cấu trúc ô)
+            end_col_name = gspread.utils.rowcol_to_a1(row_idx, header_len)
+            updates.append({
+                'range': f'A{row_idx}:{end_col_name}',
+                'values': [new_row]
+            })
+
+        # ĐẶT ĐỊNH DẠNG PLAIN TEXT CHO CỘT C (SĐT) VÀ D (CCCD) TRƯỚC KHI GHI
         try:
-            sort_request = {
+            text_format_body = {
                 "requests": [
                     {
-                        "sortRange": {
+                        "repeatCell": {
                             "range": {
                                 "sheetId": sheet.id,
-                                "startRowIndex": 1,          # Bỏ qua tiêu đề (dòng 1), bắt đầu sắp xếp từ dòng 2
-                                "endRowIndex": num_rows,     # Đến dòng cuối cùng
-                                "startColumnIndex": 0,       # Cột A (Dấu thời gian)
-                                "endColumnIndex": header_len # Đến cột cuối cùng của header
+                                "startRowIndex": 1,
+                                "endRowIndex": num_rows,
+                                "startColumnIndex": 2,      # Cột C
+                                "endColumnIndex": 4         # Cột D
                             },
-                            "sortSpecs": [
-                                {
-                                    "dimensionIndex": 0,     # Sắp xếp theo cột A (index 0)
-                                    "sortOrder": "DESCENDING" # Đẩy thời gian mới nhất lên trên đầu
+                            "cell": {
+                                "userEnteredFormat": {
+                                    "numberFormat": {"type": "TEXT"}
                                 }
-                            ]
+                            },
+                            "fields": "userEnteredFormat.numberFormat"
                         }
                     }
                 ]
             }
-            spreadsheet.batch_update(sort_request)
-        except Exception as sort_err:
-            print(f"❌ Không thể thực hiện sortRange trực tiếp: {sort_err}")
-            return False
+            spreadsheet.batch_update(text_format_body)
+        except Exception as fmt_err:
+            print(f"⚠️ Không thể set định dạng TEXT cho cột C/D: {fmt_err}")
+
+        # Chỉ cập nhật giá trị thô, Google Sheets sẽ giữ nguyên 100% định dạng và Dropbox màu sắc của anh
+        sheet.batch_update(updates)
+        
+        # PHỤC HỒI DROPBOX (DATA VALIDATION) & ĐỊNH DẠNG:
+        # Khi Google Form chèn dòng mới ở cuối, nó hoàn toàn trống định dạng và trống dropdown.
+        # Khi đảo dòng đó lên đầu, nó sẽ làm mất dropdown của dòng đó.
+        # Ta thực hiện copy định dạng + validation từ một dòng mẫu đã có sẵn dropdown
+        # và paste lên các dòng khác dòng mẫu đó để khôi phục hoàn hảo 100%.
+        try:
+            # 1. Tìm dòng mẫu có sẵn dropdown (dòng đầu tiên từ dòng 2 trở đi mà cột H/index 7 có giá trị)
+            source_row_idx = 3 # mặc định fallback là dòng 3
+            for r_idx, row in enumerate(data_rows, 2):
+                if len(row) > 7 and str(row[7]).strip() != "":
+                    source_row_idx = r_idx
+                    break
             
+            # 2. Tạo danh sách requests copyPaste độc lập để tránh lỗi trùng lặp (overlapping)
+            requests = []
+            
+            # Chúng ta duyệt qua tất cả các dòng dữ liệu (từ dòng 2 đến dòng cuối)
+            for target_row in range(2, len(data_rows) + 2):
+                # Không paste đè lên chính dòng mẫu nguồn để tránh lỗi overlapping
+                if target_row == source_row_idx:
+                    continue
+                
+                # Copy Data Validation
+                requests.append({
+                    "copyPaste": {
+                        "source": {
+                            "sheetId": sheet.id,
+                            "startRowIndex": source_row_idx - 1,
+                            "endRowIndex": source_row_idx,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": header_len
+                        },
+                        "destination": {
+                            "sheetId": sheet.id,
+                            "startRowIndex": target_row - 1,
+                            "endRowIndex": target_row,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": header_len
+                        },
+                        "pasteType": "PASTE_DATA_VALIDATION",
+                        "pasteOrientation": "NORMAL"
+                    }
+                })
+                # Copy Format (màu sắc, font, viền ô)
+                requests.append({
+                    "copyPaste": {
+                        "source": {
+                            "sheetId": sheet.id,
+                            "startRowIndex": source_row_idx - 1,
+                            "endRowIndex": source_row_idx,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": header_len
+                        },
+                        "destination": {
+                            "sheetId": sheet.id,
+                            "startRowIndex": target_row - 1,
+                            "endRowIndex": target_row,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": header_len
+                        },
+                        "pasteType": "PASTE_FORMAT",
+                        "pasteOrientation": "NORMAL"
+                    }
+                })
+            
+            if requests:
+                validation_restore_body = { "requests": requests }
+                spreadsheet.batch_update(validation_restore_body)
+                print(f"[{doc_name} -> {ws_name}] Đã khôi phục thành công Dropdown và định dạng cho các dòng mới từ dòng mẫu {source_row_idx}.")
+        except Exception as val_err:
+            print(f"⚠️ Không thể khôi phục Dropdown/Định dạng: {val_err}")
+
         print(f"✅ Sắp xếp thành công cho [{doc_name} -> {ws_name}]!")
         return True
     except Exception as e:

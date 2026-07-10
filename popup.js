@@ -3208,6 +3208,13 @@ function initMarketingDashboard() {
     refreshBtn.dataset.listenerAdded = "true";
     refreshBtn.addEventListener("click", () => fetchMarketingData());
   }
+  
+  const monthSelect = document.getElementById("mkt-month-select");
+  if (monthSelect && !monthSelect.dataset.listenerAdded) {
+    monthSelect.dataset.listenerAdded = "true";
+    monthSelect.addEventListener("change", () => fetchMarketingData());
+  }
+  
   const selectBox = document.getElementById("mkt-campaign-select");
   if (selectBox && !selectBox.dataset.listenerAdded) {
     selectBox.dataset.listenerAdded = "true";
@@ -3222,17 +3229,26 @@ async function fetchMarketingData() {
     tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
   }
   
+  const monthSelect = document.getElementById("mkt-month-select");
+  const month = monthSelect ? monthSelect.value : "7";
+  
   let mktUrl = "";
   if (IS_CHROME_EXT) {
-    mktUrl = "https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=1245696062";
+    const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
+    const gid = gids[month] || "1245696062";
+    mktUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
   } else {
-    mktUrl = "/api/marketing";
+    mktUrl = `/api/marketing?month=${month}`;
   }
   
   try {
     const response = await fetch(mktUrl);
     const text = await response.text();
     mktRawData = parseCSV(text);
+    
+    // Đổ động các tùy chọn nhà máy dựa trên dòng tiêu đề
+    updateCampaignSelector();
+    
     renderMarketingDashboard();
   } catch (error) {
     console.error("Lỗi tải dữ liệu marketing:", error);
@@ -3242,13 +3258,31 @@ async function fetchMarketingData() {
   }
 }
 
+function updateCampaignSelector() {
+  const selectBox = document.getElementById("mkt-campaign-select");
+  if (!selectBox || !mktRawData || mktRawData.length < 9) return;
+  
+  // Tìm dòng tiêu đề (Dòng 9, index 8)
+  const headerRow = mktRawData[8];
+  let optionsHTML = "";
+  
+  // Cột C (Tổng - index 2) trở đi
+  for (let idx = 2; idx < headerRow.length; idx++) {
+    const name = headerRow[idx] ? headerRow[idx].trim() : "";
+    if (name) {
+      optionsHTML += `<option value="${idx}">${name}</option>`;
+    }
+  }
+  selectBox.innerHTML = optionsHTML;
+}
+
 function parseMktDate(dateStr) {
   if (!dateStr) return null;
   const parts = dateStr.trim().split("/");
   if (parts.length < 2) return null;
   const d = parts[0].padStart(2, '0');
   const m = parts[1].padStart(2, '0');
-  const y = "2026"; // Default year for current datasets
+  const y = "2026"; // Mặc định năm 2026 cho tập dữ liệu hiện tại
   return `${y}-${m}-${d}`;
 }
 
@@ -3256,7 +3290,7 @@ function renderMarketingDashboard() {
   if (!mktRawData || mktRawData.length === 0) return;
   
   const selectBox = document.getElementById("mkt-campaign-select");
-  const colIndex = parseInt(selectBox ? selectBox.value : "0");
+  const colIndex = parseInt(selectBox ? selectBox.value : "2"); // Mặc định lấy cột 2 (Tổng)
   
   let startIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
@@ -3266,12 +3300,13 @@ function renderMarketingDashboard() {
       break;
     }
   }
-  if (startIndex === -1) startIndex = 8;
+  if (startIndex === -1) startIndex = 9; // Fallback dòng 10 (index 9)
   
   const blocks = [];
-  for (let i = startIndex; i < mktRawData.length; i += 13) {
-    if (i + 12 >= mktRawData.length) break;
-    const block = mktRawData.slice(i, i + 13);
+  // Cấu trúc mới: Mỗi ngày chiếm đúng 4 dòng khít nhau
+  for (let i = startIndex; i < mktRawData.length; i += 4) {
+    if (i + 3 >= mktRawData.length) break;
+    const block = mktRawData.slice(i, i + 4);
     const dateVal = block[0][0] || "";
     if (!dateVal || !dateVal.includes("/")) continue;
     
@@ -3291,7 +3326,7 @@ function renderMarketingDashboard() {
     filteredBlocks = blocks.filter(b => b.date >= state.startDate && b.date <= state.endDate);
   }
 
-  // Sắp xếp tăng dần theo thời gian (ví dụ: ngày 13/6 hiển thị trước ngày 01/07) để vẽ biểu đồ đúng
+  // Sắp xếp tăng dần theo thời gian để vẽ biểu đồ đúng
   filteredBlocks.sort((a, b) => a.date.localeCompare(b.date));
   
   const chartData = {
@@ -3302,27 +3337,48 @@ function renderMarketingDashboard() {
   
   let totalSpent = 0;
   let totalLeads = 0;
-  let totalHires = 0;
+  let totalPhones = 0;
   let tableHTML = "";
   
+  // Lấy nhãn cột cuối cùng của block (Số điện thoại / Số nhận việc)
+  let phoneHeaderLabel = "Số điện thoại / Nhận việc";
+  if (filteredBlocks.length > 0) {
+    phoneHeaderLabel = filteredBlocks[0].data[3][1] || "Số điện thoại";
+  }
+  
+  // Cập nhật nhãn cột chi tiết trên UI để đồng bộ
+  const thead = document.querySelector(".history-table thead tr");
+  if (thead) {
+    thead.innerHTML = `
+      <th>Ngày</th>
+      <th style="text-align: right;">Chi Phí (Spent)</th>
+      <th style="text-align: right;">Số Lead</th>
+      <th style="text-align: right;">CPL</th>
+      <th style="text-align: right;">${phoneHeaderLabel}</th>
+    `;
+    
+    // Cập nhật nhãn của metric box thứ 4
+    const hiresLabel = document.querySelector(".metrics-grid div:nth-child(4) .metric-label");
+    if (hiresLabel) {
+      hiresLabel.textContent = `Tổng ${phoneHeaderLabel}`;
+    }
+  }
+
   filteredBlocks.forEach(item => {
     const block = item.data;
     const date = item.displayDate;
-    const spentStr = block[0][colIndex + 2] || "";
-    const leadsStr = block[1][colIndex + 2] || "";
-    const cplStr = block[2][colIndex + 2] || "";
-    const phonesStr = block[3][colIndex + 2] || "";
-    const cccdStr = block[4][colIndex + 2] || "";
-    const hiresStr = block[5][colIndex + 2] || "";
-    const cpoStr = block[12][colIndex + 2] || "";
+    const spentStr = block[0][colIndex] || "";
+    const leadsStr = block[1][colIndex] || "";
+    const cplStr = block[2][colIndex] || "";
+    const phonesStr = block[3][colIndex] || "";
     
     const spentVal = cleanNumber(spentStr);
     const leadsVal = cleanNumber(leadsStr);
-    const hiresVal = cleanNumber(hiresStr);
+    const phonesVal = cleanNumber(phonesStr);
     
     totalSpent += spentVal;
     totalLeads += leadsVal;
-    totalHires += hiresVal;
+    totalPhones += phonesVal;
     
     chartData.labels.push(date);
     chartData.spent.push(spentVal);
@@ -3335,9 +3391,6 @@ function renderMarketingDashboard() {
         <td style="text-align: right;">${leadsStr || '0'}</td>
         <td style="text-align: right;">${cplStr || '-'}</td>
         <td style="text-align: right;">${phonesStr || '0'}</td>
-        <td style="text-align: right;">${cccdStr || '0'}</td>
-        <td style="text-align: right;">${hiresStr || '0'}</td>
-        <td style="text-align: right;">${cpoStr || '-'}</td>
       </tr>
     `;
   });
@@ -3347,11 +3400,16 @@ function renderMarketingDashboard() {
   document.getElementById("mkt-metric-spent").textContent = formatVND(totalSpent);
   document.getElementById("mkt-metric-leads").textContent = totalLeads;
   document.getElementById("mkt-metric-cpl").textContent = formatVND(cpl);
-  document.getElementById("mkt-metric-hires").textContent = totalHires;
+  
+  // Cập nhật giá trị metric box 4
+  const hiresValue = document.getElementById("mkt-metric-hires");
+  if (hiresValue) {
+    hiresValue.textContent = totalPhones;
+  }
   
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
-    tableBody.innerHTML = tableHTML || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
+    tableBody.innerHTML = tableHTML || `<tr><td colspan="5" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
   }
   
   renderMarketingChart(chartData);
