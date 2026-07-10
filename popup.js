@@ -983,9 +983,14 @@ function updateUI() {
     }
   }
 
-  // Thêm hiển thị Trễ CS (từ hôm qua trở về trước chưa chăm sóc)
+  // Thêm hiển thị Trễ CS và Cảnh báo (cùng hàng)
   if (elTodayInterviewSub) {
-    const overdueHtml = `<span class="tc-overdue" style="color:#ef4444;"><span>⚠️ Trễ CS:</span> <strong style="color:#ef4444">${state.overdueCareCount || 0}</strong></span>`;
+    const warningCount = state.warningCount || 0;
+    const overdueHtml =
+      `<div class="tc-overdue-row">` +
+        `<span class="tc-overdue" style="cursor:pointer;" title="Xem danh sách trễ chăm sóc">⚠️ Trễ CS: <strong style="color:#ef4444">${state.overdueCareCount || 0}</strong></span>` +
+        `<span class="tc-warning" style="cursor:pointer;" title="Xem danh sách cảnh báo">🔔 Cảnh báo: <strong style="color:#f59e0b">${warningCount}</strong></span>` +
+      `</div>`;
     elTodayInterviewSub.innerHTML += overdueHtml;
   }
 
@@ -2614,6 +2619,8 @@ document.addEventListener("DOMContentLoaded", () => {
         openDetailsModal("unprocessedCallback");
       } else if (overdueSpan) {
         openDetailsModal("overdueCare");
+      } else if (e.target.closest(".tc-warning")) {
+        openDetailsModal("warningAlert");
       }
     });
   }
@@ -2871,6 +2878,9 @@ function getCandidatesForType(type, customDates = null) {
           }
         }
       }
+    } else if (type === "warningAlert") {
+      // ⚠️ Quy tắc cảnh báo sẽ được bổ sung sau theo yêu cầu của anh
+      // Hiện tại trả về danh sách rỗng
     } else if (type === "unprocessedCallback") {
       const historyItem = state.candidateHistory[candKey];
       if (historyItem && historyItem.careDates) {
@@ -2940,6 +2950,8 @@ function openDetailsModal(type, customDates = null) {
     title = "Danh sách ứng viên Nhận Việc";
   } else if (type === "overdueCare") {
     title = "Danh sách ứng viên Trễ Chăm Sóc";
+  } else if (type === "warningAlert") {
+    title = "🔔 Danh sách Cảnh Báo";
   } else if (type === "unprocessedCallback") {
     title = "Danh sách ứng viên Chưa Chăm Sóc Lại";
   }
