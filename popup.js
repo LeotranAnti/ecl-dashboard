@@ -3323,12 +3323,9 @@ function renderMarketingDashboard() {
     }
   }
 
-  // Lọc theo khoảng ngày (startDate -> endDate) nếu được chọn trên UI
+  // Hiển thị trọn vẹn dữ liệu của tháng đang chọn (không bị giới hạn bởi bộ lọc ngày của tab Sale)
   let filteredBlocks = blocks;
-  if (state.startDate && state.endDate) {
-    filteredBlocks = blocks.filter(b => b.date >= state.startDate && b.date <= state.endDate);
-  }
-
+  
   // Sắp xếp tăng dần theo thời gian để vẽ biểu đồ đúng
   filteredBlocks.sort((a, b) => a.date.localeCompare(b.date));
   
