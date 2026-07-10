@@ -3630,9 +3630,12 @@ function initFinanceDashboard() {
   }
 
   loadFinCandidates();
-  loadFinPricingList();
-  loadFinExpensesList();
-  loadFinStats();
+  // Tải đơn giá và chi phí từ Google Sheet, sau đó load danh sách và thống kê
+  Promise.all([loadPricingFromSheet(), loadExpensesFromSheet()]).then(() => {
+    loadFinPricingList();
+    loadFinExpensesList();
+    loadFinStats();
+  });
   initFinReconCycleDropdown();
 }
 
@@ -3641,27 +3644,48 @@ function showFinLoading(show) {
   if (loader) loader.style.display = show ? "flex" : "none";
 }
 
+// ===== GOOGLE SHEET TÀI CHÍNH =====
+const FIN_SHEET_ID = '1Rx9rDMe1t8A76Sj-4nBsYjbO49dzw-beYMYFF0ffk1E';
+const FIN_GID_CANDIDATES = '0';           // Tab: Danh sách nhận việc 2026
+const FIN_GID_PRICING    = '702358906';   // Tab: Cấu hình Đơn giá
+const FIN_GID_EXPENSES   = '1663228131';  // Tab: Chi phí Vận hành
+
+function finSheetCsvUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${FIN_SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
 function loadFinCandidates() {
   showFinLoading(true);
-  const cached = localStorage.getItem('fin_candidates');
-  if (cached) {
-    finCandidatesData = JSON.parse(cached);
-    renderFinCandidates(finCandidatesData);
-    showFinLoading(false);
-  } else {
-    finFetch('/api/finance')
-      .then(r => r.json())
-      .then(data => {
-        finCandidatesData = data;
-        localStorage.setItem('fin_candidates', JSON.stringify(data));
-        renderFinCandidates(data);
-        showFinLoading(false);
-      })
-      .catch(err => {
-        console.error("Lỗi tải danh sách nhận việc:", err);
-        showFinLoading(false);
-      });
-  }
+  fetch(finSheetCsvUrl(FIN_GID_CANDIDATES))
+    .then(r => r.text())
+    .then(csvText => {
+      const rows = parseCSV(csvText);
+      if (rows.length < 2) { showFinLoading(false); return; }
+      const headers = rows[0];
+      // Map cột: STT, Nhà máy, Nguồn, Mã NV, Họ và tên, SĐT, CCCD, Ngày nhận việc, Ngày kết thúc
+      const data = rows.slice(1).filter(r => r[0] && r[4]).map(r => ({
+        stt:          r[0]  || '',
+        factory:      r[1]  || '',
+        source:       r[2]  || '',
+        employee_id:  r[3]  || '',
+        name:         r[4]  || '',
+        phone:        r[5]  || '',
+        cccd:         r[6]  || '',
+        hire_date:    r[7]  || '',
+        end_date:     r[8]  || '',
+        // các cột bổ sung nếu có
+        work_hours:   r[9]  || '',
+        work_days:    r[10] || '',
+        revenue:      r[11] || '',
+      }));
+      finCandidatesData = data;
+      renderFinCandidates(data);
+      showFinLoading(false);
+    })
+    .catch(err => {
+      console.error('Lỗi tải danh sách nhận việc từ Sheet:', err);
+      showFinLoading(false);
+    });
 }
 
 function renderFinCandidates(list) {
@@ -3761,45 +3785,73 @@ function triggerFinSync(silent) {
   const icon = document.querySelector("#fin-sync-btn svg") || document.getElementById("fin-sync-btn");
   if (icon) icon.style.animation = 'spin 0.8s linear infinite';
 
-  finFetch('/api/finance')
-    .then(r => r.json())
-    .then(data => {
-      if (icon) icon.style.animation = '';
-      if (Array.isArray(data)) {
-        finCandidatesData = data;
-        localStorage.setItem('fin_candidates', JSON.stringify(data));
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        const lastSyncTimeStr = now.toLocaleString('vi-VN');
-        localStorage.setItem('fin_last_sync_time', lastSyncTimeStr);
-        document.getElementById('fin-sync-time-lbl').innerText = timeStr;
-        document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTimeStr}`;
-        renderFinCandidates(data);
-        loadFinStats();
-        if (!silent) alert(`✓ Đã đồng bộ ${data.length} ứng viên lúc ${timeStr}`);
-      } else {
-        if (!silent) alert('⚠ Đồng bộ thất bại: Dữ liệu không hợp lệ');
-      }
-    })
-    .catch(err => {
-      if (icon) icon.style.animation = '';
-      if (!silent) alert('⚠ Lỗi kết nối: ' + err);
-    });
+  // Reload tất cả dữ liệu từ Google Sheet
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const lastSyncTimeStr = now.toLocaleString('vi-VN');
+
+  Promise.all([
+    fetch(finSheetCsvUrl(FIN_GID_CANDIDATES)).then(r => r.text()),
+    fetch(finSheetCsvUrl(FIN_GID_PRICING)).then(r => r.text()),
+    fetch(finSheetCsvUrl(FIN_GID_EXPENSES)).then(r => r.text()),
+  ]).then(([candCsv, priceCsv, expCsv]) => {
+    if (icon) icon.style.animation = '';
+
+    // Parse candidates
+    const candRows = parseCSV(candCsv);
+    if (candRows.length > 1) {
+      finCandidatesData = candRows.slice(1).filter(r => r[0] && r[4]).map(r => ({
+        stt: r[0]||'', factory: r[1]||'', source: r[2]||'', employee_id: r[3]||'',
+        name: r[4]||'', phone: r[5]||'', cccd: r[6]||'',
+        hire_date: r[7]||'', end_date: r[8]||'',
+        work_hours: r[9]||'', work_days: r[10]||'', revenue: r[11]||'',
+      }));
+      renderFinCandidates(finCandidatesData);
+    }
+
+    // Reload stats
+    loadFinStats();
+
+    if (document.getElementById('fin-sync-time-lbl'))
+      document.getElementById('fin-sync-time-lbl').innerText = timeStr;
+    if (document.getElementById('fin-sync-status-lbl'))
+      document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTimeStr}`;
+
+    if (!silent) alert(`✓ Đã đồng bộ ${finCandidatesData.length} ứng viên lúc ${timeStr}`);
+  }).catch(err => {
+    if (icon) icon.style.animation = '';
+    if (!silent) alert('⚠ Lỗi kết nối Google Sheet: ' + err);
+  });
 }
 
+// Cache pricing trong memory (refresh mỗi lần load)
+let _cachedPricing = null;
+
 function getLocalPricing() {
-  const data = localStorage.getItem('fin_pricing');
-  if (!data) {
-    const defaultPricing = [
-      { id: 1, factory: 'PGT', price: 9500, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' },
-      { id: 2, factory: 'Wistron', price: 18000, unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
-      { id: 3, factory: 'Brother HD', price: 72000, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' },
-      { id: 4, factory: 'Goertek NA', price: 8000, unit: 'Ngày', start_date: '2026-01-01', end_date: '2026-12-31' }
-    ];
-    localStorage.setItem('fin_pricing', JSON.stringify(defaultPricing));
-    return defaultPricing;
-  }
-  return JSON.parse(data);
+  // Trả về cache nếu đã có
+  if (_cachedPricing) return _cachedPricing;
+  // Trả default tạm thời, rồi fetch async từ Sheet
+  return [];
+}
+
+function loadPricingFromSheet() {
+  return fetch(finSheetCsvUrl(FIN_GID_PRICING))
+    .then(r => r.text())
+    .then(csvText => {
+      const rows = parseCSV(csvText);
+      if (rows.length < 2) return [];
+      // Header: Nhà máy, Đơn giá, Từ ngày, Đến ngày, Đơn vị tính
+      _cachedPricing = rows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
+        id:         i + 1,
+        factory:    r[0] || '',
+        price:      parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
+        start_date: r[2] || '',
+        end_date:   r[3] || '',
+        unit:       r[4] || 'Giờ làm',
+      }));
+      return _cachedPricing;
+    })
+    .catch(() => []);
 }
 
 function saveLocalPricing(item) {
