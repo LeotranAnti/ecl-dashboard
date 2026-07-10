@@ -4545,11 +4545,13 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
           if (projectedUnits < 5.0) isEligible = false;
         }
 
-        if (isEligible && tenureStart <= billingLimitDays) {
+        if (isEligible) {
           let effectiveValue = 0;
           for (let d = 0; d < days; d++) {
             const currentDayTenure = tenureStart + d;
+            // Chỉ tính tiền nếu thâm niên của ngày làm việc đó vẫn nằm trong giới hạn thanh toán (<= 90 ngày)
             if (currentDayTenure > billingLimitDays) break;
+            
             const dayUnit = (unit === 'Giờ làm') ? 8.0 : 1.0;
             let dayVal = dayUnit * price;
             if (currentDayTenure <= 30) {
