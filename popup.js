@@ -3751,6 +3751,12 @@ function formatFinDate(dateStr) {
   }
 }
 
+// Định dạng số tiền sang VND (ví dụ: 1.500.000 đ)
+function formatVND(value) {
+  if (value === null || value === undefined || isNaN(value)) return '0 đ';
+  return Number(value).toLocaleString('vi-VN') + ' đ';
+}
+
 function filterFinCandidates() {
   const query = document.getElementById('fin-search-candidates').value.toLowerCase().trim();
   const activeMonthBtn = document.querySelector('.fin-month-filter-btn.active');
