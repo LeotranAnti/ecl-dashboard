@@ -550,14 +550,14 @@
           </div>
         </div>
         <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="mkt-month-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="7" selected>Tháng 7</option>
+            <option value="6">Tháng 6</option>
+            <option value="5">Tháng 5</option>
+            <option value="4">Tháng 4</option>
+          </select>
           <select id="mkt-campaign-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-            <option value="0">Tổng ADS Long</option>
-            <option value="3">PGT (Pegatron)</option>
-            <option value="6">Brother</option>
-            <option value="9">Foxconn</option>
-            <option value="12">Wistron</option>
-            <option value="15">ADS Đại Lý Huyền</option>
-            <option value="18">ADS Agent A</option>
+            <!-- Sẽ tự động tải động các nhà máy dựa trên dòng tiêu đề của tháng được chọn -->
           </select>
           <button id="mkt-refresh-btn" class="refresh-btn" title="Làm mới">
             <svg class="icon-refresh" viewBox="0 0 24 24" width="16" height="16">
