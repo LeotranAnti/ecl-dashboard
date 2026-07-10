@@ -272,8 +272,8 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       const recruiter    = cleanRecruiter(row[8]);  // Người chăm sóc (Cột 8)
       const status       = row[13] ? row[13].trim().toLowerCase() : "";
       
-      // Tính toán chăm sóc bị trễ (nextCareDate nhỏ hơn hôm nay, status là chăm sóc tiếp, và chưa có ngày CS cuối tương ứng)
-      if (nextCareDate && nextCareDate < todayStr && status === "chăm sóc tiếp") {
+      // Tính toán chăm sóc bị trễ (nextCareDate nhỏ hơn hôm nay, có bất kỳ trạng thái nào, và chưa có ngày CS cuối tương ứng)
+      if (nextCareDate && nextCareDate < todayStr && status) {
         if (!careDate || careDate < nextCareDate) {
           overdueCareCount++;
         }
@@ -2854,7 +2854,7 @@ function getCandidatesForType(type, customDates = null) {
         }
       }
     } else if (type === "overdueCare") {
-      if (nextCareDate && nextCareDate < todayStr && statusClean === "chăm sóc tiếp") {
+      if (nextCareDate && nextCareDate < todayStr && statusClean) {
         if (!careDate || careDate < nextCareDate) {
           if (!seenKeys.has(candKey)) {
             seenKeys.add(candKey);
