@@ -3502,6 +3502,17 @@ const finFetch = (path, options = {}) => {
   return fetch(path, options);
 };
 
+// ===== GOOGLE SHEET TÀI CHÍNH =====
+const FIN_SHEET_ID = '1Rx9rDMe1t8A76Sj-4nBsYjbO49dzw-beYMYFF0ffk1E';
+const FIN_GID_CANDIDATES = '0';           // Tab: Danh sách nhận việc 2026
+const FIN_GID_PRICING    = '702358906';   // Tab: Cấu hình Đơn giá
+const FIN_GID_EXPENSES   = '1663228131';  // Tab: Chi phí Vận hành
+
+function finSheetCsvUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${FIN_SHEET_ID}/export?format=csv&gid=${gid}`;
+}
+
+
 function initFinanceDashboard() {
   const mainTabContainer = document.querySelector("#section-finance");
   if (!mainTabContainer || mainTabContainer.dataset.initialized) return;
@@ -3647,15 +3658,7 @@ function showFinLoading(show) {
   if (loader) loader.style.display = show ? "flex" : "none";
 }
 
-// ===== GOOGLE SHEET TÀI CHÍNH =====
-const FIN_SHEET_ID = '1Rx9rDMe1t8A76Sj-4nBsYjbO49dzw-beYMYFF0ffk1E';
-const FIN_GID_CANDIDATES = '0';           // Tab: Danh sách nhận việc 2026
-const FIN_GID_PRICING    = '702358906';   // Tab: Cấu hình Đơn giá
-const FIN_GID_EXPENSES   = '1663228131';  // Tab: Chi phí Vận hành
 
-function finSheetCsvUrl(gid) {
-  return `https://docs.google.com/spreadsheets/d/${FIN_SHEET_ID}/export?format=csv&gid=${gid}`;
-}
 
 function loadFinCandidates() {
   showFinLoading(true);
@@ -3848,6 +3851,36 @@ function triggerFinSync(silent) {
       renderFinCandidates(finCandidatesData);
     }
 
+    // Parse pricing
+    const priceRows = parseCSV(priceCsv);
+    if (priceRows.length > 1) {
+      _cachedPricing = priceRows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
+        id:         i + 1,
+        factory:    r[0] || '',
+        price:      parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
+        start_date: r[2] || '',
+        end_date:   r[3] || '',
+        unit:       r[4] || 'Giờ làm',
+      }));
+      loadFinPricingList();
+    }
+
+    // Parse expenses
+    const expRows = parseCSV(expCsv);
+    if (expRows.length > 1) {
+      _cachedExpenses = expRows.slice(1).filter(r => r[0]).map((r, i) => ({
+        id:           i + 1,
+        month:        r[0] || '',
+        ads_cost:     parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
+        salary_cost:  parseFloat((r[2]||'0').replace(/,/g,'')) || 0,
+        phone_cost:   parseFloat((r[3]||'0').replace(/,/g,'')) || 0,
+        office_cost:  parseFloat((r[4]||'0').replace(/,/g,'')) || 0,
+        other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
+        note:         r[6] || '',
+      }));
+      loadFinExpensesList();
+    }
+
     // Reload stats
     loadFinStats();
 
@@ -4038,10 +4071,33 @@ function resetFinExpenseForm() {
   calcFinExpenseTotal();
 }
 
+// Cache expenses trong memory
+let _cachedExpenses = null;
+
 function getLocalExpenses() {
-  const data = localStorage.getItem('fin_expenses');
-  if (!data) return [];
-  return JSON.parse(data);
+  return _cachedExpenses || [];
+}
+
+function loadExpensesFromSheet() {
+  return fetch(finSheetCsvUrl(FIN_GID_EXPENSES))
+    .then(r => r.text())
+    .then(csvText => {
+      const rows = parseCSV(csvText);
+      if (rows.length < 2) return [];
+      // Header: Tháng, Chi phí ads, Chi phí lương, Chi phí điện thoại, Chi phí văn phòng, Chi phí khác, Ghi chú
+      _cachedExpenses = rows.slice(1).filter(r => r[0]).map((r, i) => ({
+        id:           i + 1,
+        month:        r[0] || '',
+        ads_cost:     parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
+        salary_cost:  parseFloat((r[2]||'0').replace(/,/g,'')) || 0,
+        phone_cost:   parseFloat((r[3]||'0').replace(/,/g,'')) || 0,
+        office_cost:  parseFloat((r[4]||'0').replace(/,/g,'')) || 0,
+        other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
+        note:         r[6] || '',
+      }));
+      return _cachedExpenses;
+    })
+    .catch(() => []);
 }
 
 function saveLocalExpense(item) {
