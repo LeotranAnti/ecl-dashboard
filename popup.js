@@ -4532,19 +4532,34 @@ function resetFinExpenseForm() {
 // Cache expenses trong memory
 let _cachedExpenses = null;
 
+function getDefaultExpensesSeed() {
+  return [
+    { id: 1, month: '2026-03', ads_cost: 16000000, salary_cost: 28000000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,       note: 'Dữ liệu mặc định' },
+    { id: 2, month: '2026-04', ads_cost: 14000000, salary_cost: 28500000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,       note: 'Dữ liệu mặc định' },
+    { id: 3, month: '2026-05', ads_cost: 8068573,  salary_cost: 30200000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,       note: 'Dữ liệu mặc định' },
+    { id: 4, month: '2026-06', ads_cost: 9000000,  salary_cost: 31000000, phone_cost: 1000000, office_cost: 4000000, other_cost: 500000,  note: 'Dữ liệu mặc định' },
+    { id: 5, month: '2026-07', ads_cost: 0,        salary_cost: 0,        phone_cost: 0,       office_cost: 0,       other_cost: 0,       note: 'Chưa có dữ liệu - vui lòng cập nhật' },
+  ];
+}
+
 function getLocalExpenses() {
-  if (_cachedExpenses) return _cachedExpenses;
-  
+  if (_cachedExpenses && _cachedExpenses.length > 0) return _cachedExpenses;
+
   const localData = localStorage.getItem('fin_expenses');
   if (localData) {
     try {
-      _cachedExpenses = JSON.parse(localData);
-      return _cachedExpenses;
+      const parsed = JSON.parse(localData);
+      if (parsed && parsed.length > 0) {
+        _cachedExpenses = parsed;
+        return _cachedExpenses;
+      }
     } catch (e) {
       console.error(e);
     }
   }
-  _cachedExpenses = [];
+  // localStorage trống → dùng seed data mặc định
+  _cachedExpenses = getDefaultExpensesSeed();
+  localStorage.setItem('fin_expenses', JSON.stringify(_cachedExpenses));
   return _cachedExpenses;
 }
 
@@ -4555,35 +4570,24 @@ function loadExpensesFromSheet() {
     try {
       list = JSON.parse(localData);
     } catch(e){}
-    
+
+    if (!list || list.length === 0) {
+      // localStorage tồn tại nhưng rỗng → seed lại
+      list = getDefaultExpensesSeed();
+      localStorage.setItem('fin_expenses', JSON.stringify(list));
+      _cachedExpenses = list;
+      return Promise.resolve(list);
+    }
+
     // Nếu có dữ liệu nhưng thiếu tháng 5 và tháng 6, tự động chèn mặc định
     let changed = false;
-    if (!list.some(e => e.month === '2026-05')) {
-      list.push({
-        id: list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1,
-        month: '2026-05',
-        ads_cost: 8068573,
-        salary_cost: 30200000,
-        phone_cost: 9400000,
-        office_cost: 4000000,
-        other_cost: 0,
-        note: 'Tự động tạo mặc định'
-      });
-      changed = true;
-    }
-    if (!list.some(e => e.month === '2026-06')) {
-      list.push({
-        id: list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1,
-        month: '2026-06',
-        ads_cost: 9000000,
-        salary_cost: 31000000,
-        phone_cost: 1000000,
-        office_cost: 4000000,
-        other_cost: 500000,
-        note: 'Tự động tạo mặc định'
-      });
-      changed = true;
-    }
+    const seedMonths = getDefaultExpensesSeed();
+    seedMonths.forEach(seed => {
+      if (!list.some(e => e.month === seed.month)) {
+        list.push({ ...seed, id: list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1 });
+        changed = true;
+      }
+    });
     if (changed) {
       localStorage.setItem('fin_expenses', JSON.stringify(list));
       _cachedExpenses = list;
@@ -4596,7 +4600,13 @@ function loadExpensesFromSheet() {
     .then(r => r.text())
     .then(csvText => {
       const rows = parseCSV(csvText);
-      if (rows.length < 2) return [];
+      if (rows.length < 2) {
+        // Sheet trống hoặc đã bị xóa → dùng seed data mặc định
+        const seed = getDefaultExpensesSeed();
+        _cachedExpenses = seed;
+        localStorage.setItem('fin_expenses', JSON.stringify(seed));
+        return seed;
+      }
       const defaultExpenses = rows.slice(1).filter(r => r[0]).map((r, i) => ({
         id:           i + 1,
         month:        r[0] || '',
@@ -4607,38 +4617,26 @@ function loadExpensesFromSheet() {
         other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
         note:         r[6] || '',
       }));
-      
-      // Chèn tháng 5 & 6
-      if (!defaultExpenses.some(e => e.month === '2026-05')) {
-        defaultExpenses.push({
-          id: defaultExpenses.length + 1,
-          month: '2026-05',
-          ads_cost: 8068573,
-          salary_cost: 30200000,
-          phone_cost: 940000,
-          office_cost: 4000000,
-          other_cost: 0,
-          note: 'Tự động tạo mặc định'
-        });
-      }
-      if (!defaultExpenses.some(e => e.month === '2026-06')) {
-        defaultExpenses.push({
-          id: defaultExpenses.length + 1,
-          month: '2026-06',
-          ads_cost: 9000000,
-          salary_cost: 31000000,
-          phone_cost: 1000000,
-          office_cost: 4000000,
-          other_cost: 500000,
-          note: 'Tự động tạo mặc định'
-        });
-      }
+
+      // Chèn các tháng còn thiếu từ seed
+      const seedMonths = getDefaultExpensesSeed();
+      seedMonths.forEach(seed => {
+        if (!defaultExpenses.some(e => e.month === seed.month)) {
+          defaultExpenses.push({ ...seed, id: defaultExpenses.length + 1 });
+        }
+      });
 
       _cachedExpenses = defaultExpenses;
       localStorage.setItem('fin_expenses', JSON.stringify(defaultExpenses));
       return defaultExpenses;
     })
-    .catch(() => []);
+    .catch(() => {
+      // Lỗi mạng hoặc Sheet không tồn tại → dùng seed data mặc định
+      const seed = getDefaultExpensesSeed();
+      _cachedExpenses = seed;
+      localStorage.setItem('fin_expenses', JSON.stringify(seed));
+      return seed;
+    });
 }
 
 function saveLocalExpense(item) {
