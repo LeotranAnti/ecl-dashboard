@@ -4483,10 +4483,40 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
   const details = [];
 
   candidates.forEach(c => {
-    if (!c.boarding_date) return;
-    const bDate = new Date(c.boarding_date);
-    const endDate = c.end_date ? new Date(c.end_date) : null;
-    const resignationDate = c.resignation_date ? new Date(c.resignation_date) : null;
+    // Hàm parse ngày tháng an toàn hỗ trợ D/M/YY hoặc DD/MM/YYYY
+    const safeParseDate = (str) => {
+      if (!str || str.trim() === '') return null;
+      try {
+        const clean = str.trim();
+        if (clean.includes('/')) {
+          const parts = clean.split('/');
+          if (parts.length === 3) {
+            let day = parseInt(parts[0], 10);
+            let month = parseInt(parts[1], 10);
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year += 2000; // 26 -> 2026
+            const d = new Date(year, month - 1, day);
+            if (!isNaN(d.getTime())) return d;
+          } else if (parts.length === 2) {
+            // Trường hợp ghi dạng "13/04" thì mặc định lấy năm hiện tại hoặc năm 2026
+            let day = parseInt(parts[0], 10);
+            let month = parseInt(parts[1], 10);
+            const d = new Date(2026, month - 1, day);
+            if (!isNaN(d.getTime())) return d;
+          }
+        }
+        const d = new Date(clean);
+        return isNaN(d.getTime()) ? null : d;
+      } catch {
+        return null;
+      }
+    };
+
+    const bDate = safeParseDate(c.boarding_date);
+    if (!bDate) return; // Bỏ qua nếu không parse được ngày nhận việc
+    
+    const endDate = safeParseDate(c.end_date);
+    const resignationDate = safeParseDate(c.resignation_date);
 
     let endLimit = endDate;
     if (resignationDate) {
@@ -4505,16 +4535,42 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
 
       const pRule = prices.find(p => {
         if (p.factory.toUpperCase().trim() !== c.factory.toUpperCase().trim()) return false;
-        const sd = p.start_date ? new Date(p.start_date) : null;
-        const ed = p.end_date ? new Date(p.end_date) : null;
-        // Đơn giá được khóa cố định theo ngày nhận việc (bDate) của ứng viên
-        if (sd && bDate < sd) return false;
-        if (ed && bDate > ed) return false;
+        
+        // So khớp trực tiếp bằng chuỗi ngày dạng YYYY-MM-DD để tránh lệch múi giờ của đối tượng Date
+        const getCleanDateStr = (dateVal) => {
+          if (!dateVal) return "";
+          if (dateVal instanceof Date) {
+            return dateVal.toISOString().slice(0, 10);
+          }
+          const clean = String(dateVal).trim();
+          if (clean.includes('/')) {
+            const pts = clean.split('/');
+            if (pts.length === 3) {
+              let d = pts[0].padStart(2, '0');
+              let m = pts[1].padStart(2, '0');
+              let y = pts[2];
+              if (y.length === 2) y = '20' + y;
+              return `${y}-${m}-${d}`;
+            }
+          }
+          return clean.slice(0, 10);
+        };
+        
+        const candDateStr = getCleanDateStr(c.boarding_date);
+        const ruleStartStr = p.start_date ? getCleanDateStr(p.start_date) : "";
+        const ruleEndStr = p.end_date ? getCleanDateStr(p.end_date) : "";
+        
+        if (ruleStartStr && candDateStr < ruleStartStr) return false;
+        if (ruleEndStr && candDateStr > ruleEndStr) return false;
         return true;
       });
 
       const price = pRule ? pRule.price : 0;
       const unit = pRule ? (pRule.unit || 'Ngày') : 'Ngày';
+      
+      if (price === 0) {
+        console.warn(`[Doanh thu] Không tìm thấy đơn giá cho: ${c.full_name} (${c.factory}) nhận việc ngày ${c.boarding_date}`);
+      }
 
       const billingLimitDays = (c.factory === 'Canon' || c.factory === 'CN') ? 180 : 90;
       const tenureStart = Math.round((overlapStart - bDate) / (24 * 60 * 60 * 1000)) + 1;
@@ -4593,6 +4649,7 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
     }
   });
 
+  console.log(`[Doanh thu] Kết quả tính chu kỳ ${paymentMonthStr}: Tổng tiền = ${totalRevenue.toLocaleString()}đ, Số lao động đóng góp = ${details.length}`);
   return { totalRevenue, details };
 }
 
