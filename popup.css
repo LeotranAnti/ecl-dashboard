@@ -1031,12 +1031,17 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   width: 95%;
-  max-width: 1000px;
+  max-width: 1200px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   animation: modalFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Chỉ khống chế chiều cao đặc biệt cho duy nhất Modal Cảnh Báo để vừa vặn trong 1 màn hình máy tính của anh Leo */
+.is-warning-modal .modal-content {
+  max-height: 72vh;
 }
 
 @keyframes modalFadeIn {
@@ -1075,7 +1080,7 @@ h1 {
 }
 
 .modal-body {
-  padding: 16px;
+  padding: 8px 12px;
   overflow-y: auto;
 }
 
@@ -1091,10 +1096,17 @@ h1 {
 }
 
 .modal-table th, .modal-table td {
-  padding: 10px 12px;
+  padding: 8px 10px;
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+/* Cho phép cột thông tin lịch hẹn / lý do cảnh báo xuống hàng nếu quá dài */
+.modal-table td:last-child, .modal-table th:last-child {
+  white-space: normal;
+  min-width: 250px;
 }
 
 .modal-table th {
@@ -1811,17 +1823,31 @@ h1 {
 #fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { min-width: 95px; width: 12%; }  /* Ngày kết thúc */
 #fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 100px; width: 12%; } /* Trạng thái */
 
-/* Hỗ trợ cuộn ngang mượt mà cho container chứa bảng và giới hạn trong khung */
+/* Hỗ trợ cuộn ngang/dọc mượt mà cho container chứa bảng và giới hạn trong khung */
 .data-table-container {
   width: 100% !important;
   max-width: 100% !important;
   overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
   border-radius: 6px;
   border: 1px solid var(--border-color);
   box-sizing: border-box !important;
 }
+
+/* Custom thanh cuộn siêu mỏng sang trọng cho bảng tài chính */
+.data-table-container::-webkit-scrollbar {
+  height: 4px !important;
+  width: 4px !important;
+}
+.data-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 2px !important;
+}
+.data-table-container::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
 
 /* Giao diện bảng chi phí vận hành hàng tháng */
 #fin-expenses-table {
