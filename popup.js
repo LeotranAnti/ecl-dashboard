@@ -3100,6 +3100,13 @@ function openDetailsModal(type, customDates = null) {
   
   if (!modal || !modalTitle || !modalBody) return;
 
+  // Quản lý class cảnh báo đặc biệt
+  if (type === "warningAlert") {
+    modal.classList.add("is-warning-modal");
+  } else {
+    modal.classList.remove("is-warning-modal");
+  }
+
   const dates = [];
   if (customDates) {
     dates.push(...customDates);
@@ -3188,7 +3195,10 @@ function getStatusClass(status) {
 
 function closeDetailsModal() {
   const modal = document.getElementById("details-modal");
-  if (modal) modal.classList.remove("active");
+  if (modal) {
+    modal.classList.remove("active");
+    modal.classList.remove("is-warning-modal");
+  }
 }
 
 function getMonthlyDates() {
@@ -4119,6 +4129,18 @@ function renderFinCandidates(list) {
         badgeStyle = 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);';
     }
 
+    let displayEndDate = '-';
+    if (c.end_date && c.end_date.trim() !== '') {
+      displayEndDate = formatFinDate(c.end_date);
+    } else {
+      const activeMonthBtn = document.querySelector('.fin-month-filter-btn.active');
+      const monthFilter = activeMonthBtn ? activeMonthBtn.getAttribute('data-month') : 'all';
+      if (monthFilter !== 'all') {
+        const padMonth = monthFilter.padStart(2, '0');
+        displayEndDate = `25/${padMonth}/2026`;
+      }
+    }
+
     const factoryStyle = getFinFactoryBadgeStyle(c.factory);
 
     tr.innerHTML = `
@@ -4128,7 +4150,7 @@ function renderFinCandidates(list) {
       <td>${c.phone || '-'}</td>
       <td>${c.cccd || '-'}</td>
       <td>${c.boarding_date ? formatFinDate(c.boarding_date) : '-'}</td>
-      <td>${c.end_date ? formatFinDate(c.end_date) : '-'}</td>
+      <td>${displayEndDate}</td>
       <td><span class="badge" style="${badgeStyle}">${c.status || 'Đang làm việc'}</span></td>
     `;
     body.appendChild(tr);
