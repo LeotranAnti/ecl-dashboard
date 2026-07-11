@@ -1772,16 +1772,14 @@ h1 {
 /* Định dạng khoảng cách và độ rộng cột bảng Danh sách nhận việc */
 #fin-candidates-table {
   width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
   border-collapse: collapse;
 }
 
 #fin-candidates-table th, 
 #fin-candidates-table td {
-  padding: 10px 12px;
+  padding: 10px 14px;
   vertical-align: middle;
-  text-overflow: ellipsis;
-  overflow: hidden;
   white-space: nowrap;
 }
 
@@ -1801,13 +1799,23 @@ h1 {
   text-align: center;
 }
 
-/* Tỷ lệ độ rộng tối ưu cho từng cột */
-#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { width: 12%; } /* Mã NV */
-#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { width: 18%; } /* Họ và tên */
-#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { width: 10%; } /* Nhà máy */
-#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { width: 16%; } /* Số điện thoại */
-#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { width: 14%; } /* Số CCCD */
-#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { width: 10%; } /* Ngày nhận việc */
-#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { width: 10%; } /* Ngày kết thúc */
-#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { width: 10%; } /* Trạng thái */
+/* Tỷ lệ độ rộng tối thiểu để tránh co chữ */
+#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { min-width: 100px; } /* Mã NV */
+#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { min-width: 180px; } /* Họ và tên */
+#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { min-width: 100px; } /* Nhà máy */
+#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { min-width: 160px; } /* Số điện thoại */
+#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { min-width: 140px; } /* Số CCCD */
+#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { min-width: 130px; } /* Ngày nhận việc */
+#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { min-width: 130px; } /* Ngày kết thúc */
+#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 130px; } /* Trạng thái */
+
+/* Hỗ trợ cuộn ngang mượt mà cho container chứa bảng */
+.data-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+}
+
 
