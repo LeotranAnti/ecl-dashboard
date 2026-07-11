@@ -4995,11 +4995,11 @@ function renderFinBreakdownChart(paymentMonthStr) {
   const totalRevenue = revDatasetData.reduce((a, b) => a + b, 0);
   const totalCost    = costDatasetData.reduce((a, b) => a + b, 0);
 
-  // Custom plugin: vẽ % trên đầu bar và giá trị ở cuối bar
+  // Custom plugin: vẽ % bên trong thanh màu, giá trị tiền căn phải cuối dòng
   const barLabelPlugin = {
     id: 'barLabelPlugin',
     afterDatasetsDraw(chart) {
-      const { ctx, data, scales } = chart;
+      const { ctx, chartArea } = chart;
       ctx.save();
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         const meta = chart.getDatasetMeta(datasetIndex);
@@ -5008,19 +5008,34 @@ function renderFinBreakdownChart(paymentMonthStr) {
         meta.data.forEach((bar, index) => {
           const value = dataset.data[index];
           if (!value || value === 0) return;
+
           const pct = grandTotal > 0 ? ((value / grandTotal) * 100).toFixed(1) : 0;
           const valStr = value >= 1000000
-            ? (value / 1000000).toFixed(1) + 'M'
-            : value.toLocaleString('vi-VN');
-          const label = `${pct}%  ${valStr}`;
-          // Vị trí: ở cuối thanh bar (bên phải), cùng chiều Y với bar
-          const x = bar.x + 6;
-          const y = bar.y;
+            ? (value / 1000000).toFixed(1) + ' triệu đ'
+            : value.toLocaleString('vi-VN') + ' đ';
+
+          // --- 1. Vẽ % bên trong thanh màu ---
+          const barWidth = bar.x - bar.base; // Độ rộng thanh (px)
+          const pctLabel = `${pct}%`;
           ctx.font = 'bold 9px Inter, sans-serif';
+          const pctTextWidth = ctx.measureText(pctLabel).width;
+          if (barWidth > pctTextWidth + 8) {
+            // Đủ chỗ: vẽ chữ ở giữa thanh
+            const xInside = bar.base + barWidth / 2;
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pctLabel, xInside, bar.y);
+          }
+
+          // --- 2. Vẽ số tiền căn phải ở cuối dòng ---
+          const xRight = chartArea.right;
+          const yRow = bar.y;
+          ctx.font = '9px Inter, sans-serif';
           ctx.fillStyle = isRevenue ? '#93c5fd' : '#fca5a5';
-          ctx.textAlign = 'left';
+          ctx.textAlign = 'right';
           ctx.textBaseline = 'middle';
-          ctx.fillText(label, x, y);
+          ctx.fillText(valStr, xRight, yRow);
         });
       });
       ctx.restore();
