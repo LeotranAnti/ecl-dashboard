@@ -4584,9 +4584,14 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
       // 1. Phân loại tính theo đơn vị THÁNG (Chỉ Canon/CN)
       if (unit === 'Tháng' && (c.factory.toUpperCase().trim() === 'CANON' || c.factory.toUpperCase().trim() === 'CN')) {
         let baseVal = 0;
-        if (days >= 30) {
+        
+        // Khi dự báo hoặc khi chưa nhập số công thực tế, mặc định x1.0 (coi như đủ 30 ngày)
+        const actualDays = parseFloat(c.work_days) || 0;
+        const targetDays = (actualDays > 0) ? actualDays : 30; // Mặc định đủ 30 ngày để nhân hệ số 1.0
+        
+        if (targetDays >= 30) {
           baseVal = price;
-        } else if (days >= 14) {
+        } else if (targetDays >= 14) {
           baseVal = 0.5 * price;
         }
         
@@ -4621,14 +4626,11 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
         // Xác định chu kỳ này có phải chu kỳ đầu tiên chứa ngày nhận việc hay không
         const isFirstCycle = (bDate >= cycleStart && bDate <= cycleEnd);
         
-        // Check xem có phải tháng dự báo tương lai không để áp dụng công dự kiến lý thuyết
-        const currentYearMonth = new Date().toISOString().slice(0, 7); 
-        const isFutureMonth = paymentMonthStr > currentYearMonth;
-        
         let actualUnits = (unit === 'Giờ làm') ? actualHours : actualDays;
         let effectiveDays = days;
         
-        if (isFutureMonth && actualUnits <= 0) {
+        // Nếu chưa có số liệu công thực tế trên Sheet, ta áp dụng công dự kiến lý thuyết
+        if (actualUnits <= 0) {
           if (unit === 'Giờ làm') {
             actualUnits = days * 7.0; // 7 giờ mỗi ngày làm việc
           } else {
