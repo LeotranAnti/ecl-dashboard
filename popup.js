@@ -3786,12 +3786,21 @@ function filterFinCandidates() {
   let filtered = finCandidatesData;
   
   if (monthFilter !== 'all') {
-    const targetMonth = parseInt(monthFilter);
+    const targetMonth = parseInt(monthFilter, 10);
     filtered = filtered.filter(c => {
       if (!c.boarding_date) return false;
-      const parts = c.boarding_date.split('-');
-      if (parts.length < 2) return false;
-      const month = parseInt(parts[1]);
+      const dateStr = c.boarding_date.trim();
+      let month = 0;
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length >= 2) month = parseInt(parts[1], 10);
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length >= 2) {
+          // Nếu là YYYY-MM-DD thì tháng nằm ở index 1, còn DD-MM-YYYY thì tháng cũng nằm ở index 1
+          month = parseInt(parts[1], 10);
+        }
+      }
       return month === targetMonth;
     });
   }
