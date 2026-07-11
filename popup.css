@@ -1865,5 +1865,74 @@ h1 {
   text-align: center;
 }
 
+/* Giao diện bảng cấu hình Đơn giá nhà máy */
+#fin-pricing-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+#fin-pricing-table th,
+#fin-pricing-table td {
+  padding: 8px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+#fin-pricing-table th {
+  background: rgba(255, 255, 255, 0.02);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+#fin-pricing-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Căn lề phải cho Đơn giá và Căn giữa cho Đơn vị / Khoảng thời gian */
+#fin-pricing-table th:nth-child(2), #fin-pricing-table td:nth-child(2) { text-align: right; }
+#fin-pricing-table th:nth-child(3), #fin-pricing-table td:nth-child(3),
+#fin-pricing-table th:nth-child(4), #fin-pricing-table td:nth-child(4) { text-align: center; }
+
+/* Custom nút Sửa và Xóa sang trọng */
+.btn-edit-action {
+  background: rgba(6, 182, 212, 0.1);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-action:hover {
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+}
+
+.btn-delete-action {
+  background: rgba(244, 63, 94, 0.1);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.btn-delete-action:hover {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+}
+
+
 
 
