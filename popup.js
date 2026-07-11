@@ -939,6 +939,182 @@ function updateUI() {
     labelEl.textContent = `${base} ${uiDateLabel}`;
   });
 
+  // Helper simple DM
+  const getSimpleDM = (dateStr) => {
+    if (!dateStr) return '';
+    dateStr = dateStr.trim();
+    if (dateStr.includes(' ')) dateStr = dateStr.split(' ')[0];
+    dateStr = dateStr.replace(/\./g, '/');
+    const parts = dateStr.split('/');
+    if (parts.length >= 2) {
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(d) && !isNaN(m)) return `${d}/${m}`;
+    }
+    return dateStr;
+  };
+
+  // Tính toán cảnh báo động theo các điều kiện của anh Leo
+  const warningList = [];
+  if (state.candidates && state.candidates.length > 1) {
+    const header = state.candidates[0];
+    for (let i = 1; i < state.candidates.length; i++) {
+      const row = state.candidates[i];
+      if (row.length < 18) continue;
+
+      const name = row[1] ? row[1].trim() : "";
+      const phone = row[2] ? row[2].trim() : "";
+      const recruiter = row[8] ? row[8].trim() : "Chưa rõ";
+      const status = row[13] ? row[13].trim() : "";
+      const statusClean = status.toLowerCase();
+      const factoryName = row[18] || "Pegatron";
+      const cccd = row[3] ? row[3].trim() : "";
+
+      // 1. Tình trạng là Hẹn PV nhưng thiếu CRM - Ngày hẹn PV - Ngày CS tiếp - Ngày CS cuối
+      if (statusClean === "hẹn phỏng vấn") {
+        let missing = [];
+        if (!row[10] || row[10].trim() === "") missing.push("CRM");
+        if (!row[12] || row[12].trim() === "") missing.push("Ngày hẹn PV");
+        if (!row[14] || row[14].trim() === "") missing.push("Ngày CS tiếp");
+        if (!row[17] || row[17].trim() === "") missing.push("Ngày CS cuối");
+        if (missing.length > 0) {
+          warningList.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Thiếu: ${missing.join(', ')}`,
+            rawDate: row[12] ? normalizeDate(row[12]) : ""
+          });
+          continue;
+        }
+      }
+
+      // 2. Tình trạng: Chăm sóc tiếp nhưng cột Ngày CS tiếp không có thông tin
+      if (statusClean === "chăm sóc tiếp") {
+        if (!row[14] || row[14].trim() === "") {
+          warningList.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Thiếu Ngày CS tiếp`,
+            rawDate: row[17] ? normalizeDate(row[17]) : ""
+          });
+          continue;
+        }
+      }
+
+      // 3. Ngày cs cuối không có thông tin (cho tất cả các tình trạng hoạt động)
+      const activeStatuses = ['hẹn phỏng vấn', 'chăm sóc tiếp', 'đã nhận việc', 'bùng pv', 'knm', 'từ chối', 'ko đạt', 'chuyển nhà máy khác', 'khác'];
+      if (activeStatuses.includes(statusClean)) {
+        if (!row[17] || row[17].trim() === "") {
+          warningList.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Thiếu Ngày CS cuối`,
+            rawDate: ""
+          });
+          continue;
+        }
+      }
+
+      // 4. Ngày chăm sóc trong tiến trình chăm sóc không có ngày nào trùng với ngày cs cuối hoặc có ngày chăm sóc muộn hơn ngày cs cuối
+      if (row[17] && row[17].trim() !== "") {
+        const careDateSimple = getSimpleDM(row[17]);
+        
+        // Parse ngày dạng 'D/M' thành đối tượng Date năm 2026
+        const parseDM = (dmStr) => {
+          const parts = dmStr.split('/');
+          if (parts.length >= 2) {
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (!isNaN(d) && !isNaN(m)) {
+              return new Date(2026, m - 1, d);
+            }
+          }
+          return null;
+        };
+
+        const careDateObj = parseDM(careDateSimple);
+
+        // Văn bản tiến trình chăm sóc tại Cột T (cột index 19)
+        const progressText = row[19] ? row[19].trim() : "";
+        
+        // Tìm toàn bộ các ngày chăm sóc dạng D/M hoặc DD/MM có dấu hai chấm theo sau trong Cột T
+        const dateRegex = /(\d{1,2}\/\d{1,2})\s*:/g;
+        let match;
+        let foundDates = [];
+        while ((match = dateRegex.exec(progressText)) !== null) {
+          foundDates.push(match[1]);
+        }
+
+        if (foundDates.length > 0) {
+          // 4.1 Kiểm tra xem Ngày CS cuối có tồn tại trong tiến trình chăm sóc hay không
+          let hasMatch = false;
+          for (let fDate of foundDates) {
+            if (getSimpleDM(fDate) === careDateSimple) {
+              hasMatch = true;
+              break;
+            }
+          }
+
+          if (!hasMatch) {
+            warningList.push({
+              name,
+              factory: factoryName,
+              phone,
+              cccd,
+              recruiter,
+              status,
+              dateInfo: `Lệch tiến trình CS (${row[17].trim()})`,
+              rawDate: normalizeDate(row[17])
+            });
+            continue;
+          }
+
+          // 4.2 Kiểm tra xem có ngày chăm sóc nào trong tiến trình muộn hơn Ngày CS cuối hay không
+          if (careDateObj) {
+            let hasFutureCare = false;
+            let futureCareDateStr = "";
+            for (let fDate of foundDates) {
+              const fDateObj = parseDM(getSimpleDM(fDate));
+              if (fDateObj && fDateObj > careDateObj) {
+                hasFutureCare = true;
+                futureCareDateStr = fDate;
+                break;
+              }
+            }
+
+            if (hasFutureCare) {
+              warningList.push({
+                name,
+                factory: factoryName,
+                phone,
+                cccd,
+                recruiter,
+                status,
+                dateInfo: `Có ngày CS muộn hơn ngày CS cuối (${futureCareDateStr})`,
+                rawDate: normalizeDate(row[17])
+              });
+              continue;
+            }
+          }
+        }
+      }
+    }
+  }
+  state.warningCount = warningList.length;
+  state.warningList = warningList;
+
   // Retrieve stats for selected range
   state.startDate = startDate;
   state.endDate = endDate;
@@ -2879,8 +3055,7 @@ function getCandidatesForType(type, customDates = null) {
         }
       }
     } else if (type === "warningAlert") {
-      // ⚠️ Quy tắc cảnh báo sẽ được bổ sung sau theo yêu cầu của anh
-      // Hiện tại trả về danh sách rỗng
+      return state.warningList || [];
     } else if (type === "unprocessedCallback") {
       const historyItem = state.candidateHistory[candKey];
       if (historyItem && historyItem.careDates) {
@@ -4046,105 +4221,90 @@ function triggerFinSync(silent) {
   const icon = document.querySelector("#fin-sync-btn svg") || document.getElementById("fin-sync-btn");
   if (icon) icon.style.animation = 'spin 0.8s linear infinite';
 
-  // Reload tất cả dữ liệu từ Google Sheet
+  // Reload chỉ dữ liệu Candidates từ Google Sheet
   const now = new Date();
   const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   const lastSyncTimeStr = now.toLocaleString('vi-VN');
 
-  Promise.all([
-    fetch(finSheetCsvUrl(FIN_GID_CANDIDATES)).then(r => r.text()),
-    fetch(finSheetCsvUrl(FIN_GID_PRICING)).then(r => r.text()),
-    fetch(finSheetCsvUrl(FIN_GID_EXPENSES)).then(r => r.text()),
-  ]).then(([candCsv, priceCsv, expCsv]) => {
-    if (icon) icon.style.animation = '';
+  fetch(finSheetCsvUrl(FIN_GID_CANDIDATES))
+    .then(r => r.text())
+    .then(candCsv => {
+      if (icon) icon.style.animation = '';
 
-    // Parse candidates
-    const candRows = parseCSV(candCsv);
-    if (candRows.length > 1) {
-      finCandidatesData = candRows.slice(1).filter(r => r[0] && r[4]).map(r => {
-        const hasEndDate = r[8] && r[8].trim() !== '';
-        return {
-          stt:           r[0]||'',
-          factory:       r[1]||'',
-          source:        r[2]||'',
-          employee_id:   r[3]||'',
-          full_name:     r[4]||'',
-          phone:         r[5]||'',
-          cccd:          r[6]||'',
-          boarding_date: r[7]||'',
-          end_date:      r[8]||'',
-          status:        hasEndDate ? 'Nghỉ việc' : 'Đang làm việc',
-          work_hours:    r[9]||'',
-          work_days:     r[10]||'',
-          revenue:       r[11]||'',
-        };
-      });
-      renderFinCandidates(finCandidatesData);
-    }
+      // Parse candidates
+      const candRows = parseCSV(candCsv);
+      if (candRows.length > 1) {
+        finCandidatesData = candRows.slice(1).filter(r => r[0] && r[4]).map(r => {
+          const hasEndDate = r[8] && r[8].trim() !== '';
+          return {
+            stt:           r[0]||'',
+            factory:       r[1]||'',
+            source:        r[2]||'',
+            employee_id:   r[3]||'',
+            full_name:     r[4]||'',
+            phone:         r[5]||'',
+            cccd:          r[6]||'',
+            boarding_date: r[7]||'',
+            end_date:      r[8]||'',
+            status:        hasEndDate ? 'Nghỉ việc' : 'Đang làm việc',
+            work_hours:    r[9]||'',
+            work_days:     r[10]||'',
+            revenue:       r[11]||'',
+          };
+        });
+        renderFinCandidates(finCandidatesData);
+      }
 
-    // Parse pricing
-    const priceRows = parseCSV(priceCsv);
-    if (priceRows.length > 1) {
-      _cachedPricing = priceRows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
-        id:         i + 1,
-        factory:    r[0] || '',
-        price:      parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
-        start_date: r[2] || '',
-        end_date:   r[3] || '',
-        unit:       r[4] || 'Giờ làm',
-      }));
+      // Reload stats & lists from local storage
       loadFinPricingList();
-    }
-
-    // Parse expenses
-    const expRows = parseCSV(expCsv);
-    if (expRows.length > 1) {
-      _cachedExpenses = expRows.slice(1).filter(r => r[0]).map((r, i) => ({
-        id:           i + 1,
-        month:        r[0] || '',
-        ads_cost:     parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
-        salary_cost:  parseFloat((r[2]||'0').replace(/,/g,'')) || 0,
-        phone_cost:   parseFloat((r[3]||'0').replace(/,/g,'')) || 0,
-        office_cost:  parseFloat((r[4]||'0').replace(/,/g,'')) || 0,
-        other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
-        note:         r[6] || '',
-      }));
       loadFinExpensesList();
-    }
+      loadFinStats();
 
-    // Reload stats
-    loadFinStats();
+      if (document.getElementById('fin-sync-time-lbl'))
+        document.getElementById('fin-sync-time-lbl').innerText = timeStr;
+      if (document.getElementById('fin-sync-status-lbl'))
+        document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTimeStr}`;
 
-    if (document.getElementById('fin-sync-time-lbl'))
-      document.getElementById('fin-sync-time-lbl').innerText = timeStr;
-    if (document.getElementById('fin-sync-status-lbl'))
-      document.getElementById('fin-sync-status-lbl').innerText = `Đồng bộ lần cuối: ${lastSyncTimeStr}`;
-
-    if (!silent) alert(`✓ Đã đồng bộ ${finCandidatesData.length} ứng viên lúc ${timeStr}`);
-  }).catch(err => {
-    if (icon) icon.style.animation = '';
-    if (!silent) alert('⚠ Lỗi kết nối Google Sheet: ' + err);
-  });
+      if (!silent) alert(`✓ Đã đồng bộ ${finCandidatesData.length} ứng viên lúc ${timeStr}`);
+    })
+    .catch(err => {
+      if (icon) icon.style.animation = '';
+      if (!silent) alert('⚠ Lỗi kết nối Google Sheet: ' + err);
+    });
 }
 
 // Cache pricing trong memory (refresh mỗi lần load)
 let _cachedPricing = null;
 
 function getLocalPricing() {
-  // Trả về cache nếu đã có
   if (_cachedPricing) return _cachedPricing;
-  // Trả default tạm thời, rồi fetch async từ Sheet
-  return [];
+  
+  const localData = localStorage.getItem('fin_pricing');
+  if (localData) {
+    try {
+      _cachedPricing = JSON.parse(localData);
+      return _cachedPricing;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  _cachedPricing = [];
+  return _cachedPricing;
 }
 
 function loadPricingFromSheet() {
+  const localData = localStorage.getItem('fin_pricing');
+  if (localData) {
+    return Promise.resolve(getLocalPricing());
+  }
+  
+  // Lần đầu khởi tạo Extension, nạp dữ liệu mặc định từ Sheet
   return fetch(finSheetCsvUrl(FIN_GID_PRICING))
     .then(r => r.text())
     .then(csvText => {
       const rows = parseCSV(csvText);
       if (rows.length < 2) return [];
-      // Header: Nhà máy, Đơn giá, Từ ngày, Đến ngày, Đơn vị tính
-      _cachedPricing = rows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
+      const defaultPrices = rows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
         id:         i + 1,
         factory:    r[0] || '',
         price:      parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
@@ -4152,7 +4312,9 @@ function loadPricingFromSheet() {
         end_date:   r[3] || '',
         unit:       r[4] || 'Giờ làm',
       }));
-      return _cachedPricing;
+      _cachedPricing = defaultPrices;
+      localStorage.setItem('fin_pricing', JSON.stringify(defaultPrices));
+      return defaultPrices;
     })
     .catch(() => []);
 }
@@ -4182,12 +4344,14 @@ function saveLocalPricing(item) {
       end_date: item.end_date
     });
   }
+  _cachedPricing = list;
   localStorage.setItem('fin_pricing', JSON.stringify(list));
 }
 
 function deleteLocalPricing(id) {
   let list = getLocalPricing();
   list = list.filter(p => p.id !== parseInt(id));
+  _cachedPricing = list;
   localStorage.setItem('fin_pricing', JSON.stringify(list));
 }
 
@@ -4204,8 +4368,8 @@ function loadFinPricingList() {
       <td><span class="badge ${p.unit === 'Giờ làm' ? 'badge-info' : p.unit === 'Tháng' ? 'badge-warning' : 'badge-success'}">${p.unit || 'Ngày'}</span></td>
       <td>Từ ${formatFinDate(p.start_date)} đến ${formatFinDate(p.end_date)}</td>
       <td style="text-align: right;">
-        <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="editFinPricing(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
-        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteFinPricing(${p.id})">Xóa</button>
+        <button class="btn-edit-action" onclick="editFinPricing(${JSON.stringify(p).replace(/"/g, '&quot;')})">Sửa</button>
+        <button class="btn-delete-action" onclick="deleteFinPricing(${p.id})">Xóa</button>
       </td>
     `;
     body.appendChild(tr);
@@ -4306,17 +4470,34 @@ function resetFinExpenseForm() {
 let _cachedExpenses = null;
 
 function getLocalExpenses() {
-  return _cachedExpenses || [];
+  if (_cachedExpenses) return _cachedExpenses;
+  
+  const localData = localStorage.getItem('fin_expenses');
+  if (localData) {
+    try {
+      _cachedExpenses = JSON.parse(localData);
+      return _cachedExpenses;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  _cachedExpenses = [];
+  return _cachedExpenses;
 }
 
 function loadExpensesFromSheet() {
+  const localData = localStorage.getItem('fin_expenses');
+  if (localData) {
+    return Promise.resolve(getLocalExpenses());
+  }
+
+  // Lần đầu khởi tạo Extension, nạp dữ liệu mặc định từ Sheet
   return fetch(finSheetCsvUrl(FIN_GID_EXPENSES))
     .then(r => r.text())
     .then(csvText => {
       const rows = parseCSV(csvText);
       if (rows.length < 2) return [];
-      // Header: Tháng, Chi phí ads, Chi phí lương, Chi phí điện thoại, Chi phí văn phòng, Chi phí khác, Ghi chú
-      _cachedExpenses = rows.slice(1).filter(r => r[0]).map((r, i) => ({
+      const defaultExpenses = rows.slice(1).filter(r => r[0]).map((r, i) => ({
         id:           i + 1,
         month:        r[0] || '',
         ads_cost:     parseFloat((r[1]||'0').replace(/,/g,'')) || 0,
@@ -4326,7 +4507,9 @@ function loadExpensesFromSheet() {
         other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
         note:         r[6] || '',
       }));
-      return _cachedExpenses;
+      _cachedExpenses = defaultExpenses;
+      localStorage.setItem('fin_expenses', JSON.stringify(defaultExpenses));
+      return defaultExpenses;
     })
     .catch(() => []);
 }
@@ -4353,6 +4536,7 @@ function saveLocalExpense(item) {
   } else {
     list.push(expenseRecord);
   }
+  _cachedExpenses = list;
   localStorage.setItem('fin_expenses', JSON.stringify(list));
 }
 
