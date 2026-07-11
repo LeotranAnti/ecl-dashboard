@@ -1084,12 +1084,12 @@ h1 {
   overflow-x: auto;
 }
 
-/* Cấu hình bảng co khít ôm sát theo nội dung thực tế, loại bỏ hoàn toàn khoảng trống thừa ở giữa các cột */
+/* Cấu hình bảng với table-layout: fixed để tuân thủ % width chính xác */
 .modal-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
-  table-layout: auto !important;
+  table-layout: fixed;
 }
 
 .modal-table th, .modal-table td {
@@ -1098,46 +1098,24 @@ h1 {
   vertical-align: middle;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Định nghĩa chiều rộng và khoảng cách các cột trong modal để co khít lại gần nhau */
-.modal-table th:nth-child(1), .modal-table td:nth-child(1) {
-  width: 20%;
-  min-width: 170px;
-} /* Tên ứng viên */
-
-.modal-table th:nth-child(2), .modal-table td:nth-child(2) {
-  width: 8%;
-  min-width: 80px;
-  text-align: left;
-  padding-left: 0 !important; /* Dịch sát về cột 1 */
-} /* Nhà máy */
-
-.modal-table th:nth-child(3), .modal-table td:nth-child(3) {
-  width: 12%;
-  min-width: 110px;
-} /* Số điện thoại */
-
-.modal-table th:nth-child(4), .modal-table td:nth-child(4) {
-  width: 12%;
-  min-width: 110px;
-  padding-left: 0 !important; /* Dịch sát về cột 3 */
-} /* Số CCCD */
-
-.modal-table th:nth-child(5), .modal-table td:nth-child(5) {
-  width: 12%;
-  min-width: 100px;
-} /* Người chăm sóc */
-
-.modal-table th:nth-child(6), .modal-table td:nth-child(6) {
-  width: 12%;
-  min-width: 100px;
-} /* Trạng thái */
-
+/* Tỷ lệ cột: tổng = 100%, mỗi cột co khít đủ nội dung, cột cuối chiếm phần còn lại */
+.modal-table th:nth-child(1), .modal-table td:nth-child(1) { width: 17%; } /* Tên ứng viên */
+.modal-table th:nth-child(2), .modal-table td:nth-child(2) { width: 9%;  } /* Nhà máy */
+.modal-table th:nth-child(3), .modal-table td:nth-child(3) { width: 11%; } /* Số điện thoại */
+.modal-table th:nth-child(4), .modal-table td:nth-child(4) { width: 13%; } /* Số CCCD */
+.modal-table th:nth-child(5), .modal-table td:nth-child(5) { width: 12%; } /* Người chăm sóc */
+.modal-table th:nth-child(6), .modal-table td:nth-child(6) { width: 12%; } /* Trạng thái */
 .modal-table th:nth-child(7), .modal-table td:nth-child(7) {
-  min-width: 160px;
-  white-space: nowrap;
-} /* Thông tin cảnh báo */
+  width: 26%;
+  white-space: normal;
+  word-break: keep-all;
+  overflow: visible;
+  text-overflow: clip;
+} /* Thông tin lịch hẹn */
 
 
 

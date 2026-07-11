@@ -4991,15 +4991,52 @@ function renderFinBreakdownChart(paymentMonthStr) {
     titleEl.innerText = `Cơ cấu Doanh thu và Chi phí tháng ${pParts[1]}/${pParts[0]}`;
   }
 
+  // Tính tổng doanh thu và tổng chi phí để vẽ %
+  const totalRevenue = revDatasetData.reduce((a, b) => a + b, 0);
+  const totalCost    = costDatasetData.reduce((a, b) => a + b, 0);
+
+  // Custom plugin: vẽ % trên đầu bar và giá trị ở cuối bar
+  const barLabelPlugin = {
+    id: 'barLabelPlugin',
+    afterDatasetsDraw(chart) {
+      const { ctx, data, scales } = chart;
+      ctx.save();
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        const isRevenue = dataset.label === 'Doanh thu';
+        const grandTotal = isRevenue ? totalRevenue : totalCost;
+        meta.data.forEach((bar, index) => {
+          const value = dataset.data[index];
+          if (!value || value === 0) return;
+          const pct = grandTotal > 0 ? ((value / grandTotal) * 100).toFixed(1) : 0;
+          const valStr = value >= 1000000
+            ? (value / 1000000).toFixed(1) + 'M'
+            : value.toLocaleString('vi-VN');
+          const label = `${pct}%  ${valStr}`;
+          // Vị trí: ở cuối thanh bar (bên phải), cùng chiều Y với bar
+          const x = bar.x + 6;
+          const y = bar.y;
+          ctx.font = 'bold 9px Inter, sans-serif';
+          ctx.fillStyle = isRevenue ? '#93c5fd' : '#fca5a5';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, x, y);
+        });
+      });
+      ctx.restore();
+    }
+  };
+
   finBreakdownChartObj = new Chart(ctx, {
     type: 'bar',
+    plugins: [barLabelPlugin],
     data: {
       labels: allLabels,
       datasets: [
         {
           label: 'Doanh thu',
           data: revDatasetData,
-          backgroundColor: 'rgba(96, 165, 250, 0.75)', // Màu xanh lam sáng
+          backgroundColor: 'rgba(96, 165, 250, 0.75)',
           borderColor: '#60a5fa',
           borderWidth: 1,
           borderRadius: 4
@@ -5007,7 +5044,7 @@ function renderFinBreakdownChart(paymentMonthStr) {
         {
           label: 'Chi phí',
           data: costDatasetData,
-          backgroundColor: 'rgba(251, 113, 133, 0.75)', // Màu đỏ hồng sáng
+          backgroundColor: 'rgba(251, 113, 133, 0.75)',
           borderColor: '#fb7185',
           borderWidth: 1,
           borderRadius: 4
@@ -5015,9 +5052,12 @@ function renderFinBreakdownChart(paymentMonthStr) {
       ]
     },
     options: {
-      indexAxis: 'y', // Biến thành biểu đồ nằm ngang (Horizontal Bar Chart)
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: { right: 80 } // Tạo khoảng trống bên phải để hiển thị nhãn %  giá trị
+      },
       plugins: {
         legend: {
           display: true,
@@ -5036,8 +5076,11 @@ function renderFinBreakdownChart(paymentMonthStr) {
           callbacks: {
             label: function(context) {
               const val = context.raw;
-              if (val === 0) return null; // Ẩn các nhãn có giá trị bằng 0
-              return `${context.dataset.label}: ${val.toLocaleString('vi-VN')} đ`;
+              if (val === 0) return null;
+              const isRevenue = context.dataset.label === 'Doanh thu';
+              const grandTotal = isRevenue ? totalRevenue : totalCost;
+              const pct = grandTotal > 0 ? ((val / grandTotal) * 100).toFixed(1) : 0;
+              return `${context.dataset.label}: ${val.toLocaleString('vi-VN')} đ (${pct}%)`;
             }
           }
         }
