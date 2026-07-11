@@ -1823,5 +1823,47 @@ h1 {
   box-sizing: border-box !important;
 }
 
+/* Giao diện bảng chi phí vận hành hàng tháng */
+#fin-expenses-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+#fin-expenses-table th,
+#fin-expenses-table td {
+  padding: 8px 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+#fin-expenses-table th {
+  background: rgba(255, 255, 255, 0.02);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#fin-expenses-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Căn lề phải cho cột số tiền */
+#fin-expenses-table th:nth-child(2), #fin-expenses-table td:nth-child(2),
+#fin-expenses-table th:nth-child(3), #fin-expenses-table td:nth-child(3),
+#fin-expenses-table th:nth-child(4), #fin-expenses-table td:nth-child(4),
+#fin-expenses-table th:nth-child(5), #fin-expenses-table td:nth-child(5),
+#fin-expenses-table th:nth-child(6), #fin-expenses-table td:nth-child(6),
+#fin-expenses-table th:nth-child(7), #fin-expenses-table td:nth-child(7) {
+  text-align: right;
+}
+
+/* Căn giữa cột Tháng và Thao tác */
+#fin-expenses-table th:nth-child(1), #fin-expenses-table td:nth-child(1),
+#fin-expenses-table th:nth-child(8), #fin-expenses-table td:nth-child(8) {
+  text-align: center;
+}
+
 
 
