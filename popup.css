@@ -1799,22 +1799,28 @@ h1 {
   text-align: center;
 }
 
-/* Tỷ lệ độ rộng tối thiểu để tránh co chữ */
-#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { min-width: 100px; } /* Mã NV */
-#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { min-width: 180px; } /* Họ và tên */
-#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { min-width: 100px; } /* Nhà máy */
-#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { min-width: 160px; } /* Số điện thoại */
-#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { min-width: 140px; } /* Số CCCD */
-#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { min-width: 130px; } /* Ngày nhận việc */
-#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { min-width: 130px; } /* Ngày kết thúc */
-#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 130px; } /* Trạng thái */
+/* Tỷ lệ độ rộng tối thiểu để tránh co chữ nhưng vẫn khít màn hình */
+#fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { min-width: 80px; }  /* Mã NV */
+#fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { min-width: 140px; } /* Họ và tên */
+#fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { min-width: 80px; }  /* Nhà máy */
+#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { min-width: 110px; } /* Số điện thoại */
+#fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { min-width: 110px; } /* Số CCCD */
+#fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { min-width: 100px; } /* Ngày nhận việc */
+#fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { min-width: 100px; } /* Ngày kết thúc */
+#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 100px; } /* Trạng thái */
 
-/* Hỗ trợ cuộn ngang mượt mà cho container chứa bảng */
+/* Hỗ trợ cuộn ngang mượt mà cho container chứa bảng và giới hạn trong khung */
 .data-table-container {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
 }
+
 
 }
 
