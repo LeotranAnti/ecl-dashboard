@@ -4462,11 +4462,19 @@ function getCycleRange(paymentMonthStr) {
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10);
   
-  // Chu kỳ của tháng M: từ ngày 26 tháng M-1 đến ngày 25 tháng M
-  const cycleEnd = new Date(year, month - 1, 25);
+  // Hạch toán T+2: Báo cáo xem ở tháng T sẽ lấy dữ liệu chu kỳ của tháng M = T - 2
+  let targetMonth = month - 2;
+  let targetYear = year;
+  if (targetMonth <= 0) {
+    targetMonth += 12;
+    targetYear -= 1;
+  }
   
-  let startYear = year;
-  let startMonth = month - 1;
+  // Chu kỳ tháng M: Từ ngày 26 của tháng (M-1) đến ngày 25 của tháng M
+  const cycleEnd = new Date(targetYear, targetMonth - 1, 25);
+  
+  let startYear = targetYear;
+  let startMonth = targetMonth - 1;
   if (startMonth === 0) {
     startMonth = 12;
     startYear -= 1;
@@ -4483,7 +4491,6 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
   const details = [];
 
   candidates.forEach(c => {
-    // Hàm parse ngày tháng an toàn hỗ trợ D/M/YY hoặc DD/MM/YYYY
     const safeParseDate = (str) => {
       if (!str || str.trim() === '') return null;
       try {
@@ -4498,7 +4505,6 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
             const d = new Date(year, month - 1, day);
             if (!isNaN(d.getTime())) return d;
           } else if (parts.length === 2) {
-            // Trường hợp ghi dạng "13/04" thì mặc định lấy năm hiện tại hoặc năm 2026
             let day = parseInt(parts[0], 10);
             let month = parseInt(parts[1], 10);
             const d = new Date(2026, month - 1, day);
@@ -4513,7 +4519,7 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
     };
 
     const bDate = safeParseDate(c.boarding_date);
-    if (!bDate) return; // Bỏ qua nếu không parse được ngày nhận việc
+    if (!bDate) return; 
     
     const endDate = safeParseDate(c.end_date);
     const resignationDate = safeParseDate(c.resignation_date);
@@ -4523,7 +4529,6 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
       endLimit = endDate ? new Date(Math.min(endDate, resignationDate)) : resignationDate;
     }
 
-    // Nếu không có ngày kết thúc/nghỉ việc, coi như làm việc vô thời hạn (lấy mốc rất xa trong tương lai)
     const effectiveEndLimit = endLimit || new Date(2099, 11, 31);
 
     if (effectiveEndLimit >= cycleStart && bDate <= cycleEnd) {
@@ -4536,7 +4541,6 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
       const pRule = prices.find(p => {
         if (p.factory.toUpperCase().trim() !== c.factory.toUpperCase().trim()) return false;
         
-        // So khớp trực tiếp bằng chuỗi ngày dạng YYYY-MM-DD để tránh lệch múi giờ của đối tượng Date
         const getCleanDateStr = (dateVal) => {
           if (!dateVal) return "";
           if (dateVal instanceof Date) {
@@ -4572,63 +4576,90 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
         console.warn(`[Doanh thu] Không tìm thấy đơn giá cho: ${c.full_name} (${c.factory}) nhận việc ngày ${c.boarding_date}`);
       }
 
-      const billingLimitDays = (c.factory === 'Canon' || c.factory === 'CN') ? 180 : 90;
+      const billingLimitDays = (c.factory.toUpperCase().trim() === 'CANON' || c.factory.toUpperCase().trim() === 'CN') ? 180 : 90;
       const tenureStart = Math.round((overlapStart - bDate) / (24 * 60 * 60 * 1000)) + 1;
 
       let candidateVal = 0;
 
-      if (unit === 'Tháng' && (c.factory === 'Canon' || c.factory === 'CN')) {
+      // 1. Phân loại tính theo đơn vị THÁNG (Chỉ Canon/CN)
+      if (unit === 'Tháng' && (c.factory.toUpperCase().trim() === 'CANON' || c.factory.toUpperCase().trim() === 'CN')) {
+        let baseVal = 0;
         if (days >= 30) {
-          candidateVal = price;
+          baseVal = price;
         } else if (days >= 14) {
-          candidateVal = 0.5 * price;
+          baseVal = 0.5 * price;
         }
-        if (candidateVal > 0) {
-          if (tenureStart <= 30) {
-            candidateVal *= 0.75;
-          } else if (tenureStart <= 60) {
-            candidateVal *= 0.85;
-          } else if (tenureStart <= 90) {
-            candidateVal *= 0.90;
+        
+        if (baseVal > 0) {
+          // Tính khấu hao thâm niên trung bình trong chu kỳ cho Canon
+          let totalFactor = 0;
+          let countedDays = 0;
+          for (let d = 0; d < days; d++) {
+            const currentDayTenure = tenureStart + d;
+            if (currentDayTenure > billingLimitDays) break;
+            
+            countedDays++;
+            if (currentDayTenure <= 30) {
+              totalFactor += 0.75;
+            } else if (currentDayTenure <= 60) {
+              totalFactor += 0.6375;
+            } else if (currentDayTenure <= 90) {
+              totalFactor += 0.57375;
+            } else {
+              totalFactor += 1.00; // Ngày 91 trở đi Canon được 100%
+            }
+          }
+          if (countedDays > 0) {
+            candidateVal = baseVal * (totalFactor / days);
           }
         }
       } else {
+        // 2. Phân loại đơn vị Ngày & Giờ
         const actualHours = parseFloat(c.work_hours) || 0;
         const actualDays = parseFloat(c.work_days) || 0;
         
-        // Xác định xem tháng đang tính toán có phải là tháng tương lai hay không
-        const currentYearMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+        // Xác định chu kỳ này có phải chu kỳ đầu tiên chứa ngày nhận việc hay không
+        const isFirstCycle = (bDate >= cycleStart && bDate <= cycleEnd);
+        
+        // Check xem có phải tháng dự báo tương lai không để áp dụng công dự kiến lý thuyết
+        const currentYearMonth = new Date().toISOString().slice(0, 7); 
         const isFutureMonth = paymentMonthStr > currentYearMonth;
         
         let actualUnits = (unit === 'Giờ làm') ? actualHours : actualDays;
-        
-        // Đối với tháng dự báo tương lai, nếu chưa có số liệu trên Sheet, ta áp dụng công dự kiến lý thuyết
         if (isFutureMonth && actualUnits <= 0) {
           actualUnits = (unit === 'Giờ làm') ? (days * 8.0) : (days * 1.0);
         }
         
         let isEligible = true;
-        if (actualUnits <= 0) {
-          isEligible = false;
+        // Target tối thiểu (5 ngày / 40 giờ) chỉ áp dụng cho chu kỳ đầu tiên
+        if (isFirstCycle) {
+          if (unit === 'Giờ làm') {
+            if (actualUnits < 40.0) isEligible = false;
+          } else {
+            if (actualUnits < 5.0) isEligible = false;
+          }
+        } else {
+          // Từ chu kỳ sau trở đi: làm bao nhiêu hưởng bấy nhiêu
+          if (actualUnits <= 0) isEligible = false;
         }
 
         if (isEligible) {
           let effectiveValue = 0;
-          // Chia đều tổng số giờ/ngày thực tế cho số ngày hoạt động trong chu kỳ để tính chiết khấu lũy tiến chính xác theo từng ngày thâm niên
           const unitPerDay = actualUnits / days;
           
           for (let d = 0; d < days; d++) {
             const currentDayTenure = tenureStart + d;
-            // Chỉ tính tiền nếu thâm niên của ngày làm việc đó vẫn nằm trong giới hạn thanh toán (<= 90 ngày)
             if (currentDayTenure > billingLimitDays) break;
             
             let dayVal = unitPerDay * price;
             if (currentDayTenure <= 30) {
               dayVal *= 0.75;
             } else if (currentDayTenure <= 60) {
-              dayVal *= 0.85;
+              dayVal *= 0.6375;
             } else if (currentDayTenure <= 90) {
-              dayVal *= 0.90;
+              dayVal *= 0.57375;
+            } else {
+              dayVal *= 1.00; // Đề phòng trường hợp nhà máy khác nhưng set billing limit dài hơn 90
             }
             effectiveValue += dayVal;
           }
