@@ -3100,13 +3100,6 @@ function openDetailsModal(type, customDates = null) {
   
   if (!modal || !modalTitle || !modalBody) return;
 
-  // Quản lý class cảnh báo đặc biệt
-  if (type === "warningAlert") {
-    modal.classList.add("is-warning-modal");
-  } else {
-    modal.classList.remove("is-warning-modal");
-  }
-
   const dates = [];
   if (customDates) {
     dates.push(...customDates);
@@ -3197,7 +3190,6 @@ function closeDetailsModal() {
   const modal = document.getElementById("details-modal");
   if (modal) {
     modal.classList.remove("active");
-    modal.classList.remove("is-warning-modal");
   }
 }
 
@@ -4995,7 +4987,8 @@ function renderFinBreakdownChart(paymentMonthStr) {
   // Tiêu đề động hiển thị tháng hạch toán chi phí bên dưới biểu đồ
   const titleEl = document.getElementById('fin-breakdown-title');
   if (titleEl) {
-    titleEl.innerText = `Cấu thành Doanh thu & Chi phí (Chu kỳ ${workMonthStr.split('-')[1]}/${workMonthStr.split('-')[0]})`;
+    const pParts = paymentMonthStr.split('-');
+    titleEl.innerText = `Cơ cấu Doanh thu và Chi phí tháng ${pParts[1]}/${pParts[0]}`;
   }
 
   finBreakdownChartObj = new Chart(ctx, {
