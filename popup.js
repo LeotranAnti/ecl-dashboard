@@ -4632,6 +4632,157 @@ function executeFinReconciliation() {
   });
 }
 
+function renderFinBreakdownChart(paymentMonthStr) {
+  const canvas = document.getElementById('fin-breakdown-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  try {
+    if (finBreakdownChartObj) {
+      finBreakdownChartObj.destroy();
+    }
+  } catch (e) {
+    console.error("Error destroying chart: ", e);
+  }
+
+  // 1. Tính toán Doanh thu theo Nhà máy của tháng được chọn
+  const { details: revDetails } = calculateMonthRevenue(paymentMonthStr, finCandidatesData || []);
+  const factoryMap = {};
+  revDetails.forEach(item => {
+    const fName = item.factory.toUpperCase().trim();
+    factoryMap[fName] = (factoryMap[fName] || 0) + item.value;
+  });
+
+  // 2. Lấy Chi phí của tháng được chọn
+  const expenses = getLocalExpenses();
+  // Hạch toán T+2: Tháng T xem báo cáo sẽ lọc chi phí của tháng M = T - 2
+  const parts = paymentMonthStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  let targetMonth = month - 2;
+  let targetYear = year;
+  if (targetMonth <= 0) {
+    targetMonth += 12;
+    targetYear -= 1;
+  }
+  const workMonthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+  
+  const expRecord = expenses.find(e => e.month === workMonthStr);
+  const costMap = {
+    'Chi phí Ads': expRecord ? expRecord.ads_cost : 0,
+    'Lương nhân sự': expRecord ? expRecord.salary_cost : 0,
+    'Điện thoại': expRecord ? expRecord.phone_cost : 0,
+    'Thuê văn phòng': expRecord ? expRecord.office_cost : 0,
+    'Chi phí khác': expRecord ? expRecord.other_cost : 0
+  };
+
+  // Gom các nhãn doanh thu và chi phí lại để so sánh song song
+  const allLabels = [];
+  const revDatasetData = [];
+  const costDatasetData = [];
+
+  // Thêm dữ liệu doanh thu nhà máy
+  Object.keys(factoryMap).forEach(k => {
+    if (factoryMap[k] > 0) {
+      allLabels.push(`Doanh thu ${k}`);
+      revDatasetData.push(factoryMap[k]);
+      costDatasetData.push(0); // Không có chi phí tương ứng
+    }
+  });
+
+  // Thêm dữ liệu chi phí
+  Object.keys(costMap).forEach(k => {
+    if (costMap[k] > 0) {
+      allLabels.push(k);
+      revDatasetData.push(0); // Không có doanh thu tương ứng
+      costDatasetData.push(costMap[k]);
+    }
+  });
+
+  if (allLabels.length === 0) {
+    allLabels.push("Chưa có dữ liệu");
+    revDatasetData.push(0);
+    costDatasetData.push(0);
+  }
+
+  // Tiêu đề động hiển thị tháng hạch toán chi phí bên dưới biểu đồ
+  const titleEl = document.getElementById('fin-breakdown-title');
+  if (titleEl) {
+    titleEl.innerText = `Cấu thành Doanh thu & Chi phí (Chu kỳ ${workMonthStr.split('-')[1]}/${workMonthStr.split('-')[0]})`;
+  }
+
+  finBreakdownChartObj = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: 'Doanh thu',
+          data: revDatasetData,
+          backgroundColor: 'rgba(96, 165, 250, 0.75)', // Màu xanh lam sáng
+          borderColor: '#60a5fa',
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Chi phí',
+          data: costDatasetData,
+          backgroundColor: 'rgba(251, 113, 133, 0.75)', // Màu đỏ hồng sáng
+          borderColor: '#fb7185',
+          borderWidth: 1,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y', // Biến thành biểu đồ nằm ngang (Horizontal Bar Chart)
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: '#94a3b8',
+            font: { family: 'Inter', size: 10 }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          padding: 8,
+          callbacks: {
+            label: function(context) {
+              const val = context.raw;
+              if (val === 0) return null; // Ẩn các nhãn có giá trị bằng 0
+              return `${context.dataset.label}: ${val.toLocaleString('vi-VN')} đ`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 9 },
+            callback: (val) => val >= 1000000 ? (val / 1000000) + 'M' : val.toLocaleString('vi-VN')
+          }
+        },
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 9 }
+          }
+        }
+      }
+    }
+  });
+}
+
 function displayFinReconciliationResults(res) {
   document.getElementById('fin-results-panel').style.display = 'block';
   
