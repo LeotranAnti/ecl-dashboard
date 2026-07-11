@@ -4305,26 +4305,48 @@ function triggerFinSync(silent) {
 // Cache pricing trong memory (refresh mỗi lần load)
 let _cachedPricing = null;
 
+function getDefaultPricingSeed() {
+  return [
+    { id: 1, factory: 'PGT',        price: 5000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 2, factory: 'Wistron',    price: 8000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 3, factory: 'Brother HD', price: 36000,   unit: 'Ngày',     start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 4, factory: 'Goertek NA', price: 4000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 5, factory: 'Goertek BN', price: 4000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 6, factory: 'Foxconn QN', price: 4000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 7, factory: 'Usi',        price: 4000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 8, factory: 'Sev',        price: 4000,    unit: 'Giờ làm',  start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 9, factory: 'Canon',      price: 1500000, unit: 'Tháng',    start_date: '2026-01-01', end_date: '2026-12-31' },
+  ];
+}
+
 function getLocalPricing() {
-  if (_cachedPricing) return _cachedPricing;
+  if (_cachedPricing && _cachedPricing.length > 0) return _cachedPricing;
   
   const localData = localStorage.getItem('fin_pricing');
   if (localData) {
     try {
-      _cachedPricing = JSON.parse(localData);
-      return _cachedPricing;
+      const parsed = JSON.parse(localData);
+      if (parsed && parsed.length > 0) {
+        _cachedPricing = parsed;
+        return _cachedPricing;
+      }
     } catch (e) {
       console.error(e);
     }
   }
-  _cachedPricing = [];
+  // Nếu localStorage trống (vd: dùng trên web Vercel), dùng seed data mặc định
+  _cachedPricing = getDefaultPricingSeed();
+  localStorage.setItem('fin_pricing', JSON.stringify(_cachedPricing));
   return _cachedPricing;
 }
 
 function loadPricingFromSheet() {
   const localData = localStorage.getItem('fin_pricing');
   if (localData) {
-    return Promise.resolve(getLocalPricing());
+    try {
+      const parsed = JSON.parse(localData);
+      if (parsed && parsed.length > 0) return Promise.resolve(parsed);
+    } catch(e) {}
   }
   
   // Lần đầu khởi tạo Extension, nạp dữ liệu mặc định từ Sheet
@@ -4332,7 +4354,13 @@ function loadPricingFromSheet() {
     .then(r => r.text())
     .then(csvText => {
       const rows = parseCSV(csvText);
-      if (rows.length < 2) return [];
+      if (rows.length < 2) {
+        // Sheet trống hoặc đã bị xóa → dùng seed data mặc định
+        const seed = getDefaultPricingSeed();
+        _cachedPricing = seed;
+        localStorage.setItem('fin_pricing', JSON.stringify(seed));
+        return seed;
+      }
       const defaultPrices = rows.slice(1).filter(r => r[0] && r[1]).map((r, i) => ({
         id:         i + 1,
         factory:    r[0] || '',
@@ -4345,7 +4373,13 @@ function loadPricingFromSheet() {
       localStorage.setItem('fin_pricing', JSON.stringify(defaultPrices));
       return defaultPrices;
     })
-    .catch(() => []);
+    .catch(() => {
+      // Lỗi mạng hoặc Sheet không tồn tại → dùng seed data mặc định
+      const seed = getDefaultPricingSeed();
+      _cachedPricing = seed;
+      localStorage.setItem('fin_pricing', JSON.stringify(seed));
+      return seed;
+    });
 }
 
 function saveLocalPricing(item) {
