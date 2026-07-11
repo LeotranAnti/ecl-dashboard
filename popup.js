@@ -3199,8 +3199,13 @@ function setupMainNavigation() {
 // MARKETING DASHBOARD LOGIC
 // ============================================================================
 
+// ============================================================================
+// MARKETING DASHBOARD LOGIC (SURGE REPLICATED)
+// ============================================================================
+
 let mktRawData = [];
 let mktChartObj = null;
+let mktSelectedDateFilter = "All";
 
 function initMarketingDashboard() {
   const refreshBtn = document.getElementById("mkt-refresh-btn");
@@ -3212,7 +3217,10 @@ function initMarketingDashboard() {
   const monthSelect = document.getElementById("mkt-month-select");
   if (monthSelect && !monthSelect.dataset.listenerAdded) {
     monthSelect.dataset.listenerAdded = "true";
-    monthSelect.addEventListener("change", () => fetchMarketingData());
+    monthSelect.addEventListener("change", () => {
+      mktSelectedDateFilter = "All";
+      fetchMarketingData();
+    });
   }
   
   const selectBox = document.getElementById("mkt-campaign-select");
@@ -3220,13 +3228,23 @@ function initMarketingDashboard() {
     selectBox.dataset.listenerAdded = "true";
     selectBox.addEventListener("change", () => renderMarketingDashboard());
   }
+
+  const dateFilterSelect = document.getElementById("mkt-date-filter-select");
+  if (dateFilterSelect && !dateFilterSelect.dataset.listenerAdded) {
+    dateFilterSelect.dataset.listenerAdded = "true";
+    dateFilterSelect.addEventListener("change", (e) => {
+      mktSelectedDateFilter = e.target.value;
+      renderMarketingDashboard();
+    });
+  }
+  
   fetchMarketingData();
 }
 
 async function fetchMarketingData() {
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
-    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
   }
   
   const monthSelect = document.getElementById("mkt-month-select");
@@ -3248,12 +3266,13 @@ async function fetchMarketingData() {
     
     // Đổ động các tùy chọn nhà máy dựa trên dòng tiêu đề
     updateCampaignSelector();
+    populateMktDateFilter();
     
     renderMarketingDashboard();
   } catch (error) {
     console.error("Lỗi tải dữ liệu marketing:", error);
     if (tableBody) {
-      tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
     }
   }
 }
@@ -3262,7 +3281,6 @@ function updateCampaignSelector() {
   const selectBox = document.getElementById("mkt-campaign-select");
   if (!selectBox || !mktRawData) return;
   
-  // Tìm dòng tiêu đề (dòng có phần tử đầu tiên là 'Ngày')
   const headerRow = mktRawData.find(row => row && row[0] && row[0].trim() === "Ngày");
   if (!headerRow) return;
   
@@ -3277,13 +3295,30 @@ function updateCampaignSelector() {
   selectBox.innerHTML = optionsHTML;
 }
 
+function populateMktDateFilter() {
+  const dateFilterSelect = document.getElementById("mkt-date-filter-select");
+  if (!dateFilterSelect) return;
+  
+  const monthSelect = document.getElementById("mkt-month-select");
+  const monthVal = monthSelect ? monthSelect.value : "7";
+  
+  let optionsHTML = `<option value="All">Tất Cả (Tháng ${monthVal})</option>`;
+  for (let d = 1; d <= 31; d++) {
+    const dayStr = d < 10 ? `0${d}` : `${d}`;
+    const monthStr = monthVal.padStart(2, '0');
+    optionsHTML += `<option value="${d}">Ngày ${dayStr}/${monthStr}</option>`;
+  }
+  dateFilterSelect.innerHTML = optionsHTML;
+  dateFilterSelect.value = mktSelectedDateFilter;
+}
+
 function parseMktDate(dateStr) {
   if (!dateStr) return null;
   const parts = dateStr.trim().split("/");
   if (parts.length < 2) return null;
   const d = parts[0].padStart(2, '0');
   const m = parts[1].padStart(2, '0');
-  const y = "2026"; // Mặc định năm 2026 cho tập dữ liệu hiện tại
+  const y = "2026"; 
   return `${y}-${m}-${d}`;
 }
 
@@ -3291,25 +3326,24 @@ function renderMarketingDashboard() {
   if (!mktRawData || mktRawData.length === 0) return;
   
   const selectBox = document.getElementById("mkt-campaign-select");
-  let colIndex = parseInt(selectBox ? selectBox.value : "2"); // Mặc định lấy cột 2 (Tổng)
+  let colIndex = parseInt(selectBox ? selectBox.value : "2"); 
   if (isNaN(colIndex)) colIndex = 2;
   
   let startIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
     const cellA = mktRawData[i][0] ? mktRawData[i][0].trim() : "";
-    // Đảm bảo bỏ qua dòng tiêu đề 'Ngày' bằng cách check xem cellA có bắt đầu bằng số (ngày) không
     if (/^\d+\/\d+/.test(cellA) && cellA !== "Ngày") {
       startIndex = i;
       break;
     }
   }
-  if (startIndex === -1) startIndex = 9; // Fallback dòng 10 (index 9)
+  if (startIndex === -1) startIndex = 9; 
   
   const blocks = [];
-  // Cấu trúc mới: Mỗi ngày chiếm đúng 4 dòng khít nhau
-  for (let i = startIndex; i < mktRawData.length; i += 4) {
-    if (i + 3 >= mktRawData.length) break;
-    const block = mktRawData.slice(i, i + 4);
+  // Cấu trúc: Mỗi ngày chiếm đúng 6 dòng liên tiếp
+  for (let i = startIndex; i < mktRawData.length; i += 6) {
+    if (i + 5 >= mktRawData.length) break;
+    const block = mktRawData.slice(i, i + 6);
     const dateVal = block[0][0] || "";
     if (!dateVal || !dateVal.includes("/")) continue;
     
@@ -3317,99 +3351,122 @@ function renderMarketingDashboard() {
     if (stdDate) {
       blocks.push({
         date: stdDate,
+        dayNum: parseInt(dateVal.split("/")[0]),
         displayDate: dateVal,
         data: block
       });
     }
   }
 
-  // Hiển thị trọn vẹn dữ liệu của tháng đang chọn (không bị giới hạn bởi bộ lọc ngày của tab Sale)
-  let filteredBlocks = blocks;
-  
   // Sắp xếp tăng dần theo thời gian để vẽ biểu đồ đúng
-  filteredBlocks.sort((a, b) => a.date.localeCompare(b.date));
+  blocks.sort((a, b) => a.date.localeCompare(b.date));
   
   const chartData = {
     labels: [],
     spent: [],
-    leads: []
+    leads: [],
+    hires: [],
+    cpl: [],
+    rawBlocks: blocks
   };
   
   let totalSpent = 0;
   let totalLeads = 0;
   let totalPhones = 0;
+  let totalCCCD = 0;
+  let totalHires = 0;
   let tableHTML = "";
   
-  // Lấy nhãn cột cuối cùng của block (Số điện thoại / Số nhận việc)
-  let phoneHeaderLabel = "Số điện thoại / Nhận việc";
-  if (filteredBlocks.length > 0) {
-    phoneHeaderLabel = filteredBlocks[0].data[3][1] || "Số điện thoại";
-  }
-  
-  // Cập nhật nhãn cột chi tiết trên UI để đồng bộ
-  const thead = document.querySelector(".history-table thead tr");
-  if (thead) {
-    thead.innerHTML = `
-      <th>Ngày</th>
-      <th style="text-align: right;">Chi Phí (Spent)</th>
-      <th style="text-align: right;">Số Lead</th>
-      <th style="text-align: right;">CPL</th>
-      <th style="text-align: right;">${phoneHeaderLabel}</th>
-    `;
-    
-    // Cập nhật nhãn của metric box thứ 4
-    const hiresLabel = document.querySelector(".metrics-grid div:nth-child(4) .metric-label");
-    if (hiresLabel) {
-      hiresLabel.textContent = `Tổng ${phoneHeaderLabel}`;
-    }
-  }
-
-  filteredBlocks.forEach(item => {
+  blocks.forEach(item => {
     const block = item.data;
     const date = item.displayDate;
+    
     const spentStr = block[0][colIndex] || "";
     const leadsStr = block[1][colIndex] || "";
     const cplStr = block[2][colIndex] || "";
     const phonesStr = block[3][colIndex] || "";
+    const cccdStr = block[4][colIndex] || "";
+    const hiresStr = block[5][colIndex] || "";
     
     const spentVal = cleanNumber(spentStr);
     const leadsVal = cleanNumber(leadsStr);
     const phonesVal = cleanNumber(phonesStr);
+    const cccdVal = cleanNumber(cccdStr);
+    const hiresVal = cleanNumber(hiresStr);
+    const cplVal = leadsVal > 0 ? Math.round(spentVal / leadsVal) : 0;
     
-    totalSpent += spentVal;
-    totalLeads += leadsVal;
-    totalPhones += phonesVal;
+    // Nếu filter All hoặc trùng ngày được chọn
+    if (mktSelectedDateFilter === "All" || item.dayNum === parseInt(mktSelectedDateFilter)) {
+      totalSpent += spentVal;
+      totalLeads += leadsVal;
+      totalPhones += phonesVal;
+      totalCCCD += cccdVal;
+      totalHires += hiresVal;
+      
+      tableHTML += `
+        <tr>
+          <td class="text-center"><strong>${date}</strong></td>
+          <td class="text-right text-cyan font-semibold">${spentVal.toLocaleString('vi-VN')} ₫</td>
+          <td class="text-right text-blue font-semibold">${leadsVal.toLocaleString('vi-VN')}</td>
+          <td class="text-center text-amber font-semibold">${phonesVal}</td>
+          <td class="text-center text-purple font-semibold">${cccdVal}</td>
+          <td class="text-right text-muted">${cplVal.toLocaleString('vi-VN')} ₫</td>
+          <td class="text-center"><span class="badge-orders">${hiresVal}</span></td>
+        </tr>
+      `;
+    }
     
     chartData.labels.push(date);
     chartData.spent.push(spentVal);
     chartData.leads.push(leadsVal);
-    
-    tableHTML += `
-      <tr>
-        <td><strong>${date}</strong></td>
-        <td style="text-align: right;">${spentStr || '0 đ'}</td>
-        <td style="text-align: right;">${leadsStr || '0'}</td>
-        <td style="text-align: right;">${cplStr || '-'}</td>
-        <td style="text-align: right;">${phonesStr || '0'}</td>
-      </tr>
-    `;
+    chartData.hires.push(hiresVal);
+    chartData.cpl.push(cplVal);
   });
   
-  const cpl = totalLeads > 0 ? Math.round(totalSpent / totalLeads) : 0;
+  // Hiển thị KPI Cards
+  document.getElementById("mkt-stat-spend").textContent = totalSpent.toLocaleString('vi-VN') + " đ";
+  document.getElementById("mkt-stat-leads").textContent = totalLeads.toLocaleString('vi-VN');
+  document.getElementById("mkt-stat-phones").textContent = totalPhones.toLocaleString('vi-VN');
+  document.getElementById("mkt-stat-cccd").textContent = totalCCCD.toLocaleString('vi-VN');
+  document.getElementById("mkt-stat-hires").textContent = totalHires.toLocaleString('vi-VN');
   
-  document.getElementById("mkt-metric-spent").textContent = formatVND(totalSpent);
-  document.getElementById("mkt-metric-leads").textContent = totalLeads;
-  document.getElementById("mkt-metric-cpl").textContent = formatVND(cpl);
+  const avgCPL = totalLeads > 0 ? Math.round(totalSpent / totalLeads) : 0;
+  const avgCPO = totalHires > 0 ? Math.round(totalSpent / totalHires) : 0;
   
-  // Cập nhật giá trị metric box 4
-  const hiresValue = document.getElementById("mkt-metric-hires");
-  if (hiresValue) {
-    hiresValue.textContent = totalPhones;
+  document.getElementById("mkt-stat-cpl").textContent = avgCPL.toLocaleString('vi-VN') + " đ";
+  document.getElementById("mkt-stat-cpo").textContent = avgCPO.toLocaleString('vi-VN') + " đ";
+  
+  // Tỷ lệ chuyển đổi SĐT/Leads
+  const phoneRate = totalLeads > 0 ? ((totalPhones / totalLeads) * 100).toFixed(2) : "0.00";
+  document.getElementById("mkt-stat-phone-rate").innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Tỷ lệ chuyển đổi: ${phoneRate}%`;
+  
+  // Tỷ lệ chuyển đổi CCCD/SĐT
+  const cccdRate = totalPhones > 0 ? ((totalCCCD / totalPhones) * 100).toFixed(2) : "0.00";
+  document.getElementById("mkt-stat-cccd-rate").innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Tỷ lệ chuyển đổi: ${cccdRate}%`;
+  
+  // CCCD -> Nhận việc & Lead -> Nhận việc
+  const hireRate1 = totalCCCD > 0 ? ((totalHires / totalCCCD) * 100).toFixed(2) : "0.00";
+  const hireRate2 = totalLeads > 0 ? ((totalHires / totalLeads) * 100).toFixed(2) : "0.00";
+  document.getElementById("mkt-stat-hire-rate1").innerHTML = `<i class="fa-solid fa-arrows-spin text-cyan"></i> CCCD &rarr; Nhận việc: ${hireRate1}%`;
+  document.getElementById("mkt-stat-hire-rate2").innerHTML = `<i class="fa-solid fa-arrows-spin text-amber"></i> Tin nhắn/BL &rarr; Nhận việc: ${hireRate2}%`;
+  
+  // CPL Hint
+  const cplDesc = document.getElementById("mkt-stat-cpl-desc");
+  if (cplDesc) {
+    if (avgCPL === 0) {
+      cplDesc.innerHTML = `<i class="fa-solid fa-tags"></i> Chưa có dữ liệu`;
+    } else if (avgCPL <= 15000) {
+      cplDesc.innerHTML = `<i class="fa-solid fa-circle-check text-emerald"></i> CPL rất rẻ! (< 15k)`;
+    } else if (avgCPL <= 30000) {
+      cplDesc.innerHTML = `<i class="fa-solid fa-circle-info text-cyan"></i> CPL ở mức trung bình.`;
+    } else {
+      cplDesc.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose"></i> CPL đang cao! (> 30k)`;
+    }
   }
-  
+
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
-    tableBody.innerHTML = tableHTML || `<tr><td colspan="5" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
+    tableBody.innerHTML = tableHTML || `<tr><td colspan="7" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
   }
   
   renderMarketingChart(chartData);
@@ -3423,29 +3480,164 @@ function renderMarketingChart(data) {
     mktChartObj.destroy();
   }
   
+  // Plugin custom vẽ labels trên cột/đường giống y hệt Surge
+  const customChartLabelsPlugin = {
+    id: 'customMktChartLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx, data: d, chartArea: { bottom } } = chart;
+      ctx.save();
+      
+      const leadIdx = d.datasets.findIndex(ds => ds.label === 'Tin Nhắn & Bình Luận');
+      const spendIdx = d.datasets.findIndex(ds => ds.label === 'Chi Phí Ads');
+      const cplIdx = d.datasets.findIndex(ds => ds.label === 'CPL');
+      const hireIdx = d.datasets.findIndex(ds => ds.label === 'Nhận Việc');
+      
+      // 1. Vẽ Số Leads trên cột xanh
+      if (leadIdx !== -1) {
+        const meta = chart.getDatasetMeta(leadIdx);
+        meta.data.forEach((bar, idx) => {
+          const val = d.datasets[leadIdx].data[idx];
+          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = 'bold 9px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(val, bar.x, bar.y - 6);
+          }
+        });
+      }
+      
+      // 2. Vẽ Chi Phí Ads trên đường Cyan
+      if (spendIdx !== -1) {
+        const meta = chart.getDatasetMeta(spendIdx);
+        meta.data.forEach((pt, idx) => {
+          const val = d.datasets[spendIdx].data[idx];
+          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+            ctx.fillStyle = '#06b6d4';
+            ctx.font = 'bold 9px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(val.toLocaleString('vi-VN'), pt.x, pt.y - 8);
+          }
+        });
+      }
+      
+      // 3. Vẽ CPL dưới đường Vàng
+      if (cplIdx !== -1) {
+        const meta = chart.getDatasetMeta(cplIdx);
+        meta.data.forEach((pt, idx) => {
+          const val = d.datasets[cplIdx].data[idx];
+          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+            ctx.fillStyle = '#eab308';
+            ctx.font = 'bold 9px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.round(val).toLocaleString('vi-VN'), pt.x, pt.y + 12);
+          }
+        });
+      }
+      
+      // 4. Vẽ số người nhận việc dạng vòng tròn trắng chữ đen ở chân cột
+      if (hireIdx !== -1 && leadIdx !== -1) {
+        const meta = chart.getDatasetMeta(leadIdx);
+        meta.data.forEach((bar, idx) => {
+          const val = d.datasets[hireIdx].data[idx];
+          if (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter)) {
+            const x = bar.x;
+            const y = bottom - 15;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 9, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 9px Outfit';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(val, x, y);
+          }
+        });
+      }
+      
+      ctx.restore();
+    }
+  };
+
+  // Cấu hình nhạt đi cho các cột không được chọn
+  const leadsBackgrounds = data.spent.map((_, idx) => {
+    const day = idx + 1;
+    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 'rgba(59, 130, 246, 0.75)' : 'rgba(59, 130, 246, 0.1)';
+  });
+  
+  const spendPointColors = data.spent.map((_, idx) => {
+    const day = idx + 1;
+    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? '#06b6d4' : 'rgba(6, 182, 212, 0.15)';
+  });
+  
+  const spendPointRadii = data.spent.map((_, idx) => {
+    const day = idx + 1;
+    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 4 : 1.5;
+  });
+  
+  const cplPointColors = data.spent.map((_, idx) => {
+    const day = idx + 1;
+    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? '#eab308' : 'rgba(234, 179, 8, 0.15)';
+  });
+
+  const cplPointRadii = data.spent.map((_, idx) => {
+    const day = idx + 1;
+    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 4 : 1.5;
+  });
+
   mktChartObj = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: data.labels,
       datasets: [
         {
-          label: 'Chi phí (VND)',
+          label: 'Tin Nhắn & Bình Luận',
+          data: data.leads,
+          backgroundColor: leadsBackgrounds,
+          borderColor: 'rgba(59, 130, 246, 0.8)',
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'yLeads',
+          order: 4
+        },
+        {
+          label: 'Chi Phí Ads',
           data: data.spent,
-          backgroundColor: 'rgba(6, 182, 212, 0.4)',
+          type: 'line',
           borderColor: '#06b6d4',
-          borderWidth: 1.5,
+          borderWidth: 2,
+          pointBackgroundColor: spendPointColors,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: spendPointRadii,
+          pointHoverRadius: 6,
+          tension: 0.15,
           yAxisID: 'ySpent',
           order: 2
         },
         {
-          label: 'Số Lead',
-          data: data.leads,
+          label: 'CPL',
+          data: data.cpl,
           type: 'line',
-          borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.1)',
-          pointBackgroundColor: '#f59e0b',
-          borderWidth: 2.5,
-          fill: true,
+          borderColor: '#eab308',
+          borderWidth: 2,
+          pointBackgroundColor: cplPointColors,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: cplPointRadii,
+          pointHoverRadius: 6,
+          tension: 0.15,
+          yAxisID: 'ySpent',
+          order: 3
+        },
+        {
+          label: 'Nhận Việc',
+          data: data.hires,
+          type: 'line',
+          showLine: false,
+          pointRadius: 0,
           yAxisID: 'yLeads',
           order: 1
         }
@@ -3454,34 +3646,66 @@ function renderMarketingChart(data) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e293b',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) label += ': ';
+              
+              if (context.dataset.label === 'Nhận Việc') {
+                label += context.parsed.y + ' người';
+              } else if (context.dataset.label === 'Tin Nhắn & Bình Luận') {
+                const idx = context.dataIndex;
+                const rawBlock = data.rawBlocks[idx];
+                const phonesVal = rawBlock ? cleanNumber(rawBlock.data[3][colIndex]) : 0;
+                const cccdVal = rawBlock ? cleanNumber(rawBlock.data[4][colIndex]) : 0;
+                label += context.parsed.y + ' (SĐT: ' + phonesVal + ' | CCCD: ' + cccdVal + ')';
+              } else {
+                label += context.parsed.y.toLocaleString('vi-VN') + ' ₫';
+              }
+              return label;
+            }
+          }
+        }
+      },
       scales: {
         x: {
           grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { color: '#6e8fad', font: { size: 10 } }
+          ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 10 } }
         },
         ySpent: {
           type: 'linear',
           position: 'left',
           grid: { color: 'rgba(255, 255, 255, 0.05)' },
           ticks: {
-            color: '#6e8fad',
-            font: { size: 10 },
-            callback: (val) => val.toLocaleString('vi-VN') + ' đ'
-          }
+            color: '#06b6d4',
+            font: { family: 'Outfit', size: 10 },
+            callback: function(value) {
+              return value >= 1000 ? (value / 1000) + 'k' : value;
+            }
+          },
+          min: 0,
+          suggestedMax: 500000
         },
         yLeads: {
           type: 'linear',
           position: 'right',
           grid: { drawOnChartArea: false },
-          ticks: { color: '#6e8fad', font: { size: 10 } }
-        }
-      },
-      plugins: {
-        legend: {
-          labels: { color: '#eef4ff', font: { size: 11 } }
+          ticks: { color: '#3b82f6', font: { family: 'Outfit', size: 10 } },
+          min: 0,
+          suggestedMax: 25
         }
       }
-    }
+    },
+    plugins: [customChartLabelsPlugin]
   });
 }
 
@@ -3491,6 +3715,7 @@ function renderMarketingChart(data) {
 
 let finCandidatesData = [];
 let finPnlChartObj = null;
+let finBreakdownChartObj = null;
 let finSelectedFile = null;
 let finStatsData = null;
 let finExpensesData = [];
@@ -4898,7 +5123,7 @@ function updateFinOverviewStats() {
     const diffPct = ((totalCost - prevStat.cost) / prevStat.cost) * 100;
     const isDown = diffPct < 0;
     const arrow = isDown ? '▼' : '▲';
-    const color = isDown ? '#10b981' : '#f43f5e'; // Giảm chi phí là xanh lá, tăng là đỏ
+    const color = isDown ? '#10b981' : '#f43f5e';
     document.getElementById('fin-stat-desc-2').innerHTML = `<span style="color:${color};font-weight:700;">${arrow} ${diffPct.toFixed(1)}%</span> so với tháng trước`;
   } else {
     document.getElementById('fin-stat-desc-2').innerText = `-- so với tháng trước`;
@@ -4911,7 +5136,7 @@ function updateFinOverviewStats() {
       const diffPct = ((totalPnl - prevPnl) / Math.abs(prevPnl)) * 100;
       const isUp = diffPct >= 0;
       const arrow = isUp ? '▲' : '▼';
-      const color = isUp ? '#10b981' : '#f43f5e'; // Tăng PnL là xanh, giảm là đỏ
+      const color = isUp ? '#10b981' : '#f43f5e';
       document.getElementById('fin-stat-desc-3').innerHTML = `<span style="color:${color};font-weight:700;">${arrow} ${isUp ? '+' : ''}${diffPct.toFixed(1)}%</span> so với tháng trước`;
     } else {
       document.getElementById('fin-stat-desc-3').innerText = `-- so với tháng trước`;
@@ -4922,19 +5147,14 @@ function updateFinOverviewStats() {
   
   // CARD 4: Dự báo doanh thu chân card (Đếm số lao động đang làm việc trong tháng đó)
   const activeWorkersCount = (finCandidatesData || []).filter(c => {
-    // Ứng viên đang hoạt động trong tháng được chọn (chưa nghỉ việc hoặc nghỉ việc sau tháng đó)
     if (!c.boarding_date) return false;
-    const boardingMonth = c.boarding_date.substring(3, 10); // Format DD/MM/YYYY -> MM/YYYY
     const parts = c.boarding_date.split('/');
     if (parts.length < 3) return false;
     let bYear = parseInt(parts[2], 10);
     if (bYear < 100) bYear += 2000;
-    const boardingStr = `${bYear}-${parts[1]}`; // YYYY-MM
-    
-    // Check xem đã nhận việc trước hoặc trong tháng được chọn hay chưa
+    const boardingStr = `${bYear}-${parts[1]}`;
     if (boardingStr > selectedMonthStr) return false;
     
-    // Check xem ngày nghỉ việc (nếu có) có lớn hơn tháng được chọn hay không
     if (c.end_date) {
       const eParts = c.end_date.split('/');
       if (eParts.length === 3) {
@@ -4947,33 +5167,13 @@ function updateFinOverviewStats() {
     return true;
   }).length;
   
-  const { totalRevenue: forecastRevenue, details: forecastDetails } = calculateMonthRevenue(nextMonthStr, finCandidatesData || []);
+  const { totalRevenue: forecastRevenue } = calculateMonthRevenue(nextMonthStr, finCandidatesData || []);
   document.getElementById('fin-stat-forecast').innerText = formatVND(forecastRevenue);
   document.getElementById('fin-stat-desc-4').innerHTML = `<span style="font-weight:700;color:var(--text-primary);">${activeWorkersCount} lao động</span> — so với tháng trước`;
   
-  const forecastList = document.getElementById('fin-forecast-list');
-  if (forecastList) {
-    forecastList.innerHTML = '';
-    const validDetails = forecastDetails.filter(d => d.value > 0).sort((a,b) => b.value - a.value).slice(0, 10);
-    if (validDetails.length > 0) {
-      validDetails.forEach(item => {
-        const div = document.createElement('div');
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
-        div.style.borderBottom = '1px dashed rgba(255,255,255,0.05)';
-        div.style.paddingBottom = '4px';
-        div.innerHTML = `
-          <span style="font-weight:600;">${item.name} (${item.factory})</span>
-          <span style="color:var(--cyan);">${formatVND(item.value)}</span>
-        `;
-        forecastList.appendChild(div);
-      });
-    } else {
-      forecastList.innerHTML = '<p style="color: var(--text-secondary);">Chưa có dữ liệu dự báo</p>';
-    }
-  }
-
+  // Vẽ 2 biểu đồ
   renderFinPnlChart(finStatsData.monthly_stats);
+  renderFinBreakdownChart(selectedMonthStr);
 }
 
 function renderFinPnlChart(stats) {
