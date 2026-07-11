@@ -4626,8 +4626,15 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
         const isFutureMonth = paymentMonthStr > currentYearMonth;
         
         let actualUnits = (unit === 'Giờ làm') ? actualHours : actualDays;
+        let effectiveDays = days;
+        
         if (isFutureMonth && actualUnits <= 0) {
-          actualUnits = (unit === 'Giờ làm') ? (days * 8.0) : (days * 1.0);
+          if (unit === 'Giờ làm') {
+            actualUnits = days * 7.0; // 7 giờ mỗi ngày làm việc
+          } else {
+            actualUnits = 24.0; // Mặc định 1 chu kỳ chốt công tính là 24 ngày
+            effectiveDays = Math.min(days, 24); // Giới hạn số ngày chốt tối đa là 24 ngày
+          }
         }
         
         let isEligible = true;
@@ -4645,9 +4652,9 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
 
         if (isEligible) {
           let effectiveValue = 0;
-          const unitPerDay = actualUnits / days;
+          const unitPerDay = actualUnits / effectiveDays;
           
-          for (let d = 0; d < days; d++) {
+          for (let d = 0; d < effectiveDays; d++) {
             const currentDayTenure = tenureStart + d;
             if (currentDayTenure > billingLimitDays) break;
             
