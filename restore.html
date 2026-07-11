@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Khôi phục dữ liệu Dashboard</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 40px; max-width: 480px; text-align: center; }
+    h2 { font-size: 22px; margin: 0 0 8px; color: #f1f5f9; }
+    p { color: #94a3b8; font-size: 14px; margin: 0 0 24px; line-height: 1.6; }
+    .btn { display: inline-block; padding: 12px 28px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #2563eb; }
+    .log { margin-top: 20px; text-align: left; background: #0f172a; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #4ade80; min-height: 80px; white-space: pre-wrap; font-family: monospace; }
+    .note { font-size: 11px; color: #475569; margin-top: 12px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>🔄 Khôi phục dữ liệu Dashboard</h2>
+  <p>Trang này sẽ tự động xóa bộ nhớ cache cũ và nạp lại dữ liệu mặc định cho Dashboard tài chính.</p>
+  <button class="btn" onclick="restoreData()">🚀 Khôi phục ngay</button>
+  <div class="log" id="log">Nhấn nút để bắt đầu khôi phục...</div>
+  <p class="note">Sau khi khôi phục xong, bạn sẽ được chuyển về Dashboard trong 3 giây.</p>
+</div>
+
+<script>
+function log(msg, color) {
+  const el = document.getElementById('log');
+  el.style.color = color || '#4ade80';
+  el.textContent += '\n' + msg;
+}
+
+function restoreData() {
+  const el = document.getElementById('log');
+  el.textContent = '';
+  log('🗑️  Xóa dữ liệu cache cũ...');
+
+  // Xóa cache cũ
+  localStorage.removeItem('fin_expenses');
+  localStorage.removeItem('fin_pricing');
+  log('✅ Đã xóa fin_expenses và fin_pricing');
+
+  // Seed đơn giá mặc định
+  const pricing = [
+    { id: 1, factory: 'PGT',        price: 5000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 2, factory: 'Wistron',    price: 8000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 3, factory: 'Brother HD', price: 36000,   unit: 'Ngày',    start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 4, factory: 'Goertek NA', price: 4000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 5, factory: 'Goertek BN', price: 4000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 6, factory: 'Foxconn QN', price: 4000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 7, factory: 'Usi',        price: 4000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 8, factory: 'Sev',        price: 4000,    unit: 'Giờ làm', start_date: '2026-01-01', end_date: '2026-12-31' },
+    { id: 9, factory: 'Canon',      price: 1500000, unit: 'Tháng',   start_date: '2026-01-01', end_date: '2026-12-31' },
+  ];
+  localStorage.setItem('fin_pricing', JSON.stringify(pricing));
+  log('✅ Đã nạp ' + pricing.length + ' đơn giá nhà máy');
+
+  // Seed chi phí vận hành
+  const expenses = [
+    { id: 1, month: '2026-03', ads_cost: 16000000, salary_cost: 28000000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,      note: 'Dữ liệu mặc định' },
+    { id: 2, month: '2026-04', ads_cost: 14000000, salary_cost: 28500000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,      note: 'Dữ liệu mặc định' },
+    { id: 3, month: '2026-05', ads_cost: 8068573,  salary_cost: 30200000, phone_cost: 940000,  office_cost: 4000000, other_cost: 0,      note: 'Dữ liệu mặc định' },
+    { id: 4, month: '2026-06', ads_cost: 9000000,  salary_cost: 31000000, phone_cost: 1000000, office_cost: 4000000, other_cost: 500000, note: 'Dữ liệu mặc định' },
+    { id: 5, month: '2026-07', ads_cost: 0,        salary_cost: 0,        phone_cost: 0,       office_cost: 0,       other_cost: 0,      note: 'Chưa có dữ liệu - vui lòng cập nhật' },
+  ];
+  localStorage.setItem('fin_expenses', JSON.stringify(expenses));
+  log('✅ Đã nạp chi phí vận hành cho ' + expenses.length + ' tháng (03 → 07/2026)');
+
+  log('\n🎉 Khôi phục hoàn tất! Đang chuyển hướng về Dashboard...', '#f59e0b');
+
+  setTimeout(() => {
+    window.location.href = '/';
+  }, 3000);
+}
+</script>
+</body>
+</html>
