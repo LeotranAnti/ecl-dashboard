@@ -4488,6 +4488,43 @@ function getLocalExpenses() {
 function loadExpensesFromSheet() {
   const localData = localStorage.getItem('fin_expenses');
   if (localData) {
+    let list = [];
+    try {
+      list = JSON.parse(localData);
+    } catch(e){}
+    
+    // Nếu có dữ liệu nhưng thiếu tháng 5 và tháng 6, tự động chèn mặc định
+    let changed = false;
+    if (!list.some(e => e.month === '2026-05')) {
+      list.push({
+        id: list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1,
+        month: '2026-05',
+        ads_cost: 8068573,
+        salary_cost: 30200000,
+        phone_cost: 9400000,
+        office_cost: 4000000,
+        other_cost: 0,
+        note: 'Tự động tạo mặc định'
+      });
+      changed = true;
+    }
+    if (!list.some(e => e.month === '2026-06')) {
+      list.push({
+        id: list.length > 0 ? Math.max(...list.map(e => e.id)) + 1 : 1,
+        month: '2026-06',
+        ads_cost: 9000000,
+        salary_cost: 31000000,
+        phone_cost: 1000000,
+        office_cost: 4000000,
+        other_cost: 500000,
+        note: 'Tự động tạo mặc định'
+      });
+      changed = true;
+    }
+    if (changed) {
+      localStorage.setItem('fin_expenses', JSON.stringify(list));
+      _cachedExpenses = list;
+    }
     return Promise.resolve(getLocalExpenses());
   }
 
@@ -4507,6 +4544,33 @@ function loadExpensesFromSheet() {
         other_cost:   parseFloat((r[5]||'0').replace(/,/g,'')) || 0,
         note:         r[6] || '',
       }));
+      
+      // Chèn tháng 5 & 6
+      if (!defaultExpenses.some(e => e.month === '2026-05')) {
+        defaultExpenses.push({
+          id: defaultExpenses.length + 1,
+          month: '2026-05',
+          ads_cost: 8068573,
+          salary_cost: 30200000,
+          phone_cost: 940000,
+          office_cost: 4000000,
+          other_cost: 0,
+          note: 'Tự động tạo mặc định'
+        });
+      }
+      if (!defaultExpenses.some(e => e.month === '2026-06')) {
+        defaultExpenses.push({
+          id: defaultExpenses.length + 1,
+          month: '2026-06',
+          ads_cost: 9000000,
+          salary_cost: 31000000,
+          phone_cost: 1000000,
+          office_cost: 4000000,
+          other_cost: 500000,
+          note: 'Tự động tạo mặc định'
+        });
+      }
+
       _cachedExpenses = defaultExpenses;
       localStorage.setItem('fin_expenses', JSON.stringify(defaultExpenses));
       return defaultExpenses;
@@ -4542,26 +4606,28 @@ function saveLocalExpense(item) {
 
 function loadFinExpensesList() {
   const data = getLocalExpenses();
-  finExpensesData = data;
+  // Sắp xếp theo thứ tự thời gian tăng dần hoặc giảm dần cho dễ theo dõi
+  const sortedData = [...data].sort((a,b) => b.month.localeCompare(a.month));
+  finExpensesData = sortedData;
   const body = document.getElementById('fin-expenses-body');
   if (!body) return;
   body.innerHTML = '';
-  if (!data.length) {
+  if (!sortedData.length) {
     body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:1rem;">Chưa có dữ liệu chi phí</td></tr>';
     return;
   }
-  data.forEach(e => {
+  sortedData.forEach(e => {
     const total = (e.ads_cost||0) + (e.salary_cost||0) + (e.phone_cost||0) + (e.office_cost||0) + (e.other_cost||0);
     const tr = document.createElement('tr');
     const fv = v => v > 0 ? `<span style="color:#fff">${formatVND(v)}</span>` : '<span style="color:var(--text-muted)">-</span>';
     tr.innerHTML = `
       <td><strong style="color:var(--accent-cyan)">${e.month}</strong></td>
+      <td><strong style="color:var(--accent-rose)">${formatVND(total)}</strong></td>
       <td>${fv(e.ads_cost)}</td>
       <td>${fv(e.salary_cost)}</td>
       <td>${fv(e.phone_cost)}</td>
       <td>${fv(e.office_cost)}</td>
       <td>${fv(e.other_cost)}</td>
-      <td><strong style="color:var(--accent-rose)">${formatVND(total)}</strong></td>
       <td>
         <button class="btn btn-secondary" onclick="editFinExpense(${JSON.stringify(e).replace(/"/g,'&quot;')})" style="padding:0.2rem 0.5rem; font-size:0.75rem;">✏️</button>
       </td>
