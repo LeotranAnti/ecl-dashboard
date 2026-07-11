@@ -4195,6 +4195,10 @@ function formatFinDate(dateStr) {
         let year = parseInt(parts[2], 10);
         if (year < 100) year += 2000; // 26 -> 2026
         return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+      } else if (parts.length === 2) {
+        let day = parseInt(parts[0], 10);
+        let month = parseInt(parts[1], 10);
+        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/2026`;
       }
     }
     const d = new Date(cleanStr);
