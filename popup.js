@@ -4132,12 +4132,23 @@ function renderFinCandidates(list) {
     let displayEndDate = '-';
     if (c.end_date && c.end_date.trim() !== '') {
       displayEndDate = formatFinDate(c.end_date);
-    } else {
-      const activeMonthBtn = document.querySelector('.fin-month-filter-btn.active');
-      const monthFilter = activeMonthBtn ? activeMonthBtn.getAttribute('data-month') : 'all';
-      if (monthFilter !== 'all') {
-        const padMonth = monthFilter.padStart(2, '0');
-        displayEndDate = `25/${padMonth}/2026`;
+    } else if (c.boarding_date && c.boarding_date.trim() !== '') {
+      const parts = c.boarding_date.trim().split('/');
+      if (parts.length === 3) {
+        let day = parseInt(parts[0], 10);
+        let month = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        if (year < 100) year += 2000;
+        const bDate = new Date(year, month - 1, day);
+        if (!isNaN(bDate.getTime())) {
+          const fUpper = (c.factory || '').toUpperCase().trim();
+          const limitDays = (fUpper === 'CANON' || fUpper === 'CN') ? 180 : 90;
+          bDate.setDate(bDate.getDate() + limitDays);
+          const dStr = String(bDate.getDate()).padStart(2, '0');
+          const mStr = String(bDate.getMonth() + 1).padStart(2, '0');
+          const yStr = bDate.getFullYear();
+          displayEndDate = `${dStr}/${mStr}/${yStr}`;
+        }
       }
     }
 
