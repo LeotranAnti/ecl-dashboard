@@ -1135,10 +1135,8 @@ h1 {
 } /* Trạng thái */
 
 .modal-table th:nth-child(7), .modal-table td:nth-child(7) {
-  width: auto; /* Chiếm khoảng trống còn lại */
-  white-space: normal !important;
-  word-break: break-word !important;
-  max-width: 300px;
+  min-width: 160px;
+  white-space: nowrap;
 } /* Thông tin cảnh báo */
 
 
