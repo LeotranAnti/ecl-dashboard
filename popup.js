@@ -4537,23 +4537,36 @@ function calculateMonthRevenue(paymentMonthStr, candidates) {
           }
         }
       } else {
-        const projectedUnits = (unit === 'Giờ làm') ? (days * 8.0) : (days * 1.0);
+        const actualHours = parseFloat(c.work_hours) || 0;
+        const actualDays = parseFloat(c.work_days) || 0;
+        
+        // Xác định xem tháng đang tính toán có phải là tháng tương lai hay không
+        const currentYearMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+        const isFutureMonth = paymentMonthStr > currentYearMonth;
+        
+        let actualUnits = (unit === 'Giờ làm') ? actualHours : actualDays;
+        
+        // Đối với tháng dự báo tương lai, nếu chưa có số liệu trên Sheet, ta áp dụng công dự kiến lý thuyết
+        if (isFutureMonth && actualUnits <= 0) {
+          actualUnits = (unit === 'Giờ làm') ? (days * 8.0) : (days * 1.0);
+        }
+        
         let isEligible = true;
-        if (unit === 'Giờ làm') {
-          if (projectedUnits < 40.0) isEligible = false;
-        } else {
-          if (projectedUnits < 5.0) isEligible = false;
+        if (actualUnits <= 0) {
+          isEligible = false;
         }
 
         if (isEligible) {
           let effectiveValue = 0;
+          // Chia đều tổng số giờ/ngày thực tế cho số ngày hoạt động trong chu kỳ để tính chiết khấu lũy tiến chính xác theo từng ngày thâm niên
+          const unitPerDay = actualUnits / days;
+          
           for (let d = 0; d < days; d++) {
             const currentDayTenure = tenureStart + d;
             // Chỉ tính tiền nếu thâm niên của ngày làm việc đó vẫn nằm trong giới hạn thanh toán (<= 90 ngày)
             if (currentDayTenure > billingLimitDays) break;
             
-            const dayUnit = (unit === 'Giờ làm') ? 8.0 : 1.0;
-            let dayVal = dayUnit * price;
+            let dayVal = unitPerDay * price;
             if (currentDayTenure <= 30) {
               dayVal *= 0.75;
             } else if (currentDayTenure <= 60) {
