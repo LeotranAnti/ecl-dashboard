@@ -1039,11 +1039,6 @@ h1 {
   animation: modalFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Chỉ khống chế chiều cao đặc biệt cho duy nhất Modal Cảnh Báo để vừa vặn trong 1 màn hình máy tính của anh Leo */
-.is-warning-modal .modal-content {
-  max-height: 72vh;
-}
-
 @keyframes modalFadeIn {
   from { transform: scale(0.85); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -1089,24 +1084,64 @@ h1 {
   overflow-x: auto;
 }
 
+/* Cấu hình bảng co khít ôm sát theo nội dung thực tế, loại bỏ hoàn toàn khoảng trống thừa ở giữa các cột */
 .modal-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
+  table-layout: auto !important;
 }
 
 .modal-table th, .modal-table td {
-  padding: 8px 10px;
+  padding: 6px 8px;
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
 }
 
-/* Tất cả các cột, kể cả cột cuối, sẽ hiển thị một dòng không xuống hàng (white-space: nowrap) giống hệt bảng mẫu của anh */
-.modal-table td, .modal-table th {
-  white-space: nowrap;
-}
+/* Định nghĩa chiều rộng và khoảng cách các cột trong modal để co khít lại gần nhau */
+.modal-table th:nth-child(1), .modal-table td:nth-child(1) {
+  width: 20%;
+  min-width: 170px;
+} /* Tên ứng viên */
+
+.modal-table th:nth-child(2), .modal-table td:nth-child(2) {
+  width: 8%;
+  min-width: 80px;
+  text-align: left;
+  padding-left: 0 !important; /* Dịch sát về cột 1 */
+} /* Nhà máy */
+
+.modal-table th:nth-child(3), .modal-table td:nth-child(3) {
+  width: 12%;
+  min-width: 110px;
+} /* Số điện thoại */
+
+.modal-table th:nth-child(4), .modal-table td:nth-child(4) {
+  width: 12%;
+  min-width: 110px;
+  padding-left: 0 !important; /* Dịch sát về cột 3 */
+} /* Số CCCD */
+
+.modal-table th:nth-child(5), .modal-table td:nth-child(5) {
+  width: 12%;
+  min-width: 100px;
+} /* Người chăm sóc */
+
+.modal-table th:nth-child(6), .modal-table td:nth-child(6) {
+  width: 12%;
+  min-width: 100px;
+} /* Trạng thái */
+
+.modal-table th:nth-child(7), .modal-table td:nth-child(7) {
+  width: auto; /* Chiếm khoảng trống còn lại */
+  white-space: normal !important;
+  word-break: break-word !important;
+  max-width: 300px;
+} /* Thông tin cảnh báo */
+
+
 
 .modal-table th {
   color: var(--text-label);
