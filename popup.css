@@ -1103,10 +1103,9 @@ h1 {
   white-space: nowrap;
 }
 
-/* Cho phép cột thông tin lịch hẹn / lý do cảnh báo xuống hàng nếu quá dài */
-.modal-table td:last-child, .modal-table th:last-child {
-  white-space: normal;
-  min-width: 250px;
+/* Tất cả các cột, kể cả cột cuối, sẽ hiển thị một dòng không xuống hàng (white-space: nowrap) giống hệt bảng mẫu của anh */
+.modal-table td, .modal-table th {
+  white-space: nowrap;
 }
 
 .modal-table th {
@@ -1817,11 +1816,11 @@ h1 {
 #fin-candidates-table th:nth-child(1), #fin-candidates-table td:nth-child(1) { min-width: 90px; width: 12%; }  /* Mã NV */
 #fin-candidates-table th:nth-child(2), #fin-candidates-table td:nth-child(2) { min-width: 130px; width: 18%; white-space: normal; word-break: break-word; } /* Họ và tên */
 #fin-candidates-table th:nth-child(3), #fin-candidates-table td:nth-child(3) { min-width: 70px; width: 8%; }  /* Nhà máy */
-#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { min-width: 100px; width: 12%; white-space: normal; word-break: break-all; } /* Số điện thoại */
+#fin-candidates-table th:nth-child(4), #fin-candidates-table td:nth-child(4) { min-width: 100px; width: 11%; white-space: normal; word-break: break-all; } /* Số điện thoại */
 #fin-candidates-table th:nth-child(5), #fin-candidates-table td:nth-child(5) { min-width: 110px; width: 14%; } /* Số CCCD */
 #fin-candidates-table th:nth-child(6), #fin-candidates-table td:nth-child(6) { min-width: 95px; width: 12%; }  /* Ngày nhận việc */
 #fin-candidates-table th:nth-child(7), #fin-candidates-table td:nth-child(7) { min-width: 95px; width: 12%; }  /* Ngày kết thúc */
-#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 100px; width: 12%; } /* Trạng thái */
+#fin-candidates-table th:nth-child(8), #fin-candidates-table td:nth-child(8) { min-width: 100px; width: 13%; text-overflow: clip !important; overflow: visible !important; } /* Trạng thái */
 
 /* Hỗ trợ cuộn ngang/dọc mượt mà cho container chứa bảng và giới hạn trong khung */
 .data-table-container {
