@@ -4231,7 +4231,9 @@ function renderMarketingDashboard() {
     if (!stdDate) continue;
 
     const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
-    if (typeLabel !== "chi phí" && typeLabel !== "số lead") continue;
+    const isCost = typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost");
+    const isLead = typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan");
+    if (!isCost && !isLead) continue;
 
     if (!marketingDays[stdDate]) {
       marketingDays[stdDate] = { date: stdDate, displayDate: dateVal, factories: {} };
@@ -4247,9 +4249,9 @@ function renderMarketingDashboard() {
       }
 
       const val = cleanNumber(row[c]);
-      if (typeLabel === "chi phí") {
+      if (isCost) {
         marketingDays[stdDate].factories[fName].spent = val;
-      } else if (typeLabel === "số lead") {
+      } else if (isLead) {
         marketingDays[stdDate].factories[fName].leads = val;
       }
     }
