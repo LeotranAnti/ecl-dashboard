@@ -4240,8 +4240,8 @@ function renderMarketingDashboard() {
     if (!currentStdDate) continue;
 
     const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
-    const isCost = typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost");
-    const isLead = typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan");
+    const isCost = (typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost")) && !typeLabel.includes("tổng");
+    const isLead = (typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan")) && !typeLabel.includes("tổng");
     if (!isCost && !isLead) continue;
 
     if (!marketingDays[currentStdDate]) {
