@@ -3130,7 +3130,11 @@ function getCandidatesForType(type, customDates = null) {
       // Ô 4: Số lịch hẹn (CCCD hoặc lịch hẹn) có nguồn Ads
       const source = row[7] ? row[7].trim().toLowerCase() : "";
       const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
-      const hasAppt = cccd.length > 0 || (row[12] && row[12].trim().length > 0);
+      
+      const hasValidCCCD = cccd.length > 0 && cccd !== "0";
+      const hasValidAppt = row[12] && row[12].trim().length > 0;
+      const hasAppt = hasValidCCCD || hasValidAppt;
+
       if (isAds && regDate && dates.includes(regDate) && hasAppt) {
         if (!seenKeys.has(candKey)) {
           seenKeys.add(candKey);
@@ -4410,7 +4414,12 @@ function renderMarketingDashboard() {
   const checkHasAppointment = (row) => {
     const cccd = row[3] ? row[3].trim() : "";
     const apptDate = row[12] ? row[12].trim() : "";
-    return (cccd.length > 0 || apptDate.length > 0);
+    
+    // CCCD hợp lệ khi không rỗng và khác giá trị "0"
+    const hasValidCCCD = cccd.length > 0 && cccd !== "0";
+    const hasValidAppt = apptDate.length > 0;
+    
+    return (hasValidCCCD || hasValidAppt);
   };
 
   // Hàm kiểm tra ứng viên thỏa mãn Ô 5: Có lịch hẹn phỏng vấn và tình trạng là Hẹn Phỏng Vấn
