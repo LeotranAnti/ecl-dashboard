@@ -51,8 +51,22 @@
             <option value="Usi">Usi</option>
             <option value="Fox QN">Fox QN</option>
           </select>
-          <select id="dashboard-view-mode" class="date-select" style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;color-scheme:dark;font-weight:bold;height:30px;">
-            <option value="day">Ngày</option>
+          <!-- Custom View Mode Dropdown (Sale) -->
+          <div class="custom-dropdown" style="position: relative; display: inline-block;">
+            <div id="dashboard-view-mode-trigger" style="font-size: 12px; padding: 6px 16px; height: 30px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; font-weight: bold; box-sizing: border-box;">
+              <span id="dashboard-view-mode-label">Ngày</span>
+              <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="dashboard-view-mode-arrow">▼</span>
+            </div>
+            <div id="dashboard-view-mode-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 120px; z-index: 1000; padding: 4px 0;">
+              <div class="view-mode-item active-dropdown-item" data-value="day" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.15); transition: background 0.2s;">Ngày</div>
+              <div class="view-mode-item" data-value="week" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tuần</div>
+              <div class="view-mode-item" data-value="month" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tháng</div>
+              <div class="view-mode-item" data-value="custom" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tùy chỉnh</div>
+            </div>
+          </div>
+          <!-- Hidden real view mode select for compatibility -->
+          <select id="dashboard-view-mode" style="display: none;">
+            <option value="day" selected>Ngày</option>
             <option value="week">Tuần</option>
             <option value="month">Tháng</option>
             <option value="custom">Tùy chỉnh</option>
@@ -564,8 +578,22 @@
           <!-- Hidden select kept for backward-compat, tabs are rendered in mkt-factory-nav-tabs -->
           <select id="mkt-campaign-select" style="display:none;"></select>
           <!-- View Mode -->
-          <select id="mkt-view-mode" class="date-select" style="font-size:12px;padding:6px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;color-scheme:dark;font-weight:bold;height:30px;">
-            <option value="day">Ngày</option>
+          <!-- Custom View Mode Dropdown (Marketing) -->
+          <div class="custom-dropdown" style="position: relative; display: inline-block;">
+            <div id="mkt-view-mode-trigger" style="font-size: 12px; padding: 6px 16px; height: 30px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; font-weight: bold; box-sizing: border-box;">
+              <span id="mkt-view-mode-label">Ngày</span>
+              <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="mkt-view-mode-arrow">▼</span>
+            </div>
+            <div id="mkt-view-mode-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 120px; z-index: 1000; padding: 4px 0;">
+              <div class="mkt-view-mode-item active-dropdown-item" data-value="day" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: #10b981; font-weight: bold; background: rgba(16, 185, 129, 0.15); transition: background 0.2s;">Ngày</div>
+              <div class="mkt-view-mode-item" data-value="week" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tuần</div>
+              <div class="mkt-view-mode-item" data-value="month" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tháng</div>
+              <div class="mkt-view-mode-item" data-value="custom" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tùy chỉnh</div>
+            </div>
+          </div>
+          <!-- Hidden real view mode select for compatibility -->
+          <select id="mkt-view-mode" style="display: none;">
+            <option value="day" selected>Ngày</option>
             <option value="week">Tuần</option>
             <option value="month">Tháng</option>
             <option value="custom">Tùy chỉnh</option>

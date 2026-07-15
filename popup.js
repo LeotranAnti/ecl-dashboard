@@ -187,6 +187,49 @@ function cleanSource(src) {
   return src;
 }
 
+// Derive recruitment status based on different columns in the sheet
+function deriveStatus(row) {
+  if (!row) return "Chăm sóc tiếp";
+  
+  // Clean values
+  const interviewVal = row[12] ? row[12].trim().toLowerCase() : "";
+  const statusColVal  = row[13] ? row[13].trim().toLowerCase() : ""; // Mặc dù là tên người, nhưng đôi khi có thể chứa trạng thái
+  const hireVal       = row[16] ? row[16].trim().toLowerCase() : "";
+  const progressVal   = row[19] ? row[19].trim().toLowerCase() : "";
+  
+  // 1. Nhận việc
+  if (hireVal.includes("nhận việc") || hireVal.includes("nhan viec") || normalizeDate(row[16])) {
+    return "Đã nhận việc";
+  }
+  
+  // 2. KĐL
+  if (interviewVal === "kđl" || interviewVal === "kdl" || interviewVal.includes("không đi làm") || interviewVal.includes("ko đi làm") || statusColVal === "kđl" || statusColVal === "kdl") {
+    return "KĐL";
+  }
+  
+  // 3. Bùng PV
+  if (interviewVal.includes("bùng") || interviewVal.includes("hủy") || interviewVal.includes("bung") || statusColVal.includes("bùng")) {
+    return "Bùng PV";
+  }
+  
+  // 4. KNM
+  if (interviewVal.includes("knm") || progressVal.includes("knm") || progressVal.includes("không nghe") || progressVal.includes("k nghe") || statusColVal.includes("knm")) {
+    return "KNM";
+  }
+  
+  // 5. Hẹn phỏng vấn
+  if (normalizeDate(row[12])) {
+    return "Hẹn phỏng vấn";
+  }
+  
+  // 6. Chăm sóc tiếp theo
+  if (normalizeDate(row[14])) {
+    return "Chăm sóc tiếp";
+  }
+  
+  return "Chăm sóc tiếp";
+}
+
 // Clean and parse numbers for Marketing calculation
 function cleanNumber(str) {
   if (str === undefined || str === null) return 0;
@@ -270,8 +313,8 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       const hireDate     = normalizeDate(row[16]);  // Nhận Việc (Cột 16)
       const careDate     = normalizeDate(row[17]);  // Ngày CS cuối (Cột 17)
       const source       = cleanSource(row[7]);     // Nguồn data (Cột 7)
-      const recruiter    = cleanRecruiter(row[8]);  // Người chăm sóc (Cột 8)
-      const status       = row[13] ? row[13].trim().toLowerCase() : "";
+      const recruiter    = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (Cột 13/N - Tình trạng)
+      const status       = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
       
       // Tính toán chăm sóc bị trễ (nextCareDate nhỏ hơn hôm nay, có bất kỳ trạng thái nào, và chưa có ngày CS cuối tương ứng)
       if (nextCareDate && nextCareDate < todayStr && status) {
@@ -318,14 +361,9 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         const isInvalidStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt"].includes(status);
         
         if (!candidateHistory[candKey]) {
-          const existing = candidateHistoryArg[candKey] || { interviewDates: [], careDates: [] };
-          // Chỉ đóng băng lịch sử thực sự trước ngày hôm nay (nhỏ hơn todayStr)
-          const frozenInterviews = (existing.interviewDates || []).filter(d => d < todayStr);
-          const frozenCares = (existing.careDates || []).filter(d => d < todayStr);
-          
           candidateHistory[candKey] = {
-            interviewDates: frozenInterviews,
-            careDates: frozenCares
+            interviewDates: [],
+            careDates: []
           };
         }
         
@@ -410,9 +448,9 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       const cn = row[1] ? row[1].trim() : "";
       const key = cp || cn || `row_${i}`;
       if (key === candKey) {
-        recruiter = cleanRecruiter(row[8]);
+        recruiter = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (cột 13)
         source = cleanSource(row[7]);
-        status = row[13] ? row[13].trim().toLowerCase() : "";
+        status = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
         // Ưu tiên dòng có trạng thái active
         if (status === "hẹn phỏng vấn" || status === "đã nhận việc") {
           break;
@@ -485,9 +523,9 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       if (row.length < 18) continue;
       
       const hireDate  = normalizeDate(row[16]);
-      const status    = row[13] ? row[13].trim().toLowerCase() : "";
+      const status    = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
       const source    = cleanSource(row[7]);
-      const recruiter = cleanRecruiter(row[8]);
+      const recruiter = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (cột 13)
 
       if (hireDate && status === "đã nhận việc") {
         ensureDateObject(hireDate);
@@ -2764,6 +2802,106 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // --- Custom View Mode Dropdown Logic (Sale) ---
+  const saleVmTrigger = document.getElementById("dashboard-view-mode-trigger");
+  const saleVmMenu = document.getElementById("dashboard-view-mode-menu");
+  const saleVmArrow = document.getElementById("dashboard-view-mode-arrow");
+  const saleVmSelect = document.getElementById("dashboard-view-mode");
+
+  if (saleVmTrigger && saleVmMenu && saleVmSelect) {
+    saleVmTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = saleVmMenu.style.display === "block";
+      saleVmMenu.style.display = isVisible ? "none" : "block";
+      if (saleVmArrow) saleVmArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+    });
+
+    saleVmMenu.querySelectorAll(".view-mode-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const val = item.dataset.value;
+        const text = item.textContent;
+
+        // Cập nhật nhãn và class active visual
+        const labelEl = document.getElementById("dashboard-view-mode-label");
+        if (labelEl) labelEl.textContent = text;
+        
+        saleVmMenu.querySelectorAll(".view-mode-item").forEach(i => {
+          i.classList.remove("active-dropdown-item");
+          i.style.color = "var(--text-primary)";
+          i.style.fontWeight = "normal";
+          i.style.background = "transparent";
+        });
+        item.classList.add("active-dropdown-item");
+        item.style.color = "#10b981";
+        item.style.fontWeight = "bold";
+        item.style.background = "rgba(16, 185, 129, 0.15)";
+
+        // Sync and dispatch to hidden select
+        saleVmSelect.value = val;
+        saleVmSelect.dispatchEvent(new Event("change"));
+
+        saleVmMenu.style.display = "none";
+        if (saleVmArrow) saleVmArrow.style.transform = "rotate(0deg)";
+      });
+    });
+
+    document.addEventListener("click", () => {
+      saleVmMenu.style.display = "none";
+      if (saleVmArrow) saleVmArrow.style.transform = "rotate(0deg)";
+    });
+  }
+
+  // --- Custom View Mode Dropdown Logic (Marketing) ---
+  const mktVmTrigger = document.getElementById("mkt-view-mode-trigger");
+  const mktVmMenu = document.getElementById("mkt-view-mode-menu");
+  const mktVmArrow = document.getElementById("mkt-view-mode-arrow");
+  const mktVmSelect = document.getElementById("mkt-view-mode");
+
+  if (mktVmTrigger && mktVmMenu && mktVmSelect) {
+    mktVmTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = mktVmMenu.style.display === "block";
+      mktVmMenu.style.display = isVisible ? "none" : "block";
+      if (mktVmArrow) mktVmArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+    });
+
+    mktVmMenu.querySelectorAll(".mkt-view-mode-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const val = item.dataset.value;
+        const text = item.textContent;
+
+        // Cập nhật nhãn và class active visual
+        const labelEl = document.getElementById("mkt-view-mode-label");
+        if (labelEl) labelEl.textContent = text;
+        
+        mktVmMenu.querySelectorAll(".mkt-view-mode-item").forEach(i => {
+          i.classList.remove("active-dropdown-item");
+          i.style.color = "var(--text-primary)";
+          i.style.fontWeight = "normal";
+          i.style.background = "transparent";
+        });
+        item.classList.add("active-dropdown-item");
+        item.style.color = "#10b981";
+        item.style.fontWeight = "bold";
+        item.style.background = "rgba(16, 185, 129, 0.15)";
+
+        // Sync and dispatch to hidden select
+        mktVmSelect.value = val;
+        mktVmSelect.dispatchEvent(new Event("change"));
+
+        mktVmMenu.style.display = "none";
+        if (mktVmArrow) mktVmArrow.style.transform = "rotate(0deg)";
+      });
+    });
+
+    document.addEventListener("click", () => {
+      mktVmMenu.style.display = "none";
+      if (mktVmArrow) mktVmArrow.style.transform = "rotate(0deg)";
+    });
+  }
+
   const viewModeEl = document.getElementById("dashboard-view-mode");
   if (viewModeEl) {
     viewModeEl.addEventListener("change", () => {
@@ -2997,8 +3135,8 @@ function getCandidatesForType(type, customDates = null) {
 
     const name = row[1] ? row[1].trim() : "";
     const phone = row[2] ? row[2].trim() : "";
-    const recruiter = row[8] ? row[8].trim() : "Chưa rõ";
-    const status = row[13] ? row[13].trim() : "";
+    const recruiter = row[13] ? row[13].trim() : "Chưa rõ"; // Người chăm sóc thực tế của ECL (cột 13)
+    const status = deriveStatus(row); // Trạng thái tuyển dụng thực tế tự động suy luận
     const statusClean = status.toLowerCase();
     const factoryName = row[18] || "Pegatron"; // Default fallback
     
