@@ -3107,6 +3107,85 @@ function getCandidatesForType(type, customDates = null) {
           }
         }
       }
+    } else if (type === "mktData") {
+      // Ô 3: Số data (SĐT) có nguồn Ads
+      const source = row[7] ? row[7].trim().toLowerCase() : "";
+      const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
+      if (isAds && regDate && dates.includes(regDate) && phone) {
+        if (!seenKeys.has(candKey)) {
+          seenKeys.add(candKey);
+          list.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Đăng ký: ${row[0]} (Nguồn: ${row[7] || 'Ads'})`,
+            rawDate: regDate
+          });
+        }
+      }
+    } else if (type === "mktAppointments") {
+      // Ô 4: Số lịch hẹn (CCCD hoặc lịch hẹn) có nguồn Ads
+      const source = row[7] ? row[7].trim().toLowerCase() : "";
+      const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
+      const hasAppt = cccd.length > 0 || (row[12] && row[12].trim().length > 0);
+      if (isAds && regDate && dates.includes(regDate) && hasAppt) {
+        if (!seenKeys.has(candKey)) {
+          seenKeys.add(candKey);
+          list.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Đăng ký: ${row[0]} | Hẹn: ${row[12] || 'Chưa hẹn'}`,
+            rawDate: regDate
+          });
+        }
+      }
+    } else if (type === "mktConfirmedPV") {
+      // Ô 5: Lịch hẹn PV xác nhận có nguồn Ads (lọc theo ngày hẹn)
+      const source = row[7] ? row[7].trim().toLowerCase() : "";
+      const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
+      const isConfirmed = interviewDate && statusClean === "hẹn phỏng vấn";
+      if (isAds && interviewDate && dates.includes(interviewDate) && isConfirmed) {
+        if (!seenKeys.has(candKey)) {
+          seenKeys.add(candKey);
+          list.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Ngày hẹn PV: ${row[12]}`,
+            rawDate: interviewDate
+          });
+        }
+      }
+    } else if (type === "mktHires") {
+      // Ô 6: Nhận việc có nguồn Ads (lọc theo ngày nhận việc)
+      const source = row[7] ? row[7].trim().toLowerCase() : "";
+      const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
+      const isHired = hireDate && statusClean === "đã nhận việc";
+      if (isAds && hireDate && dates.includes(hireDate) && isHired) {
+        if (!seenKeys.has(candKey)) {
+          seenKeys.add(candKey);
+          list.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Ngày nhận việc: ${row[16]}`,
+            rawDate: hireDate
+          });
+        }
+      }
     } else if (type === "warningAlert") {
       return state.warningList || [];
     } else if (type === "allCallback") {
@@ -3209,6 +3288,62 @@ function openDetailsModal(type, customDates = null) {
     title = "Danh sách ứng viên Lịch Hẹn Chăm Sóc Lại";
   } else if (type === "unprocessedCallback") {
     title = "Danh sách ứng viên Chưa Chăm Sóc Lại";
+  } else if (type === "mktData") {
+    title = "Danh sách ứng viên từ Ads (Số Data)";
+  } else if (type === "mktAppointments") {
+    title = "Danh sách ứng viên từ Ads (Số Lịch Hẹn)";
+  } else if (type === "mktConfirmedPV") {
+    title = "Danh sách ứng viên từ Ads (Lịch PV Xác Nhận)";
+  } else if (type === "mktHires") {
+    title = "Danh sách ứng viên từ Ads (Đã Nhận Việc)";
+  }
+  
+  // Nếu là bộ lọc Marketing và không truyền customDates, lấy khoảng ngày hiện hành của Marketing
+  if (!customDates && (type.startsWith("mkt") || type === "mktData" || type === "mktAppointments" || type === "mktConfirmedPV" || type === "mktHires")) {
+    const viewModeEl = document.getElementById("mkt-view-mode");
+    const mode = viewModeEl ? viewModeEl.value : "day";
+    customDates = [];
+    
+    if (mode === "custom") {
+      const mktStartDateInput = document.getElementById("mkt-custom-start-date");
+      const mktEndDateInput = document.getElementById("mkt-custom-end-date");
+      const startVal = mktStartDateInput ? mktStartDateInput.value : "";
+      const endVal = mktEndDateInput ? mktEndDateInput.value : "";
+      if (startVal && endVal) {
+        const start = new Date(startVal);
+        const end = new Date(endVal);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          customDates.push(`${y}-${m}-${day}`);
+        }
+      }
+    } else {
+      const mktDateSelect = document.getElementById("mkt-date-select");
+      const selectedVal = mktDateSelect ? mktDateSelect.value : "";
+      if (selectedVal) {
+        if (mode === "day") {
+          customDates.push(selectedVal);
+        } else if (mode === "week") {
+          const { monday, sunday } = getWeekRangeSafe(selectedVal);
+          const start = new Date(monday);
+          const end = new Date(sunday);
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            customDates.push(`${y}-${m}-${day}`);
+          }
+        } else if (mode === "month") {
+          // Lấy hết các ngày thuộc tháng đó trong state.datesList
+          const prefix = selectedVal.substring(0, 7); // YYYY-MM
+          state.datesList.forEach(d => {
+            if (d.startsWith(prefix)) customDates.push(d);
+          });
+        }
+      }
+    }
   }
   
   modalTitle.textContent = title;
