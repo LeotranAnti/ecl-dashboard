@@ -3,27 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Báo Cáo Kinh Doanh</title>
+  <title>Ecl Cung Ứng - The Next Move</title>
   <link rel="stylesheet" href="popup.css?v=3.2">
   <script src="chart.min.js"></script>
 </head>
 <body>
   <div class="app-container">
+    <!-- Vị trí cao nhất: Tên hệ thống ECL Cung Ứng -->
+    <div class="system-brand" style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+      <div class="logo-dot glow-emerald" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></div>
+      <h1 style="margin: 0; font-family: var(--font-title); font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ECL Cung Ứng - The Next Move</h1>
+    </div>
+
     <!-- Main Dashboard Selection Tabs -->
-    <div class="main-dashboard-tabs" style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap;">
+    <div class="main-dashboard-tabs">
       <button class="main-tab-btn active" data-section="sale">📊 Báo cáo Sale</button>
-      <button class="main-tab-btn" data-section="marketing">📢 Báo cáo Marketing (Khóa)</button>
-      <button class="main-tab-btn" data-section="finance">💰 Báo cáo Tài chính (Khóa)</button>
+      <button class="main-tab-btn" data-section="marketing">🔒 Báo cáo Marketing</button>
+      <button class="main-tab-btn" data-section="finance">🔒 Báo cáo Tài chính</button>
     </div>
 
     <!-- SECTION 1: SALE REPORT (Original Dashboard) -->
     <div id="section-sale" class="main-section active">
       <!-- Header -->
       <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-        <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="logo-dot glow-emerald"></div>
-            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Kinh Doanh</h1>
+            <button class="section-title-btn active" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📋 Tổng quan hoạt động</button>
+            <button class="section-title-btn" onclick="window.open('https://docs.google.com/spreadsheets', '_blank')" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Nhân sự</button>
           </div>
           <!-- Factory Navigation Tabs directly under title -->
           <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
@@ -550,18 +556,55 @@
           </div>
         </div>
         <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <!-- Campaign/Factory Selector -->
           <select id="mkt-campaign-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
             <!-- Sẽ tự động tải động các nhà máy/dự án -->
           </select>
-          <select id="mkt-month-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-            <option value="7" selected>Tháng 7</option>
-            <option value="6">Tháng 6</option>
-            <option value="5">Tháng 5</option>
-            <option value="4">Tháng 4</option>
+          <!-- View Mode -->
+          <select id="mkt-view-mode" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="day">Theo ngày</option>
+            <option value="week">Theo tuần</option>
+            <option value="month">Theo tháng</option>
+            <option value="custom">Tùy chỉnh</option>
           </select>
-          <select id="mkt-date-filter-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-            <option value="All">Tất Cả (Tháng 7)</option>
-          </select>
+          <!-- Date Spinner — identical structure to Sale -->
+          <div class="date-spinner-container" style="display: flex; gap: 4px; align-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
+            <button id="mkt-date-prev-btn" class="spinner-btn" title="Kỳ trước (Quá khứ)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">◀</button>
+
+            <!-- Hidden real select -->
+            <select id="mkt-date-select" style="display: none;"></select>
+
+            <!-- Custom Dropdown -->
+            <div class="custom-dropdown" style="position: relative; display: inline-block;">
+              <div id="mkt-custom-dropdown-trigger" style="font-size: 12px; padding: 4px 8px; min-width: 160px; background: transparent; border: none; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
+                <span id="mkt-custom-dropdown-label">Đang tải...</span>
+                <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="mkt-custom-dropdown-arrow">▼</span>
+              </div>
+              <div id="mkt-custom-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 180px; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 4px 0;">
+                <!-- Dynamic options -->
+              </div>
+            </div>
+
+            <button id="mkt-date-next-btn" class="spinner-btn" title="Kỳ sau (Tương lai)" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">▶</button>
+          </div>
+
+          <!-- Custom date range (hidden by default) -->
+          <div id="mkt-custom-date-container" style="display: none; gap: 8px; align-items: center;">
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="mkt-custom-start-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
+            </div>
+            <span style="font-size:11px;color:var(--text-muted)">đến</span>
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="mkt-custom-end-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
+            </div>
+          </div>
+
           <button id="mkt-refresh-btn" class="refresh-btn" title="Làm mới">
             <svg class="icon-refresh" viewBox="0 0 24 24" width="16" height="16">
               <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 12c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
@@ -1050,6 +1093,52 @@
                   <th>Người chăm sóc</th>
                   <th>Trạng thái</th>
                   <th>Thông tin lịch hẹn</th>
+                </tr>
+                <tr class="filter-row" style="background: rgba(255,255,255,0.02);">
+                  <th><input type="text" id="filter-modal-name" class="search-input" placeholder="Lọc tên..." style="font-size: 11px; padding: 4px 8px; width: 100%; box-sizing: border-box;"></th>
+                  <th>
+                    <select id="filter-modal-factory" style="font-size: 11px; padding: 4px 8px; width: 100%; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; outline: none; cursor: pointer;">
+                      <option value="">Tất cả</option>
+                      <option value="Pegatron">Pegatron</option>
+                      <option value="Brother">Brother</option>
+                      <option value="LG">LG</option>
+                      <option value="Usi">Usi</option>
+                      <option value="Fox QN">Fox QN</option>
+                    </select>
+                  </th>
+                  <th><input type="text" id="filter-modal-phone" class="search-input" placeholder="Lọc SĐT..." style="font-size: 11px; padding: 4px 8px; width: 100%; box-sizing: border-box;"></th>
+                  <th><input type="text" id="filter-modal-cccd" class="search-input" placeholder="Lọc CCCD..." style="font-size: 11px; padding: 4px 8px; width: 100%; box-sizing: border-box;"></th>
+                  <th>
+                    <!-- Multi-select Dropdown cho Người chăm sóc (Hùng, Huy, Ly, Leo, Hải Nguyên) -->
+                    <div class="multi-select-container" style="position: relative; width: 100%; display: inline-block;">
+                      <div id="multi-select-trigger" style="font-size: 11px; padding: 4px 8px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; outline: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 24px; box-sizing: border-box;">
+                        <span id="multi-select-text">Tất cả</span>
+                        <span style="font-size: 8px; color: var(--text-muted);">▼</span>
+                      </div>
+                      <div id="multi-select-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 120px; max-height: 200px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 9999; box-sizing: border-box; padding: 6px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="hùng" checked style="cursor: pointer; accent-color: var(--cyan);"> Hùng
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="huy" checked style="cursor: pointer; accent-color: var(--cyan);"> Huy
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="ly" checked style="cursor: pointer; accent-color: var(--cyan);"> Ly
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="leo" checked style="cursor: pointer; accent-color: var(--cyan);"> Leo
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="hải nguyên" checked style="cursor: pointer; accent-color: var(--cyan);"> Hải Nguyên
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 4px; cursor: pointer; color: var(--text-primary); user-select: none;">
+                          <input type="checkbox" class="recruiter-checkbox" value="chưa rõ" checked style="cursor: pointer; accent-color: var(--cyan);"> Chưa rõ
+                        </label>
+                      </div>
+                    </div>
+                  </th>
+                  <th><input type="text" id="filter-modal-status" class="search-input" placeholder="Lọc trạng thái..." style="font-size: 11px; padding: 4px 8px; width: 100%; box-sizing: border-box;"></th>
+                  <th><input type="text" id="filter-modal-date" class="search-input" placeholder="Lọc lịch hẹn..." style="font-size: 11px; padding: 4px 8px; width: 100%; box-sizing: border-box;"></th>
                 </tr>
               </thead>
               <tbody id="modal-table-body">
