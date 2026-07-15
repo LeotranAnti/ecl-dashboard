@@ -3141,7 +3141,7 @@ function getCandidatesForType(type, customDates = null) {
             cccd,
             recruiter,
             status,
-            dateInfo: `Đăng ký: ${row[0]} | Hẹn: ${row[12] || 'Chưa hẹn'}`,
+            dateInfo: `Đăng ký: ${row[0]} | CCCD: ${cccd || 'Không'} | Hẹn: ${row[12] || 'Không'}`,
             rawDate: regDate
           });
         }
@@ -4509,6 +4509,8 @@ function renderMarketingDashboard() {
     let dayConfirmedPV = 0; // Ô 5
     let dayHired = 0;       // Ô 6
 
+    const daySeenCandidates = new Set();
+
     candidatesData.forEach(row => {
       if (row.length < 18) return;
 
@@ -4530,24 +4532,45 @@ function renderMarketingDashboard() {
       const apptDate = normalizeDate(row[12]);
       const hireDate = normalizeDate(row[16]);
 
+      const candPhone = row[2] ? row[2].trim() : "";
+      const candName  = row[1] ? row[1].trim() : "";
+      const candKey   = candPhone || candName;
+      if (!candKey) return;
+
       // Ô 3: Số data (SĐT) - tính theo ngày đăng ký
       if (regDate === stdDate && row[2] && row[2].trim()) {
-        dayPhones++;
+        const key = `phone_${candKey}`;
+        if (!daySeenCandidates.has(key)) {
+          daySeenCandidates.add(key);
+          dayPhones++;
+        }
       }
 
       // Ô 4: Số lịch hẹn (có CCCD hoặc có ngày hẹn) - tính theo ngày đăng ký
       if (regDate === stdDate && checkHasAppointment(row)) {
-        dayAppts++;
+        const key = `appt_${candKey}`;
+        if (!daySeenCandidates.has(key)) {
+          daySeenCandidates.add(key);
+          dayAppts++;
+        }
       }
 
       // Ô 5: Số lịch xác nhận PV - tính theo ngày hẹn phỏng vấn
       if (apptDate === stdDate && checkConfirmedInterview(row)) {
-        dayConfirmedPV++;
+        const key = `pv_${candKey}`;
+        if (!daySeenCandidates.has(key)) {
+          daySeenCandidates.add(key);
+          dayConfirmedPV++;
+        }
       }
 
       // Ô 6: Số người nhận việc - tính theo ngày nhận việc
       if (hireDate === stdDate && checkHired(row)) {
-        dayHired++;
+        const key = `hire_${candKey}`;
+        if (!daySeenCandidates.has(key)) {
+          daySeenCandidates.add(key);
+          dayHired++;
+        }
       }
     });
 
