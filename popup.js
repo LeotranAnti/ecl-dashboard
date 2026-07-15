@@ -4222,21 +4222,30 @@ function renderMarketingDashboard() {
   const startIndex = headerRowIndex + 1;
   const marketingDays = {};
 
+  let currentDisplayDate = "";
+  let currentStdDate = "";
+
   for (let i = startIndex; i < mktRawData.length; i++) {
     const row = mktRawData[i];
-    if (!row || !row[0] || !row[0].includes("/")) continue;
+    if (!row) continue;
 
-    const dateVal = row[0].trim();
-    const stdDate = parseMktDate(dateVal); // YYYY-MM-DD
-    if (!stdDate) continue;
+    // Nếu dòng có điền ngày ở cột 0, cập nhật ngày đang xử lý
+    const cell0 = row[0] ? row[0].trim() : "";
+    if (cell0 && cell0.includes("/")) {
+      currentDisplayDate = cell0;
+      currentStdDate = parseMktDate(currentDisplayDate);
+    }
+
+    // Nếu chưa xác định được ngày thì bỏ qua
+    if (!currentStdDate) continue;
 
     const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
     const isCost = typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost");
     const isLead = typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan");
     if (!isCost && !isLead) continue;
 
-    if (!marketingDays[stdDate]) {
-      marketingDays[stdDate] = { date: stdDate, displayDate: dateVal, factories: {} };
+    if (!marketingDays[currentStdDate]) {
+      marketingDays[currentStdDate] = { date: currentStdDate, displayDate: currentDisplayDate, factories: {} };
     }
 
     // Duyệt qua các cột từ cột 2 trở đi để lấy giá trị cho từng nhà máy
@@ -4244,15 +4253,15 @@ function renderMarketingDashboard() {
       const fName = getMappedFactoryName(headerRow[c]);
       if (!fName) continue;
 
-      if (!marketingDays[stdDate].factories[fName]) {
-        marketingDays[stdDate].factories[fName] = { spent: 0, leads: 0 };
+      if (!marketingDays[currentStdDate].factories[fName]) {
+        marketingDays[currentStdDate].factories[fName] = { spent: 0, leads: 0 };
       }
 
       const val = cleanNumber(row[c]);
       if (isCost) {
-        marketingDays[stdDate].factories[fName].spent = val;
+        marketingDays[currentStdDate].factories[fName].spent = val;
       } else if (isLead) {
-        marketingDays[stdDate].factories[fName].leads = val;
+        marketingDays[currentStdDate].factories[fName].leads = val;
       }
     }
   }
