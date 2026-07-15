@@ -549,17 +549,20 @@
     <div id="section-marketing" class="main-section" style="display: none;">
       <!-- Header -->
       <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div class="brand" style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div class="logo-dot glow-emerald" style="background-color: var(--cyan); box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.8);"></div>
             <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Marketing</h1>
           </div>
+          <!-- Factory Navigation Tabs — same layout as Sale report -->
+          <div id="mkt-factory-nav-tabs" class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
+            <!-- Populated dynamically by updateCampaignSelector() -->
+            <button class="factory-tab-btn active" data-col-idx="all" style="font-size: 11px; padding: 4px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; color: #10b981; cursor: pointer; font-weight: bold; transition: all 0.2s; outline: none;">Tổng</button>
+          </div>
         </div>
         <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <!-- Campaign/Factory Selector -->
-          <select id="mkt-campaign-select" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
-            <!-- Sẽ tự động tải động các nhà máy/dự án -->
-          </select>
+          <!-- Hidden select kept for backward-compat, tabs are rendered in mkt-factory-nav-tabs -->
+          <select id="mkt-campaign-select" style="display:none;"></select>
           <!-- View Mode -->
           <select id="mkt-view-mode" class="date-select" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
             <option value="day">Theo ngày</option>

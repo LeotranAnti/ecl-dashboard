@@ -49,9 +49,10 @@ let state = {
     Brother: { candidates: [], recruitments: [], rowColors: {} },
     LG: { candidates: [], recruitments: [], rowColors: {} },
     Usi: { candidates: [], recruitments: [], rowColors: {} },
-    "Fox QN": { candidates: [], recruitments: [], rowColors: {} }
+    "Fox QN": { candidates: [], recruitments: [], rowColors: {} },
+    Wistron: { candidates: [], recruitments: [], rowColors: {} }
   },
-  selectedFactory: "All", // Filter mode: 'All', 'Pegatron', 'Brother', 'LG', 'Usi', 'Fox QN'
+  selectedFactory: "All", // Filter mode: 'All', 'Pegatron', 'Brother', 'LG', 'Usi', 'Fox QN', 'Wistron'
   
   candidates: [],     // Active filtered candidates (merged or single factory)
   recruitments: [],   // Active filtered recruitments
@@ -318,12 +319,13 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         
         if (!candidateHistory[candKey]) {
           const existing = candidateHistoryArg[candKey] || { interviewDates: [], careDates: [] };
-          // Preserve historical interview dates from today and past (freeze them <= todayStr)
-          const frozenInterviews = (existing.interviewDates || []).filter(d => d <= todayStr);
+          // Chỉ đóng băng lịch sử thực sự trước ngày hôm nay (nhỏ hơn todayStr)
+          const frozenInterviews = (existing.interviewDates || []).filter(d => d < todayStr);
+          const frozenCares = (existing.careDates || []).filter(d => d < todayStr);
           
           candidateHistory[candKey] = {
             interviewDates: frozenInterviews,
-            careDates: (existing.careDates || []).filter(d => d <= todayStr)
+            careDates: frozenCares
           };
         }
         
@@ -336,9 +338,9 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         const isFirstAppearance = !candidateHistoryArg[candKey] || (candidateHistory[candKey].interviewDates.length === 0 && candidateHistory[candKey].careDates.length === 0);
         
         if (interviewDate && (status === "hẹn phỏng vấn" || isInterviewStatus) && !isInvalidStatus) {
-          if (interviewDate > todayStr) {
+          if (interviewDate >= todayStr) {
             candidateHistory[candKey].interviewDates = [
-              ...candidateHistory[candKey].interviewDates.filter(d => d <= todayStr),
+              ...candidateHistory[candKey].interviewDates.filter(d => d < todayStr),
               interviewDate
             ];
           } else {
@@ -351,17 +353,17 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
           // Nếu đã duyệt qua dòng active trước đó rồi thì bỏ qua không filter để tránh dòng cũ ghi đè.
           const alreadyProcessedInCurrentRun = (candidateHistory[candKey].interviewDates.length > 0 && !isFirstAppearance);
           if (!alreadyProcessedInCurrentRun) {
-            candidateHistory[candKey].interviewDates = candidateHistory[candKey].interviewDates.filter(d => d <= todayStr);
+            candidateHistory[candKey].interviewDates = candidateHistory[candKey].interviewDates.filter(d => d < todayStr);
           }
         }
         
         const isCareStatus = (status === "chăm sóc tiếp" || status === "đã nhận việc" || status === "hẹn phỏng vấn" || status === "bùng pv" || status === "knm" || status === "từ chối" || status === "ko đạt" || status === "chuyển nhà máy khác" || status === "khác");
         
-        // Apply freeze logic for careDates (Lịch chăm sóc lại): Only add or update dynamically if > todayStr. Keep <= todayStr frozen.
+        // Apply freeze logic for careDates (Lịch chăm sóc lại): Chỉ đóng băng các ngày nhỏ hơn hôm nay (< todayStr)
         if (nextCareDate && (status === "chăm sóc tiếp" || isCareStatus)) {
-          if (nextCareDate > todayStr) {
+          if (nextCareDate >= todayStr) {
             candidateHistory[candKey].careDates = [
-              ...candidateHistory[candKey].careDates.filter(d => d <= todayStr),
+              ...candidateHistory[candKey].careDates.filter(d => d < todayStr),
               nextCareDate
             ];
           } else {
@@ -371,9 +373,9 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
           }
         }
         if (careDate) {
-          if (careDate > todayStr) {
+          if (careDate >= todayStr) {
             candidateHistory[candKey].careDates = [
-              ...candidateHistory[candKey].careDates.filter(d => d <= todayStr),
+              ...candidateHistory[candKey].careDates.filter(d => d < todayStr),
               careDate
             ];
           } else {
@@ -444,7 +446,8 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       }
     }
 
-    if (hist.careDates) {
+    const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(status);
+    if (hist.careDates && !isDoneOrCancelledStatus) {
       hist.careDates.forEach(cDate => {
         ensureDateObject(cDate);
 
@@ -565,18 +568,19 @@ async function syncData() {
       Brother: { candidates: "128053512", recruitments: "2146286375" },
       LG: { candidates: "1326786598", recruitments: "1084935408" },
       Usi: { candidates: "254674118", recruitments: "481655667" },
-      "Fox QN": { candidates: "1975095216", recruitments: "1084935408" } // Using empty/placeholder for Fox QN recruitments since it is not used or same gid
+      "Fox QN": { candidates: "1975095216", recruitments: "1084935408" }, // Using empty/placeholder for Fox QN recruitments since it is not used or same gid
+      Wistron: { candidates: "159609333", recruitments: "1084935408" }
     };
     
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN"];
+    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
     const fetchPromises = [];
     
     factories.forEach(f => {
       let candUrl = "";
       let recUrl = "";
       if (IS_CHROME_EXT) {
-        candUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].candidates}`;
-        recUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].recruitments}`;
+        candUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].candidates}`;
+        recUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].recruitments}`;
       } else {
         candUrl = `/api/candidates?factory=${f}`;
         recUrl = `/api/recruitments?factory=${f}`;
@@ -633,7 +637,7 @@ function applyFactoryFilter() {
   
   if (selectedFactory === "All") {
     // Merge all candidates sheets (keep only first sheet header, skip others)
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN"];
+    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
     factories.forEach((f, fIdx) => {
       const cand = state.factoryData[f].candidates || [];
       const rec = state.factoryData[f].recruitments || [];
@@ -680,6 +684,19 @@ function applyFactoryFilter() {
   // Update state values
   state.candidates = mergedCandidates;
   state.recruitments = mergedRecruitments;
+  
+  // *** Sắp xếp mergedCandidates theo cột A (timestamp) giảm dần - mới nhất lên đầu ***
+  // Giữ nguyên header row [0], chỉ sort các dòng data từ index 1 trở đi
+  if (state.candidates.length > 1) {
+    const header = state.candidates[0];
+    const dataRows = state.candidates.slice(1);
+    dataRows.sort((a, b) => {
+      const dateA = a[0] ? new Date(a[0]).getTime() : 0;
+      const dateB = b[0] ? new Date(b[0]).getTime() : 0;
+      return dateB - dateA; // Giảm dần: mới nhất lên đầu
+    });
+    state.candidates = [header, ...dataRows];
+  }
   
   // Re-process metrics
   const processed = processData(state.candidates, state.recruitments, {}, state.candidateHistory, state.hasColorData);
@@ -970,6 +987,17 @@ function updateUI() {
       const factoryName = row[18] || "Pegatron";
       const cccd = row[3] ? row[3].trim() : "";
 
+      // BỎ QUA nếu dòng không có thông tin tên hợp lệ
+      if (!name || name === "Không có" || name === "0" || name === "") {
+        continue;
+      }
+      // BỎ QUA nếu cả SĐT và CCCD đều trống hoặc bằng "0" (dữ liệu rác/trống)
+      const hasPhone = phone && phone !== "0" && phone !== "";
+      const hasCccd = cccd && cccd !== "0" && cccd !== "";
+      if (!hasPhone && !hasCccd) {
+        continue;
+      }
+
       // 1. Tình trạng là Hẹn PV nhưng thiếu CRM - Ngày hẹn PV - Ngày CS tiếp - Ngày CS cuối
       if (statusClean === "hẹn phỏng vấn") {
         let missing = [];
@@ -1141,15 +1169,24 @@ function updateUI() {
       if (todayCallback > 0 && todayCallbackUnprocessed === 0) {
         elTodayInterviewSub.innerHTML = 
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${todayConfirmed}</strong></span>` +
-          `<span style="color:#10b981;">✅ Chăm sóc lại: <strong>${todayCallback}</strong> - (Xong)</span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all">✅ Chăm sóc lại: <strong>${todayCallback}</strong></span>` +
+            `<span class="tc-callback-unprocessed disabled">Chưa CS: <strong>0</strong></span>` +
+          `</div>`;
       } else if (todayCallback > 0) {
         elTodayInterviewSub.innerHTML = 
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${todayConfirmed}</strong></span>` +
-          `<span class="tc-callback">📞 Chăm sóc lại: <strong>${todayCallback}</strong> - <span style="color:var(--amber)">Chưa CS: <strong>${todayCallbackUnprocessed}</strong></span></span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all">📞 Chăm sóc lại: <strong>${todayCallback}</strong></span>` +
+            `<span class="tc-callback-unprocessed">Chưa CS: <strong>${todayCallbackUnprocessed}</strong></span>` +
+          `</div>`;
       } else {
         elTodayInterviewSub.innerHTML = 
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${todayConfirmed}</strong></span>` +
-          `<span class="tc-callback">📞 Chăm sóc lại: <strong>0</strong></span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all disabled">📞 Chăm sóc lại: <strong>0</strong></span>` +
+            `<span class="tc-callback-unprocessed disabled">Chưa CS: <strong>0</strong></span>` +
+          `</div>`;
       }
     }
   } else {
@@ -1211,15 +1248,24 @@ function updateUI() {
       if (tomorrowCallback > 0 && tomorrowCallbackUnprocessed === 0) {
         elTomorrowSub.innerHTML =
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${tomorrowStats.interviewConfirmed || 0}</strong></span>` +
-          `<span style="color:#10b981;">✅ Chăm sóc lại: <strong>${tomorrowCallback}</strong> - (Xong)</span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all">✅ Chăm sóc lại: <strong>${tomorrowCallback}</strong></span>` +
+            `<span class="tc-callback-unprocessed disabled">Chưa CS: <strong>0</strong></span>` +
+          `</div>`;
       } else if (tomorrowCallback > 0) {
         elTomorrowSub.innerHTML =
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${tomorrowStats.interviewConfirmed || 0}</strong></span>` +
-          `<span class="tc-callback">📞 Chăm sóc lại: <strong>${tomorrowCallback}</strong> - <span style="color:var(--amber)">Chưa CS: <strong>${tomorrowCallbackUnprocessed}</strong></span></span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all">📞 Chăm sóc lại: <strong>${tomorrowCallback}</strong></span>` +
+            `<span class="tc-callback-unprocessed">Chưa CS: <strong>${tomorrowCallbackUnprocessed}</strong></span>` +
+          `</div>`;
       } else {
         elTomorrowSub.innerHTML =
           `<span class="tc-confirmed">🟡 Hẹn PV: <strong>${tomorrowStats.interviewConfirmed || 0}</strong></span>` +
-          `<span class="tc-callback">📞 Chăm sóc lại: <strong>0</strong></span>`;
+          `<div class="tc-callback-row">` +
+            `<span class="tc-callback-all disabled">📞 Chăm sóc lại: <strong>0</strong></span>` +
+            `<span class="tc-callback-unprocessed disabled">Chưa CS: <strong>0</strong></span>` +
+          `</div>`;
       }
     }
   } else {
@@ -2407,6 +2453,7 @@ function loadCache() {
     'LG_candidatesCSV', 'LG_recruitmentsCSV',
     'Usi_candidatesCSV', 'Usi_recruitmentsCSV',
     'Fox QN_candidatesCSV', 'Fox QN_recruitmentsCSV',
+    'Wistron_candidatesCSV', 'Wistron_recruitmentsCSV',
     'lastSyncTime', 'candidateHistory'
   ];
   
@@ -2434,7 +2481,7 @@ function loadCache() {
       state.candidateHistory = {};
     }
     
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN"];
+    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
     let hasAllCache = true;
     
     factories.forEach(f => {
@@ -2786,12 +2833,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (elSub) {
     elSub.addEventListener("click", (e) => {
       const confirmedSpan = e.target.closest(".tc-confirmed");
-      const callbackSpan = e.target.closest(".tc-callback");
+      const callbackAllSpan = e.target.closest(".tc-callback-all");
+      const callbackUnprocessedSpan = e.target.closest(".tc-callback-unprocessed");
       const overdueSpan = e.target.closest(".tc-overdue");
       
       if (confirmedSpan) {
         openDetailsModal("interviewConfirmed");
-      } else if (callbackSpan) {
+      } else if (callbackAllSpan) {
+        openDetailsModal("allCallback");
+      } else if (callbackUnprocessedSpan) {
         openDetailsModal("unprocessedCallback");
       } else if (overdueSpan) {
         openDetailsModal("overdueCare");
@@ -2809,11 +2859,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!tomorrowStr) return;
       
       const confirmedSpan = e.target.closest(".tc-confirmed");
-      const callbackSpan = e.target.closest(".tc-callback");
+      const callbackAllSpan = e.target.closest(".tc-callback-all");
+      const callbackUnprocessedSpan = e.target.closest(".tc-callback-unprocessed");
       
       if (confirmedSpan) {
         openDetailsModal("interviewConfirmed", [tomorrowStr]);
-      } else if (callbackSpan) {
+      } else if (callbackAllSpan) {
+        openDetailsModal("allCallback", [tomorrowStr]);
+      } else if (callbackUnprocessedSpan) {
         openDetailsModal("unprocessedCallback", [tomorrowStr]);
       } else {
         // Default to interviewConfirmed if clicked elsewhere on tomorrow banner
@@ -3056,9 +3109,34 @@ function getCandidatesForType(type, customDates = null) {
       }
     } else if (type === "warningAlert") {
       return state.warningList || [];
-    } else if (type === "unprocessedCallback") {
+    } else if (type === "allCallback") {
       const historyItem = state.candidateHistory[candKey];
       if (historyItem && historyItem.careDates) {
+        historyItem.careDates.forEach(cDate => {
+          if (dates.includes(cDate)) {
+            // Không phân biệt đã chăm sóc hay chưa, lấy tất cả
+            if (!seenKeys.has(candKey)) {
+              seenKeys.add(candKey);
+              const isDone = careDate === cDate;
+              list.push({
+                name,
+                factory: factoryName,
+                phone,
+                cccd,
+                recruiter,
+                status,
+                dateInfo: `Lịch CS: ${formatUIDate(cDate)} ${isDone ? "(Đã CS)" : "(Chưa CS)"}`,
+                rawDate: cDate
+              });
+            }
+          }
+        });
+      }
+    } else if (type === "unprocessedCallback") {
+      const historyItem = state.candidateHistory[candKey];
+      // Loại bỏ các ứng viên có trạng thái kết thúc (KĐL, KNM, Bùng PV, Từ chối, Ko đạt, Đã nhận việc...)
+      const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(statusClean);
+      if (historyItem && historyItem.careDates && !isDoneOrCancelledStatus) {
         historyItem.careDates.forEach(cDate => {
           if (dates.includes(cDate)) {
             if (careDate !== cDate) {
@@ -3127,53 +3205,179 @@ function openDetailsModal(type, customDates = null) {
     title = "Danh sách ứng viên Trễ Chăm Sóc";
   } else if (type === "warningAlert") {
     title = "🔔 Danh sách Cảnh Báo";
+  } else if (type === "allCallback") {
+    title = "Danh sách ứng viên Lịch Hẹn Chăm Sóc Lại";
   } else if (type === "unprocessedCallback") {
     title = "Danh sách ứng viên Chưa Chăm Sóc Lại";
   }
   
   modalTitle.textContent = title;
-  modalBody.innerHTML = `<tr><td colspan="5" class="text-center">Đang tải chi tiết...</td></tr>`;
+  modalBody.innerHTML = `<tr><td colspan="7" class="text-center">Đang tải chi tiết...</td></tr>`;
   modal.classList.add("active");
+  // Reset các ô filter nhập liệu và thiết lập dropdown checkbox người chăm sóc
+  const fName = document.getElementById("filter-modal-name");
+  const fFactory = document.getElementById("filter-modal-factory");
+  const fPhone = document.getElementById("filter-modal-phone");
+  const fCccd = document.getElementById("filter-modal-cccd");
+  const fStatus = document.getElementById("filter-modal-status");
+  const fDate = document.getElementById("filter-modal-date");
+
+  // Thiết lập các checkbox người chăm sóc mặc định là checked
+  const checkBoxes = document.querySelectorAll(".recruiter-checkbox");
+  checkBoxes.forEach(cb => cb.checked = true);
   
+  const multiTrigger = document.getElementById("multi-select-trigger");
+  const multiDropdown = document.getElementById("multi-select-dropdown");
+  const multiText = document.getElementById("multi-select-text");
+
+  if (multiText) multiText.textContent = "Tất cả (6)";
+
+  if (multiTrigger && multiDropdown) {
+    multiTrigger.onclick = (e) => {
+      e.stopPropagation();
+      const isVisible = multiDropdown.style.display === "block";
+      if (!isVisible) {
+        const rect = multiTrigger.getBoundingClientRect();
+        multiDropdown.style.position = "fixed";
+        multiDropdown.style.top = `${rect.bottom + 2}px`;
+        multiDropdown.style.left = `${rect.left}px`;
+        multiDropdown.style.width = `${Math.max(120, rect.width)}px`;
+        multiDropdown.style.display = "block";
+      } else {
+        multiDropdown.style.display = "none";
+      }
+    };
+    
+    // Đóng dropdown khi click ra ngoài
+    document.addEventListener("click", (e) => {
+      if (!multiTrigger.contains(e.target) && !multiDropdown.contains(e.target)) {
+        multiDropdown.style.display = "none";
+      }
+    });
+  }
+
+  if (fName) fName.value = "";
+  if (fFactory) fFactory.value = "";
+  if (fPhone) fPhone.value = "";
+  if (fCccd) fCccd.value = "";
+  if (fStatus) fStatus.value = "";
+  if (fDate) fDate.value = "";
+
   const candidates = getCandidatesForType(type, customDates);
   
-  if (candidates.length === 0) {
-    const datesStr = (customDates || []).join(", ") || `${state.startDate} -> ${state.endDate}`;
-    modalBody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center text-muted" style="padding: 20px;">
-          Không có ứng viên nào trong khoảng thời gian này.
-        </td>
-      </tr>
-    `;
-  } else {
-    modalBody.innerHTML = candidates.map(c => {
-      let badgeStyle = "background:rgba(255,255,255,0.08);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);";
-      const f = String(c.factory).trim().toLowerCase();
-      if (f === "pegatron") {
-        badgeStyle = "background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);"; // Blue theme
-      } else if (f === "brother") {
-        badgeStyle = "background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);"; // Purple theme
-      } else if (f === "lg") {
-        badgeStyle = "background:rgba(244,63,94,0.15);color:#fb7185;border:1px solid rgba(244,63,94,0.3);"; // Red theme
-      } else if (f === "usi") {
-        badgeStyle = "background:rgba(6,182,212,0.15);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);"; // Cyan theme
-      } else if (f === "fox qn") {
-        badgeStyle = "background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);"; // Gold/Amber theme
-      }
-      return `
-      <tr>
-        <td><strong>${c.name}</strong></td>
-        <td><span class="status-badge" style="font-weight:bold;font-size:10px;padding:2px 6px;border-radius:4px;${badgeStyle}">${c.factory}</span></td>
-        <td class="text-left" style="font-family:monospace; font-size:12px;">${c.phone || '<span class="text-muted">Không có</span>'}</td>
-        <td class="text-left" style="font-family:monospace; font-size:12px;">${c.cccd || '<span class="text-muted">Không có</span>'}</td>
-        <td>${c.recruiter}</td>
-        <td><span class="status-badge status-${getStatusClass(c.status)}">${c.status}</span></td>
-        <td>${c.dateInfo}</td>
-      </tr>
+  function renderTableRows(dataList) {
+    if (dataList.length === 0) {
+      modalBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-muted" style="padding: 20px;">
+            Không tìm thấy ứng viên phù hợp với bộ lọc.
+          </td>
+        </tr>
       `;
-    }).join("");
+    } else {
+      modalBody.innerHTML = dataList.map(c => {
+        let badgeStyle = "background:rgba(255,255,255,0.08);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);";
+        const f = String(c.factory).trim().toLowerCase();
+        if (f === "pegatron") {
+          badgeStyle = "background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);"; // Blue theme
+        } else if (f === "brother") {
+          badgeStyle = "background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);"; // Purple theme
+        } else if (f === "lg") {
+          badgeStyle = "background:rgba(244,63,94,0.15);color:#fb7185;border:1px solid rgba(244,63,94,0.3);"; // Red theme
+        } else if (f === "usi") {
+          badgeStyle = "background:rgba(6,182,212,0.15);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);"; // Cyan theme
+        } else if (f === "fox qn") {
+          badgeStyle = "background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);"; // Gold/Amber theme
+        } else if (f === "wistron" || f === "wis") {
+          badgeStyle = "background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.3);"; // Pink theme
+        }
+        return `
+        <tr>
+          <td><strong>${c.name}</strong></td>
+          <td><span class="status-badge" style="font-weight:bold;font-size:10px;padding:2px 6px;border-radius:4px;${badgeStyle}">${c.factory}</span></td>
+          <td class="text-left" style="font-family:monospace; font-size:12px;">${c.phone || '<span class="text-muted">Không có</span>'}</td>
+          <td class="text-left" style="font-family:monospace; font-size:12px;">${c.cccd || '<span class="text-muted">Không có</span>'}</td>
+          <td>${c.recruiter}</td>
+          <td><span class="status-badge status-${getStatusClass(c.status)}">${c.status}</span></td>
+          <td>${c.dateInfo}</td>
+        </tr>
+        `;
+      }).join("");
+    }
   }
+
+  // Khởi tạo hiển thị ban đầu
+  renderTableRows(candidates);
+
+  // Lắng nghe sự kiện lọc
+  const applyFilters = () => {
+    const valName = (fName ? fName.value : "").trim().toLowerCase();
+    const valFactory = (fFactory ? fFactory.value : "").trim().toLowerCase();
+    const valPhone = (fPhone ? fPhone.value : "").trim().toLowerCase();
+    const valCccd = (fCccd ? fCccd.value : "").trim().toLowerCase();
+    const valStatus = (fStatus ? fStatus.value : "").trim().toLowerCase();
+    const valDate = (fDate ? fDate.value : "").trim().toLowerCase();
+
+    // Lấy danh sách những người chăm sóc được tích chọn checkbox
+    const selectedRecruiters = [];
+    checkBoxes.forEach(cb => {
+      if (cb.checked) {
+        selectedRecruiters.push(cb.value);
+      }
+    });
+
+    // Cập nhật text hiển thị trên nút trigger người chăm sóc
+    if (multiText) {
+      if (selectedRecruiters.length === 6) {
+        multiText.textContent = "Tất cả (6)";
+      } else if (selectedRecruiters.length === 0) {
+        multiText.textContent = "Chọn CS";
+      } else {
+        const namesFormatted = selectedRecruiters.map(r => {
+          if (r === "hải nguyên") return "Hải Nguyên";
+          return r.charAt(0).toUpperCase() + r.slice(1);
+        });
+        multiText.textContent = namesFormatted.join(", ");
+      }
+    }
+
+    const filtered = candidates.filter(c => {
+      const cRecruiterClean = String(c.recruiter).trim().toLowerCase();
+      
+      const matchName = !valName || String(c.name).toLowerCase().includes(valName);
+      const matchFactory = !valFactory || String(c.factory).toLowerCase() === valFactory;
+      const matchPhone = !valPhone || String(c.phone).toLowerCase().includes(valPhone);
+      const matchCccd = !valCccd || String(c.cccd).toLowerCase().includes(valCccd);
+      const matchStatus = !valStatus || String(c.status).toLowerCase().includes(valStatus);
+      const matchDate = !valDate || String(c.dateInfo).toLowerCase().includes(valDate);
+      
+      // Kiểm tra xem người chăm sóc của ứng viên có nằm trong danh sách checkbox được tích hay không
+      const matchRecruiter = selectedRecruiters.includes(cRecruiterClean);
+
+      return matchName && matchFactory && matchPhone && matchCccd && matchRecruiter && matchStatus && matchDate;
+    });
+
+    renderTableRows(filtered);
+  };
+
+  // Lắng nghe sự kiện input/change trên các trường nhập liệu
+  [fName, fPhone, fCccd, fStatus, fDate].forEach(el => {
+    if (el) {
+      el.removeEventListener("input", applyFilters);
+      el.addEventListener("input", applyFilters);
+    }
+  });
+
+  if (fFactory) {
+    fFactory.removeEventListener("change", applyFilters);
+    fFactory.addEventListener("change", applyFilters);
+  }
+
+  // Lắng nghe sự kiện tích chọn các checkbox người chăm sóc
+  checkBoxes.forEach(cb => {
+    cb.removeEventListener("change", applyFilters);
+    cb.addEventListener("change", applyFilters);
+  });
 }
 
 function getStatusClass(status) {
@@ -3257,8 +3461,11 @@ function getTomorrowDateStr() {
 
 let unlockedSections = {
   marketing: false,
-  finance: false
+  finance: false,
+  fullAccess: false // Quyền xem toàn bộ không hỏi lại mã PIN phụ
 };
+
+let gateVerified = false; // Trạng thái xác thực cổng chính khi vào trang
 
 // --- Main Dashboard Tab Switching and Password modal logic ---
 function setupMainNavigation() {
@@ -3273,22 +3480,52 @@ function setupMainNavigation() {
   
   let targetSection = "sale";
   let pendingButton = null;
+  let isGateAuth = true; // Trạng thái đang xác thực cổng chính vào trang
+
+  // Thiết lập ẩn 2 tab MKT và Tài chính từ đầu
+  const mktBtn = document.querySelector('.main-tab-btn[data-section="marketing"]');
+  const finBtn = document.querySelector('.main-tab-btn[data-section="finance"]');
+  if (mktBtn) mktBtn.style.display = "none";
+  if (finBtn) finBtn.style.display = "none";
+
+  // Khi vừa load trang, kích hoạt cổng xác thực password chính
+  setTimeout(() => {
+    showGatePasswordPrompt();
+  }, 100);
+
+  function showGatePasswordPrompt() {
+    isGateAuth = true;
+    document.getElementById("password-modal-title").textContent = `Xác thực ECL Cung Ứng`;
+    document.getElementById("password-prompt-text").textContent = `Vui lòng nhập mật mã PIN để truy cập hệ thống ECL Cung Ứng.`;
+    
+    // Ẩn nút hủy và nút close đối với cổng chính
+    if (pwdCancel) pwdCancel.style.display = "none";
+    if (pwdClose) pwdClose.style.display = "none";
+    
+    pwdInput.value = "";
+    pwdError.style.display = "none";
+    pwdModal.style.display = "flex";
+    pwdModal.classList.add("active");
+    pwdInput.focus();
+  }
 
   buttons.forEach(btn => {
     btn.addEventListener("click", (e) => {
+      if (!gateVerified) return; // Chưa vượt qua cổng chính thì không cho làm gì
+
       const clickedBtn = e.currentTarget;
       const section = clickedBtn.getAttribute("data-section");
       
       if (section === "sale") {
         switchSection("sale", clickedBtn);
       } else if (section === "marketing") {
-        if (unlockedSections.marketing) {
+        if (unlockedSections.marketing || unlockedSections.fullAccess) {
           switchSection("marketing", clickedBtn);
         } else {
           showPasswordPrompt("marketing", clickedBtn);
         }
       } else if (section === "finance") {
-        if (unlockedSections.finance) {
+        if (unlockedSections.finance || unlockedSections.fullAccess) {
           switchSection("finance", clickedBtn);
         } else {
           showPasswordPrompt("finance", clickedBtn);
@@ -3320,9 +3557,14 @@ function setupMainNavigation() {
   }
 
   function showPasswordPrompt(sect, btn) {
+    isGateAuth = false;
     targetSection = sect;
     pendingButton = btn;
     
+    // Hiện lại nút Cancel và Close đối với cổng phụ
+    if (pwdCancel) pwdCancel.style.display = "block";
+    if (pwdClose) pwdClose.style.display = "block";
+
     document.getElementById("password-modal-title").textContent = `Mở khóa Báo Cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}`;
     document.getElementById("password-prompt-text").textContent = `Vui lòng nhập mã PIN bảo mật để truy cập Báo cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}.`;
     
@@ -3337,20 +3579,51 @@ function setupMainNavigation() {
     const pin = pwdInput.value.trim();
     let isCorrect = false;
     
-    if (targetSection === "marketing" && pin === "888888") {
-      isCorrect = true;
-      unlockedSections.marketing = true;
-      pendingButton.textContent = "🔓 Báo cáo Marketing";
-    } else if (targetSection === "finance" && pin === "999999") {
-      isCorrect = true;
-      unlockedSections.finance = true;
-      pendingButton.textContent = "🔓 Báo cáo Tài chính";
+    if (isGateAuth) {
+      // XỬ LÝ CỔNG CHÍNH VÀO TRANG
+      if (pin === "123456") {
+        // Chỉ hiển thị tab Sale, ẩn hoàn toàn Marketing và Tài chính
+        gateVerified = true;
+        isCorrect = true;
+        if (mktBtn) mktBtn.style.display = "none";
+        if (finBtn) finBtn.style.display = "none";
+      } else if (pin === "879394") {
+        // Hiển thị cả 3 tab, xem tự do không cần hỏi lại mã PIN phụ
+        gateVerified = true;
+        isCorrect = true;
+        unlockedSections.fullAccess = true;
+        unlockedSections.marketing = true;
+        unlockedSections.finance = true;
+        
+        // Hiện 2 tab Marketing và Tài chính lên
+        if (mktBtn) {
+          mktBtn.style.display = "inline-flex";
+          mktBtn.textContent = "📢 Báo cáo Marketing";
+        }
+        if (finBtn) {
+          finBtn.style.display = "inline-flex";
+          finBtn.textContent = "💰 Báo cáo Tài chính";
+        }
+      }
+    } else {
+      // XỬ LÝ CỔNG PHỤ MỞ TỪNG TAB
+      if (targetSection === "marketing" && pin === "888888") {
+        isCorrect = true;
+        unlockedSections.marketing = true;
+        pendingButton.textContent = "📢 Báo cáo Marketing";
+      } else if (targetSection === "finance" && pin === "999999") {
+        isCorrect = true;
+        unlockedSections.finance = true;
+        pendingButton.textContent = "💰 Báo cáo Tài chính";
+      }
     }
     
     if (isCorrect) {
       pwdModal.style.display = "none";
       pwdModal.classList.remove("active");
-      switchSection(targetSection, pendingButton);
+      if (!isGateAuth) {
+        switchSection(targetSection, pendingButton);
+      }
     } else {
       pwdError.style.display = "block";
       pwdInput.value = "";
@@ -3364,6 +3637,7 @@ function setupMainNavigation() {
   });
   
   const hideModal = () => {
+    if (isGateAuth) return; // Không cho phép đóng modal nếu đang ở cổng chính
     pwdModal.style.display = "none";
     pwdModal.classList.remove("active");
   };
@@ -3382,50 +3656,301 @@ function setupMainNavigation() {
 
 let mktRawData = [];
 let mktChartObj = null;
-let mktSelectedDateFilter = "All";
 
 function initMarketingDashboard() {
   const refreshBtn = document.getElementById("mkt-refresh-btn");
   if (refreshBtn && !refreshBtn.dataset.listenerAdded) {
     refreshBtn.dataset.listenerAdded = "true";
-    refreshBtn.addEventListener("click", () => fetchMarketingData());
-  }
-  
-  const monthSelect = document.getElementById("mkt-month-select");
-  if (monthSelect && !monthSelect.dataset.listenerAdded) {
-    monthSelect.dataset.listenerAdded = "true";
-    monthSelect.addEventListener("change", () => {
-      mktSelectedDateFilter = "All";
-      fetchMarketingData();
+    refreshBtn.addEventListener("click", () => {
+      const month = state.loadedMktMonth || "7";
+      fetchMarketingDataForMonth(month);
     });
   }
   
-  const selectBox = document.getElementById("mkt-campaign-select");
-  if (selectBox && !selectBox.dataset.listenerAdded) {
-    selectBox.dataset.listenerAdded = "true";
-    selectBox.addEventListener("change", () => renderMarketingDashboard());
+  const campaignSelect = document.getElementById("mkt-campaign-select");
+  if (campaignSelect && !campaignSelect.dataset.listenerAdded) {
+    campaignSelect.dataset.listenerAdded = "true";
+    campaignSelect.addEventListener("change", () => renderMarketingDashboard());
   }
 
-  const dateFilterSelect = document.getElementById("mkt-date-filter-select");
-  if (dateFilterSelect && !dateFilterSelect.dataset.listenerAdded) {
-    dateFilterSelect.dataset.listenerAdded = "true";
-    dateFilterSelect.addEventListener("change", (e) => {
-      mktSelectedDateFilter = e.target.value;
-      renderMarketingDashboard();
+  const viewModeEl = document.getElementById("mkt-view-mode");
+  if (viewModeEl && !viewModeEl.dataset.listenerAdded) {
+    viewModeEl.dataset.listenerAdded = "true";
+    viewModeEl.addEventListener("change", () => {
+      const mode = viewModeEl.value;
+      const selectEl = document.getElementById("mkt-date-select");
+      const customContainer = document.getElementById("mkt-custom-date-container");
+      const spinnerContainer = document.querySelector('.date-spinner-container');
+
+      if (mode === 'custom') {
+        if (spinnerContainer) spinnerContainer.style.display = 'none';
+        else if (selectEl) selectEl.style.display = 'none';
+        if (customContainer) customContainer.style.display = 'flex';
+      } else {
+        populateMktDateSelector();
+        if (spinnerContainer) spinnerContainer.style.display = 'flex';
+        else if (selectEl) selectEl.style.display = 'block';
+        if (customContainer) customContainer.style.display = 'none';
+      }
+      handleMktDateChange();
     });
   }
-  
-  fetchMarketingData();
+
+  const mktDateSelect = document.getElementById("mkt-date-select");
+  if (mktDateSelect && !mktDateSelect.dataset.listenerAdded) {
+    mktDateSelect.dataset.listenerAdded = "true";
+    mktDateSelect.addEventListener("change", () => {
+      syncMktCustomDropdown();
+      handleMktDateChange();
+    });
+  }
+
+  // Date Spinner/Carousel Prev/Next Navigation
+  const elMktPrev = document.getElementById("mkt-date-prev-btn");
+  if (elMktPrev && !elMktPrev.dataset.listenerAdded) {
+    elMktPrev.dataset.listenerAdded = "true";
+    elMktPrev.addEventListener("click", () => {
+      const select = document.getElementById("mkt-date-select");
+      if (select && select.selectedIndex < select.options.length - 1) {
+        select.selectedIndex = select.selectedIndex + 1;
+        select.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  const elMktNext = document.getElementById("mkt-date-next-btn");
+  if (elMktNext && !elMktNext.dataset.listenerAdded) {
+    elMktNext.dataset.listenerAdded = "true";
+    elMktNext.addEventListener("click", () => {
+      const select = document.getElementById("mkt-date-select");
+      if (select && select.selectedIndex > 0) {
+        select.selectedIndex = select.selectedIndex - 1;
+        select.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  // Toggle Custom Dropdown Menu Open/Close
+  const mktDropTrigger = document.getElementById("mkt-custom-dropdown-trigger");
+  const mktDropMenu = document.getElementById("mkt-custom-dropdown-menu");
+  const mktDropArrow = document.getElementById("mkt-custom-dropdown-arrow");
+  if (mktDropTrigger && mktDropMenu && !mktDropTrigger.dataset.listenerAdded) {
+    mktDropTrigger.dataset.listenerAdded = "true";
+    mktDropTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = mktDropMenu.style.display === "block";
+      mktDropMenu.style.display = isVisible ? "none" : "block";
+      if (mktDropArrow) {
+        mktDropArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+      }
+      if (!isVisible) {
+        // Auto scroll to active item
+        setTimeout(() => {
+          let visualActiveIdx = 0;
+          const selectEl = document.getElementById("mkt-date-select");
+          if (selectEl) {
+            visualActiveIdx = selectEl.selectedIndex;
+          }
+          const activeItem = mktDropMenu.querySelector(".mkt-active-dropdown-item");
+          if (activeItem) {
+            mktDropMenu.scrollTop = activeItem.offsetTop - (mktDropMenu.clientHeight / 2) + (activeItem.clientHeight / 2);
+          }
+        }, 10);
+      }
+    });
+
+    let visualActiveIdx = 0;
+    const select = document.getElementById("mkt-date-select");
+    if (select) visualActiveIdx = select.selectedIndex;
+
+    function updateMktSelectedDateFromScrollVisual() {
+      if (!select) return;
+      const items = Array.from(mktDropMenu.children);
+      if (items.length === 0) return;
+
+      const menuCenter = mktDropMenu.scrollTop + (mktDropMenu.clientHeight / 2);
+      let closestItem = null;
+      let minDistance = Infinity;
+      let closestIdx = visualActiveIdx;
+
+      items.forEach((item, idx) => {
+        const itemCenter = item.offsetTop + (item.clientHeight / 2);
+        const dist = Math.abs(itemCenter - menuCenter);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestItem = item;
+          closestIdx = idx;
+        }
+      });
+
+      if (closestIdx !== visualActiveIdx) {
+        visualActiveIdx = closestIdx;
+        
+        const label = document.getElementById("mkt-custom-dropdown-label");
+        if (label) {
+          label.textContent = select.options[closestIdx] ? select.options[closestIdx].textContent : "";
+        }
+
+        items.forEach((item, idx) => {
+          if (idx === closestIdx) {
+            item.style.background = "rgba(16, 185, 129, 0.15)";
+            item.style.color = "#10b981";
+            item.style.fontWeight = "bold";
+            item.classList.add("mkt-active-dropdown-item");
+          } else {
+            item.style.background = "transparent";
+            item.style.color = "var(--text-primary)";
+            item.style.fontWeight = "normal";
+            item.classList.remove("mkt-active-dropdown-item");
+          }
+        });
+      }
+    }
+
+    let mktScrollVelocity = 0;
+    let mktScrollAnimationId = null;
+
+    function animateMktScroll() {
+      mktScrollVelocity *= 0.94;
+      mktDropMenu.scrollTop += mktScrollVelocity;
+      updateMktSelectedDateFromScrollVisual();
+
+      if (Math.abs(mktScrollVelocity) < 0.1) {
+        mktScrollVelocity = 0;
+        mktScrollAnimationId = null;
+        
+        const items = Array.from(mktDropMenu.children);
+        const activeItem = items[visualActiveIdx];
+        if (activeItem) {
+          const target = activeItem.offsetTop - (mktDropMenu.clientHeight / 2) + (activeItem.clientHeight / 2);
+          mktDropMenu.scrollTo({
+            top: target,
+            behavior: "smooth"
+          });
+        }
+        return;
+      }
+      
+      mktScrollAnimationId = requestAnimationFrame(animateMktScroll);
+    }
+
+    mktDropMenu.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      mktScrollVelocity += e.deltaY * 0.05;
+
+      if (mktScrollVelocity > 15) mktScrollVelocity = 15;
+      if (mktScrollVelocity < -15) mktScrollVelocity = -15;
+
+      if (!mktScrollAnimationId) {
+        mktScrollAnimationId = requestAnimationFrame(animateMktScroll);
+      }
+    }, { passive: false });
+  }
+
+  // Close Custom Dropdown when clicking outside
+  document.addEventListener("click", () => {
+    if (mktDropMenu && mktDropMenu.style.display === "block") {
+      mktDropMenu.style.display = "none";
+      if (mktDropArrow) mktDropArrow.style.transform = "rotate(0deg)";
+    }
+  });
+
+  const customStartEl = document.getElementById("mkt-custom-start-date");
+  if (customStartEl && !customStartEl.dataset.listenerAdded) {
+    customStartEl.dataset.listenerAdded = "true";
+    customStartEl.addEventListener("change", () => {
+      handleMktDateChange();
+      const customEndEl = document.getElementById("mkt-custom-end-date");
+      if (customEndEl && !customEndEl.value && typeof customEndEl.showPicker === "function") {
+        try {
+          customEndEl.showPicker();
+        } catch (err) {
+          console.warn("Failed to auto-open mkt end date picker:", err);
+        }
+      }
+    });
+  }
+
+  const customEndEl = document.getElementById("mkt-custom-end-date");
+  if (customEndEl && !customEndEl.dataset.listenerAdded) {
+    customEndEl.dataset.listenerAdded = "true";
+    customEndEl.addEventListener("change", () => {
+      handleMktDateChange();
+      const customStartEl = document.getElementById("mkt-custom-start-date");
+      if (customStartEl && !customStartEl.value && typeof customStartEl.showPicker === "function") {
+        try {
+          customStartEl.showPicker();
+        } catch (err) {
+          console.warn("Failed to auto-open mkt start date picker:", err);
+        }
+      }
+    });
+  }
+
+  // Set default custom dates if empty
+  const mktStartDateInput = document.getElementById("mkt-custom-start-date");
+  const mktEndDateInput = document.getElementById("mkt-custom-end-date");
+  if (mktStartDateInput && mktEndDateInput && !mktStartDateInput.value) {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const formatDateYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    mktStartDateInput.value = formatDateYMD(thirtyDaysAgo);
+    mktEndDateInput.value = formatDateYMD(today);
+  }
+
+  populateMktDateSelector();
+  handleMktDateChange();
 }
 
-async function fetchMarketingData() {
+async function handleMktDateChange() {
+  const viewModeEl = document.getElementById("mkt-view-mode");
+  const mode = viewModeEl ? viewModeEl.value : "day";
+  
+  if (mode === "custom") {
+    const customStartEl = document.getElementById("mkt-custom-start-date");
+    const startVal = customStartEl ? customStartEl.value : "";
+    if (startVal) {
+      const parts = startVal.split("-");
+      const month = parseInt(parts[1]).toString();
+      if (state.loadedMktMonth !== month) {
+        await fetchMarketingDataForMonth(month);
+      } else {
+        renderMarketingDashboard();
+      }
+    } else {
+      if (state.loadedMktMonth !== "7") {
+        await fetchMarketingDataForMonth("7");
+      } else {
+        renderMarketingDashboard();
+      }
+    }
+    return;
+  }
+
+  const mktDateSelect = document.getElementById("mkt-date-select");
+  if (!mktDateSelect) return;
+  const val = mktDateSelect.value;
+  if (!val) return;
+
+  const parts = val.split("-");
+  if (parts.length >= 2) {
+    const month = parseInt(parts[1]).toString();
+    if (state.loadedMktMonth !== month) {
+      await fetchMarketingDataForMonth(month);
+    } else {
+      renderMarketingDashboard();
+    }
+  }
+}
+
+async function fetchMarketingDataForMonth(month) {
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
   }
   
-  const monthSelect = document.getElementById("mkt-month-select");
-  const month = monthSelect ? monthSelect.value : "7";
+  state.loadedMktMonth = month;
   
   let mktUrl = "";
   if (IS_CHROME_EXT) {
@@ -3441,10 +3966,7 @@ async function fetchMarketingData() {
     const text = await response.text();
     mktRawData = parseCSV(text);
     
-    // Đổ động các tùy chọn nhà máy dựa trên dòng tiêu đề
     updateCampaignSelector();
-    populateMktDateFilter();
-    
     renderMarketingDashboard();
   } catch (error) {
     console.error("Lỗi tải dữ liệu marketing:", error);
@@ -3455,38 +3977,196 @@ async function fetchMarketingData() {
 }
 
 function updateCampaignSelector() {
-  const selectBox = document.getElementById("mkt-campaign-select");
-  if (!selectBox || !mktRawData) return;
-  
-  const headerRow = mktRawData.find(row => row && row[0] && row[0].trim() === "Ngày");
+  const tabsContainer = document.getElementById('mkt-factory-nav-tabs');
+  const selectBox = document.getElementById('mkt-campaign-select');
+  if (!tabsContainer || !mktRawData) return;
+
+  const headerRow = mktRawData.find(row => row && row[0] && row[0].trim() === 'Ngày');
   if (!headerRow) return;
-  
-  let optionsHTML = "";
-  // Cột C (Tổng - index 2) trở đi
+
+  // Build tab buttons
+  let tabsHTML = `<button class="factory-tab-btn active" data-col-idx="all" style="font-size:11px;padding:4px 12px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:4px;color:#10b981;cursor:pointer;font-weight:bold;transition:all 0.2s;outline:none;">Tổng</button>`;
+  // Also keep hidden select in sync
+  let optionsHTML = '';
   for (let idx = 2; idx < headerRow.length; idx++) {
-    const name = headerRow[idx] ? headerRow[idx].trim() : "";
+    const name = headerRow[idx] ? headerRow[idx].trim() : '';
     if (name) {
+      tabsHTML += `<button class="factory-tab-btn" data-col-idx="${idx}" style="font-size:11px;padding:4px 12px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-muted);cursor:pointer;transition:all 0.2s;outline:none;">${name}</button>`;
       optionsHTML += `<option value="${idx}">${name}</option>`;
     }
   }
-  selectBox.innerHTML = optionsHTML;
+  tabsContainer.innerHTML = tabsHTML;
+  if (selectBox) selectBox.innerHTML = optionsHTML;
+
+  // Bind click events on tabs
+  tabsContainer.querySelectorAll('.factory-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Visual active state
+      tabsContainer.querySelectorAll('.factory-tab-btn').forEach(b => {
+        b.style.background = 'transparent';
+        b.style.border = '1px solid transparent';
+        b.style.color = 'var(--text-muted)';
+      });
+      btn.style.background = 'rgba(16,185,129,0.15)';
+      btn.style.border = '1px solid rgba(16,185,129,0.3)';
+      btn.style.color = '#10b981';
+
+      // Sync hidden select value so renderMarketingDashboard can read it
+      const colIdx = btn.dataset.colIdx;
+      if (selectBox) selectBox.value = colIdx === 'all' ? (selectBox.options[0]?.value || '') : colIdx;
+      renderMarketingDashboard();
+    });
+  });
 }
 
-function populateMktDateFilter() {
-  const dateFilterSelect = document.getElementById("mkt-date-filter-select");
-  if (!dateFilterSelect) return;
-  
-  const monthSelect = document.getElementById("mkt-month-select");
-  const monthVal = monthSelect ? monthSelect.value : "7";
-  
-  let optionsHTML = `<option value="All">Tất Cả (Tháng ${monthVal})</option>`;
-  for (let d = 1; d <= 31; d++) {
-    const dayStr = d < 10 ? `0${d}` : `${d}`;
-    const monthStr = monthVal.padStart(2, '0');
-    optionsHTML += `<option value="${d}">Ngày ${dayStr}/${monthStr}</option>`;
+function populateMktDateSelector() {
+  const sel = document.getElementById("mkt-date-select");
+  const viewModeEl = document.getElementById("mkt-view-mode");
+  if (!sel || !viewModeEl) return;
+
+  const mode = viewModeEl.value;
+  const datesLength = state.datesList ? state.datesList.length : 0;
+
+  if (state.lastMktPopulatedMode === mode && state.lastMktDatesListLength === datesLength && sel.options.length > 0) {
+    return;
   }
-  dateFilterSelect.innerHTML = optionsHTML;
-  dateFilterSelect.value = mktSelectedDateFilter;
+  
+  state.lastMktPopulatedMode = mode;
+  state.lastMktDatesListLength = datesLength;
+
+  const prev = sel.value;
+  sel.innerHTML = "";
+
+  const todayObj = new Date();
+  const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+
+  if (mode === "day") {
+    state.datesList.forEach((date, i) => {
+      const opt = document.createElement("option");
+      opt.value = date;
+      const label = formatUIDate(date);
+      if (date === todayStr) opt.textContent = `${label} (Hôm nay)`;
+      else if (i === 0)     opt.textContent = `${label} (Mới nhất)`;
+      else                  opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  } else if (mode === "week") {
+    const seenWeeks = new Set();
+    state.datesList.forEach((date) => {
+      const { monday, sunday } = getWeekRangeSafe(date);
+      const key = monday;
+      if (!seenWeeks.has(key)) {
+        seenWeeks.add(key);
+        const opt = document.createElement("option");
+        opt.value = monday;
+        const formatShort = (dStr) => {
+          const parts = dStr.split("-");
+          return `${parts[2]}/${parts[1]}`;
+        };
+        opt.textContent = `Tuần ${formatShort(monday)} - ${formatShort(sunday)}`;
+        sel.appendChild(opt);
+      }
+    });
+  } else if (mode === "month") {
+    const seenMonths = new Set();
+    state.datesList.forEach((date) => {
+      const parts = date.split("-");
+      const key = `${parts[0]}-${parts[1]}`;
+      if (!seenMonths.has(key)) {
+        seenMonths.add(key);
+        const opt = document.createElement("option");
+        opt.value = `${parts[0]}-${parts[1]}-01`;
+        opt.textContent = `Tháng ${parts[1]}/${parts[0]}`;
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  let found = false;
+  let todayVal = "";
+  if (mode === "day") {
+    todayVal = todayStr;
+  } else if (mode === "week") {
+    todayVal = getWeekRangeSafe(todayStr).monday;
+  } else if (mode === "month") {
+    const parts = todayStr.split("-");
+    todayVal = `${parts[0]}-${parts[1]}-01`;
+  }
+  
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === todayVal) {
+      sel.value = todayVal;
+      found = true;
+      break;
+    }
+  }
+  
+  if (!found && prev) {
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === prev) {
+        sel.value = prev;
+        found = true;
+        break;
+      }
+    }
+  }
+  
+  if (!found && sel.options.length > 0) {
+    sel.selectedIndex = 0;
+  }
+
+  syncMktCustomDropdown();
+}
+
+function syncMktCustomDropdown() {
+  const select = document.getElementById("mkt-date-select");
+  const label = document.getElementById("mkt-custom-dropdown-label");
+  const menu = document.getElementById("mkt-custom-dropdown-menu");
+  if (!select || !menu || !label) return;
+
+  const activeOption = select.options[select.selectedIndex];
+  label.textContent = activeOption ? activeOption.textContent : "Chọn thời gian";
+
+  menu.innerHTML = "";
+  Array.from(select.options).forEach((opt, idx) => {
+    const item = document.createElement("div");
+    item.textContent = opt.textContent;
+    item.style.padding = "6px 12px";
+    item.style.cursor = "pointer";
+    item.style.fontSize = "12px";
+    item.style.color = "var(--text-primary)";
+    item.style.transition = "background 0.2s, color 0.2s";
+    item.style.whiteSpace = "nowrap";
+
+    if (select.selectedIndex === idx) {
+      item.style.background = "rgba(16, 185, 129, 0.15)";
+      item.style.color = "#10b981";
+      item.style.fontWeight = "bold";
+      item.classList.add("mkt-active-dropdown-item");
+    }
+
+    item.onmouseover = () => {
+      if (select.selectedIndex !== idx) {
+        item.style.background = "rgba(255, 255, 255, 0.06)";
+      }
+    };
+    item.onmouseout = () => {
+      if (select.selectedIndex !== idx) {
+        item.style.background = "transparent";
+      }
+    };
+
+    item.onclick = (e) => {
+      e.stopPropagation();
+      select.selectedIndex = idx;
+      select.dispatchEvent(new Event("change"));
+      menu.style.display = "none";
+      const arrow = document.getElementById("mkt-custom-dropdown-arrow");
+      if (arrow) arrow.style.transform = "rotate(0deg)";
+    };
+
+    menu.appendChild(item);
+  });
 }
 
 function parseMktDate(dateStr) {
@@ -3573,7 +4253,41 @@ function renderMarketingDashboard() {
     const cplVal = leadsVal > 0 ? Math.round(spentVal / leadsVal) : 0;
     
     // Nếu filter All hoặc trùng ngày được chọn
-    if (mktSelectedDateFilter === "All" || item.dayNum === parseInt(mktSelectedDateFilter)) {
+    // Lấy thông tin ngày dạng YYYY-MM-DD để so sánh khoảng tùy chỉnh
+    const itemDate = item.date; // YYYY-MM-DD
+    let isMatch = false;
+
+    const viewModeEl = document.getElementById("mkt-view-mode");
+    const mode = viewModeEl ? viewModeEl.value : "day";
+
+    if (mode === "custom") {
+      const mktStartDateInput = document.getElementById("mkt-custom-start-date");
+      const mktEndDateInput = document.getElementById("mkt-custom-end-date");
+      const startVal = mktStartDateInput ? mktStartDateInput.value : "";
+      const endVal = mktEndDateInput ? mktEndDateInput.value : "";
+
+      isMatch = true;
+      if (startVal && itemDate < startVal) isMatch = false;
+      if (endVal && itemDate > endVal) isMatch = false;
+    } else {
+      const mktDateSelect = document.getElementById("mkt-date-select");
+      const selectedVal = mktDateSelect ? mktDateSelect.value : "";
+      if (selectedVal) {
+        if (mode === "day") {
+          isMatch = (itemDate === selectedVal);
+        } else if (mode === "week") {
+          const { monday, sunday } = getWeekRangeSafe(selectedVal);
+          isMatch = (itemDate >= monday && itemDate <= sunday);
+        } else if (mode === "month") {
+          const prefix = selectedVal.substring(0, 7); // YYYY-MM
+          isMatch = itemDate.startsWith(prefix);
+        }
+      } else {
+        isMatch = true;
+      }
+    }
+
+    if (isMatch) {
       totalSpent += spentVal;
       totalLeads += leadsVal;
       totalPhones += phonesVal;
@@ -3656,6 +4370,42 @@ function renderMarketingChart(data) {
   if (mktChartObj) {
     mktChartObj.destroy();
   }
+
+  // Hàm helper kiểm tra ngày để làm mờ/đậm điểm vẽ trên chart
+  const isDateHighlighted = (dateStr, idx) => {
+    const stdDate = parseMktDate(dateStr); // YYYY-MM-DD
+    if (!stdDate) return true;
+
+    const viewModeEl = document.getElementById("mkt-view-mode");
+    const mode = viewModeEl ? viewModeEl.value : "day";
+
+    if (mode === "custom") {
+      const mktStartDateInput = document.getElementById("mkt-custom-start-date");
+      const mktEndDateInput = document.getElementById("mkt-custom-end-date");
+      const startVal = mktStartDateInput ? mktStartDateInput.value : "";
+      const endVal = mktEndDateInput ? mktEndDateInput.value : "";
+      
+      let match = true;
+      if (startVal && stdDate < startVal) match = false;
+      if (endVal && stdDate > endVal) match = false;
+      return match;
+    } else {
+      const mktDateSelect = document.getElementById("mkt-date-select");
+      const selectedVal = mktDateSelect ? mktDateSelect.value : "";
+      if (!selectedVal) return true;
+
+      if (mode === "day") {
+        return (stdDate === selectedVal);
+      } else if (mode === "week") {
+        const { monday, sunday } = getWeekRangeSafe(selectedVal);
+        return (stdDate >= monday && stdDate <= sunday);
+      } else if (mode === "month") {
+        const prefix = selectedVal.substring(0, 7); // YYYY-MM
+        return stdDate.startsWith(prefix);
+      }
+      return true;
+    }
+  };
   
   // Plugin custom vẽ labels trên cột/đường giống y hệt Surge
   const customChartLabelsPlugin = {
@@ -3674,7 +4424,8 @@ function renderMarketingChart(data) {
         const meta = chart.getDatasetMeta(leadIdx);
         meta.data.forEach((bar, idx) => {
           const val = d.datasets[leadIdx].data[idx];
-          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+          const dateStr = chart.data.labels[idx];
+          if (val > 0 && isDateHighlighted(dateStr, idx)) {
             ctx.fillStyle = '#3b82f6';
             ctx.font = 'bold 9px Outfit';
             ctx.textAlign = 'center';
@@ -3688,7 +4439,8 @@ function renderMarketingChart(data) {
         const meta = chart.getDatasetMeta(spendIdx);
         meta.data.forEach((pt, idx) => {
           const val = d.datasets[spendIdx].data[idx];
-          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+          const dateStr = chart.data.labels[idx];
+          if (val > 0 && isDateHighlighted(dateStr, idx)) {
             ctx.fillStyle = '#06b6d4';
             ctx.font = 'bold 9px Outfit';
             ctx.textAlign = 'center';
@@ -3702,7 +4454,8 @@ function renderMarketingChart(data) {
         const meta = chart.getDatasetMeta(cplIdx);
         meta.data.forEach((pt, idx) => {
           const val = d.datasets[cplIdx].data[idx];
-          if (val > 0 && (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter))) {
+          const dateStr = chart.data.labels[idx];
+          if (val > 0 && isDateHighlighted(dateStr, idx)) {
             ctx.fillStyle = '#eab308';
             ctx.font = 'bold 9px Outfit';
             ctx.textAlign = 'center';
@@ -3716,7 +4469,8 @@ function renderMarketingChart(data) {
         const meta = chart.getDatasetMeta(leadIdx);
         meta.data.forEach((bar, idx) => {
           const val = d.datasets[hireIdx].data[idx];
-          if (mktSelectedDateFilter === "All" || (idx + 1) === parseInt(mktSelectedDateFilter)) {
+          const dateStr = chart.data.labels[idx];
+          if (isDateHighlighted(dateStr, idx)) {
             const x = bar.x;
             const y = bottom - 15;
             
@@ -3739,29 +4493,29 @@ function renderMarketingChart(data) {
   };
 
   // Cấu hình nhạt đi cho các cột không được chọn
-  const leadsBackgrounds = data.spent.map((_, idx) => {
-    const day = idx + 1;
-    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 'rgba(59, 130, 246, 0.75)' : 'rgba(59, 130, 246, 0.1)';
+  const leadsBackgrounds = data.rawBlocks.map((item, idx) => {
+    const dateStr = item.displayDate;
+    return isDateHighlighted(dateStr, idx) ? 'rgba(59, 130, 246, 0.75)' : 'rgba(59, 130, 246, 0.1)';
   });
   
-  const spendPointColors = data.spent.map((_, idx) => {
-    const day = idx + 1;
-    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? '#06b6d4' : 'rgba(6, 182, 212, 0.15)';
+  const spendPointColors = data.rawBlocks.map((item, idx) => {
+    const dateStr = item.displayDate;
+    return isDateHighlighted(dateStr, idx) ? '#06b6d4' : 'rgba(6, 182, 212, 0.15)';
   });
   
-  const spendPointRadii = data.spent.map((_, idx) => {
-    const day = idx + 1;
-    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 4 : 1.5;
+  const spendPointRadii = data.rawBlocks.map((item, idx) => {
+    const dateStr = item.displayDate;
+    return isDateHighlighted(dateStr, idx) ? 4 : 1.5;
   });
   
-  const cplPointColors = data.spent.map((_, idx) => {
-    const day = idx + 1;
-    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? '#eab308' : 'rgba(234, 179, 8, 0.15)';
+  const cplPointColors = data.rawBlocks.map((item, idx) => {
+    const dateStr = item.displayDate;
+    return isDateHighlighted(dateStr, idx) ? '#eab308' : 'rgba(234, 179, 8, 0.15)';
   });
 
-  const cplPointRadii = data.spent.map((_, idx) => {
-    const day = idx + 1;
-    return (mktSelectedDateFilter === "All" || day === parseInt(mktSelectedDateFilter)) ? 4 : 1.5;
+  const cplPointRadii = data.rawBlocks.map((item, idx) => {
+    const dateStr = item.displayDate;
+    return isDateHighlighted(dateStr, idx) ? 4 : 1.5;
   });
 
   mktChartObj = new Chart(ctx, {
