@@ -4233,25 +4233,29 @@ function renderMarketingDashboard() {
   let totalPhones = 0;
   let totalCCCD = 0;
   let totalHires = 0;
+  let totalAppointments = 0;
   let tableHTML = "";
   
   blocks.forEach(item => {
     const block = item.data;
     const date = item.displayDate;
     
-    const spentStr = block[0][colIndex] || "";
-    const leadsStr = block[1][colIndex] || "";
-    const cplStr = block[2][colIndex] || "";
-    const phonesStr = block[3][colIndex] || "";
-    const cccdStr = block[4][colIndex] || "";
-    const hiresStr = block[5][colIndex] || "";
+    const spentStr = block[0][colIndex] || '';
+    const leadsStr = block[1][colIndex] || '';
+    const cplStr   = block[2][colIndex] || '';
+    const phonesStr = block[3][colIndex] || '';
+    const cccdStr   = block[4][colIndex] || '';
+    const hiresStr  = block[5][colIndex] || '';
+    // Row 6 (index 6): Lịch xác nhận PV (nếu có trong data)
+    const apptStr   = (block[6] && block[6][colIndex]) ? block[6][colIndex] : '';
+    const apptVal   = cleanNumber(apptStr);
     
     const spentVal = cleanNumber(spentStr);
     const leadsVal = cleanNumber(leadsStr);
     const phonesVal = cleanNumber(phonesStr);
-    const cccdVal = cleanNumber(cccdStr);
-    const hiresVal = cleanNumber(hiresStr);
-    const cplVal = leadsVal > 0 ? Math.round(spentVal / leadsVal) : 0;
+    const cccdVal   = cleanNumber(cccdStr);
+    const hiresVal  = cleanNumber(hiresStr);
+    const cplVal    = leadsVal > 0 ? Math.round(spentVal / leadsVal) : 0;
     
     // Nếu filter All hoặc trùng ngày được chọn
     // Lấy thông tin ngày dạng YYYY-MM-DD để so sánh khoảng tùy chỉnh
@@ -4289,11 +4293,12 @@ function renderMarketingDashboard() {
     }
 
     if (isMatch) {
-      totalSpent += spentVal;
-      totalLeads += leadsVal;
+      totalSpent  += spentVal;
+      totalLeads  += leadsVal;
       totalPhones += phonesVal;
-      totalCCCD += cccdVal;
-      totalHires += hiresVal;
+      totalCCCD   += cccdVal;
+      totalHires  += hiresVal;
+      totalAppointments += apptVal;
       
       tableHTML += `
         <tr>
@@ -4314,13 +4319,15 @@ function renderMarketingDashboard() {
     chartData.hires.push(hiresVal);
     chartData.cpl.push(cplVal);
   });
-  
-  // Hiển thị KPI Cards
-  document.getElementById("mkt-stat-spend").textContent = totalSpent.toLocaleString('vi-VN') + " đ";
-  document.getElementById("mkt-stat-leads").textContent = totalLeads.toLocaleString('vi-VN');
-  document.getElementById("mkt-stat-phones").textContent = totalPhones.toLocaleString('vi-VN');
-  document.getElementById("mkt-stat-cccd").textContent = totalCCCD.toLocaleString('vi-VN');
-  document.getElementById("mkt-stat-hires").textContent = totalHires.toLocaleString('vi-VN');
+
+
+  document.getElementById('mkt-stat-spend').textContent = totalSpent.toLocaleString('vi-VN') + ' đ';
+  document.getElementById('mkt-stat-leads').textContent = totalLeads.toLocaleString('vi-VN');
+  document.getElementById('mkt-stat-phones').textContent = totalPhones.toLocaleString('vi-VN');
+  document.getElementById('mkt-stat-cccd').textContent = totalCCCD.toLocaleString('vi-VN');
+  const apptEl = document.getElementById('mkt-stat-appointments');
+  if (apptEl) apptEl.textContent = totalAppointments.toLocaleString('vi-VN');
+  document.getElementById('mkt-stat-hires').textContent = totalHires.toLocaleString('vi-VN');
   
   const avgCPL = totalLeads > 0 ? Math.round(totalSpent / totalLeads) : 0;
   const avgCPO = totalHires > 0 ? Math.round(totalSpent / totalHires) : 0;

@@ -780,10 +780,13 @@ h1 {
 
 .tomorrow-sub {
   display: flex;
-  gap: 12px;
-  margin-top: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
   font-size: 11px;
   text-transform: none !important;
+  width: 50%; /* Giảm 50% tổng chiều rộng để thu gọn chiều dài các nút con */
 }
 .tomorrow-sub > span {
   display: inline-flex;
@@ -807,6 +810,36 @@ h1 {
   transform: translateY(0);
 }
 
+/* Định nghĩa nút Hẹn PV dạng card nút bấm của banner ngày mai */
+.tomorrow-sub .tc-confirmed {
+  flex: 1;
+  background: rgba(245, 158, 11, 0.12) !important; /* Amber background */
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.tomorrow-sub .tc-confirmed:hover {
+  background: rgba(245, 158, 11, 0.22) !important;
+  transform: translateY(-1px);
+}
+
+/* Đưa hai nút callback-row của Ngày Mai thành chung flex với Hẹn PV */
+.tomorrow-sub .tc-callback-row {
+  display: flex;
+  gap: 6px;
+  flex: 2; /* Chiếm 2 phần để mỗi nút con bên trong (flex: 1) có kích thước bằng nút tc-confirmed (flex: 1) */
+}
+
 /* Override today sub buttons to stack vertically inside narrow metric-cards */
 .metric-card .tomorrow-sub {
   display: flex;
@@ -816,6 +849,65 @@ h1 {
   width: 100%;
   margin-top: 10px;
 }
+
+/* Thêm class row để đưa Chăm sóc lại và Chưa CS thành nút bấm giống Trễ CS và Cảnh báo */
+.tc-callback-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  align-items: stretch;
+  margin-top: 2px;
+}
+
+.tc-callback-row .tc-callback-all,
+.tc-callback-row .tc-callback-unprocessed {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+.tc-callback-row .tc-callback-all {
+  background: rgba(6, 182, 212, 0.12) !important; /* Cyan background */
+  color: #06b6d4 !important;
+  border: 1px solid rgba(6, 182, 212, 0.25) !important;
+}
+
+.tc-callback-row .tc-callback-all:hover {
+  background: rgba(6, 182, 212, 0.22) !important;
+  transform: translateY(-1px);
+}
+
+.tc-callback-row .tc-callback-unprocessed {
+  background: rgba(245, 158, 11, 0.12) !important; /* Amber background */
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+}
+
+.tc-callback-row .tc-callback-unprocessed:hover {
+  background: rgba(245, 158, 11, 0.22) !important;
+  transform: translateY(-1px);
+}
+
+/* Thêm trạng thái disabled cho Chưa CS khi bằng 0 */
+.tc-callback-row .tc-callback-unprocessed.disabled {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
 .metric-card .tomorrow-sub > span {
   display: flex;
   justify-content: flex-start;
@@ -1076,12 +1168,16 @@ h1 {
 
 .modal-body {
   padding: 8px 12px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Tránh tạo 2 thanh cuộn lồng nhau */
 }
 
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  overflow-y: auto; /* Cuộn dọc chính trong container chứa bảng để position: sticky hoạt động */
+  max-height: 65vh; /* Khống chế chiều cao của bảng */
 }
 
 /* Cấu hình bảng với table-layout: fixed để tuân thủ % width chính xác */
@@ -1125,7 +1221,11 @@ h1 {
   text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(17, 25, 40, 0.98) !important; /* Dùng màu đục trùng nền modal để đè dữ liệu khi scroll */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid var(--border-color);
 }
 
 .modal-table td {
@@ -1195,6 +1295,22 @@ h1 {
   border-radius: 4px;
 }
 #custom-dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Marketing Custom Dropdown Scrollbar */
+#mkt-custom-dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+#mkt-custom-dropdown-menu::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.02);
+  border-radius: 4px;
+}
+#mkt-custom-dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+}
+#mkt-custom-dropdown-menu::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.3);
 }
 
@@ -1296,15 +1412,15 @@ h1 {
     margin-top: 8px;
   }
 
-  .tomorrow-banner .tomorrow-sub > span {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    font-size: 11px;
+  .tomorrow-banner .tomorrow-sub .tc-confirmed,
+  .tomorrow-banner .tomorrow-sub .tc-callback-row {
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .tomorrow-banner .tomorrow-sub .tc-callback-row {
+    flex-direction: row;
+    width: 100%;
   }
 
   .tomorrow-banner .tomorrow-count {
@@ -1344,35 +1460,43 @@ h1 {
 /* Main Dashboard Tabs Selector */
 .main-dashboard-tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
-  padding: 4px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 6px;
   border-radius: 8px;
-  gap: 6px;
+  gap: 8px;
+  width: fit-content;
 }
 
 .main-tab-btn {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-secondary);
   padding: 8px 16px;
   border-radius: 6px;
   font-family: var(--font-title);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all var(--transition-speed);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .main-tab-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .main-tab-btn.active {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+  background: rgba(59, 130, 246, 0.15) !important; /* Blue active tone */
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
 }
 
 /* General Layout Toggles */
@@ -1384,6 +1508,51 @@ h1 {
 
 .main-section.active {
   display: flex;
+}
+
+/* Style cho các nút tiêu đề phân khu (Tổng quan hoạt động, Báo cáo nhân sự) */
+.section-title-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-family: var(--font-title) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  user-select: none !important;
+}
+
+.section-title-btn:hover {
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.25), 0 0 8px rgba(255, 255, 255, 0.05) !important;
+}
+
+.section-title-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Trạng thái Active nổi bật */
+.section-title-btn.active {
+  color: #ffffff !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2) !important;
+}
+
+.section-title-btn.active:hover {
+  background: rgba(59, 130, 246, 0.22) !important;
+  border-color: rgba(59, 130, 246, 0.55) !important;
 }
 
 /* Finance Tabs & Panel Toggles */
@@ -2186,4 +2355,19 @@ h1 {
 @media (max-width: 600px) {
   .mkt-kpi-grid-4, .mkt-kpi-grid-3 { grid-template-columns: 1fr; }
   .mkt-header-card { flex-direction: column; align-items: flex-start; }
+}
+
+/* === Marketing KPI 8-card responsive grid === */
+#mkt-kpi-section {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1100px) {
+  #mkt-kpi-section { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  #mkt-kpi-section { grid-template-columns: 1fr; }
+}
+#mkt-kpi-section > div:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
