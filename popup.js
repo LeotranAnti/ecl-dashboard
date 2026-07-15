@@ -4376,6 +4376,12 @@ function renderMarketingDashboard() {
 
     candidatesData.forEach(row => {
       if (row.length < 18) return;
+
+      // Lọc nguồn data: chỉ lấy những dòng có nguồn là Ads
+      const source = row[7] ? row[7].trim().toLowerCase() : "";
+      const isAds = source.includes("ads") || source.includes("facebook") || source.includes("fb");
+      if (!isAds) return;
+
       const rowFactory = row[18] || "";
       
       // Lọc theo nhà máy
