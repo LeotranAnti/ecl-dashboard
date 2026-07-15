@@ -3990,10 +3990,11 @@ function updateCampaignSelector() {
   let optionsHTML = '';
   for (let idx = 2; idx < headerRow.length; idx++) {
     const name = headerRow[idx] ? headerRow[idx].trim() : '';
-    if (name) {
-      tabsHTML += `<button class="factory-tab-btn" data-col-idx="${idx}" style="font-size:11px;padding:4px 12px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-muted);cursor:pointer;transition:all 0.2s;outline:none;">${name}</button>`;
-      optionsHTML += `<option value="${idx}">${name}</option>`;
-    }
+    if (!name) continue;
+    // Bỏ qua cột "Tổng" vì đã có tab Tổng mặc định ở trên
+    if (name.toLowerCase() === 'tổng' || name.toLowerCase() === 'tong') continue;
+    tabsHTML += `<button class="factory-tab-btn" data-col-idx="${idx}" style="font-size:11px;padding:4px 12px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-muted);cursor:pointer;transition:all 0.2s;outline:none;">${name}</button>`;
+    optionsHTML += `<option value="${idx}">${name}</option>`;
   }
   tabsContainer.innerHTML = tabsHTML;
   if (selectBox) selectBox.innerHTML = optionsHTML;
