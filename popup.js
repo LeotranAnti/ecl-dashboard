@@ -4182,192 +4182,302 @@ function parseMktDate(dateStr) {
 
 function renderMarketingDashboard() {
   if (!mktRawData || mktRawData.length === 0) return;
-  
-  const selectBox = document.getElementById("mkt-campaign-select");
-  let colIndex = parseInt(selectBox ? selectBox.value : "2"); 
-  if (isNaN(colIndex)) colIndex = 2;
-  
-  let startIndex = -1;
+
+  const tabsContainer = document.getElementById('mkt-factory-nav-tabs');
+  const activeTab = tabsContainer ? tabsContainer.querySelector('.factory-tab-btn.active') : null;
+  const colIdxAttr = activeTab ? activeTab.dataset.colIdx : 'all';
+
+  // Xác định dòng 8 (headerRow) để lấy tên nhà máy của từng cột
+  let headerRowIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
-    const cellA = mktRawData[i][0] ? mktRawData[i][0].trim() : "";
-    if (/^\d+\/\d+/.test(cellA) && cellA !== "Ngày") {
-      startIndex = i;
+    const row = mktRawData[i];
+    if (row && row.some(cell => cell && cell.trim() === "Ngày")) {
+      headerRowIndex = i;
       break;
     }
   }
-  if (startIndex === -1) startIndex = 9; 
-  
-  const blocks = [];
-  // Cấu trúc: Mỗi ngày chiếm đúng 6 dòng liên tiếp
-  for (let i = startIndex; i < mktRawData.length; i += 6) {
-    if (i + 5 >= mktRawData.length) break;
-    const block = mktRawData.slice(i, i + 6);
-    const dateVal = block[0][0] || "";
-    if (!dateVal || !dateVal.includes("/")) continue;
-    
-    const stdDate = parseMktDate(dateVal);
-    if (stdDate) {
-      blocks.push({
-        date: stdDate,
-        dayNum: parseInt(dateVal.split("/")[0]),
-        displayDate: dateVal,
-        data: block
-      });
+
+  if (headerRowIndex === -1) {
+    console.error("Không tìm thấy dòng tiêu đề 'Ngày' trong dữ liệu Marketing");
+    return;
+  }
+
+  const headerRow = mktRawData[headerRowIndex];
+
+  // Map từ vị trí cột (index) sang Tên nhà máy trong báo cáo Sale
+  const getMappedFactoryName = (name) => {
+    if (!name) return "";
+    const clean = name.trim().toUpperCase();
+    if (clean.includes("PEGATRON") || clean.includes("PGT")) return "Pegatron";
+    if (clean.includes("BROTHER")) return "Brother";
+    if (clean.includes("LG")) return "LG";
+    if (clean.includes("USI")) return "Usi";
+    if (clean.includes("FOX")) return "Fox QN";
+    if (clean.includes("WISTRON")) return "Wistron";
+    return "";
+  };
+
+  // Lọc dữ liệu marketing (Ô 1 & Ô 2)
+  // Bỏ qua 7 dòng đầu tiên (hoặc bắt đầu từ dòng ngay sau dòng tiêu đề "Ngày")
+  const startIndex = headerRowIndex + 1;
+  const marketingDays = {};
+
+  for (let i = startIndex; i < mktRawData.length; i++) {
+    const row = mktRawData[i];
+    if (!row || !row[0] || !row[0].includes("/")) continue;
+
+    const dateVal = row[0].trim();
+    const stdDate = parseMktDate(dateVal); // YYYY-MM-DD
+    if (!stdDate) continue;
+
+    const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
+    if (typeLabel !== "chi phí" && typeLabel !== "số lead") continue;
+
+    if (!marketingDays[stdDate]) {
+      marketingDays[stdDate] = { date: stdDate, displayDate: dateVal, factories: {} };
+    }
+
+    // Duyệt qua các cột từ cột 2 trở đi để lấy giá trị cho từng nhà máy
+    for (let c = 2; c < row.length; c++) {
+      const fName = getMappedFactoryName(headerRow[c]);
+      if (!fName) continue;
+
+      if (!marketingDays[stdDate].factories[fName]) {
+        marketingDays[stdDate].factories[fName] = { spent: 0, leads: 0 };
+      }
+
+      const val = cleanNumber(row[c]);
+      if (typeLabel === "chi phí") {
+        marketingDays[stdDate].factories[fName].spent = val;
+      } else if (typeLabel === "số lead") {
+        marketingDays[stdDate].factories[fName].leads = val;
+      }
     }
   }
 
-  // Sắp xếp tăng dần theo thời gian để vẽ biểu đồ đúng
-  blocks.sort((a, b) => a.date.localeCompare(b.date));
-  
+  // Tích hợp dữ liệu từ báo cáo Sale (Ô 3 đến Ô 6)
+  // Duyệt qua tất cả các ứng viên từ state.candidates (dữ liệu đã được gộp/lọc theo nhà máy đang chọn ở Sale)
+  const candidatesData = state.candidates || [];
+  const factoriesList = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
+
+  // Hàm kiểm tra ứng viên có thỏa mãn điều kiện Ô 4: Có CCCD hoặc có lịch hẹn PV
+  const checkHasAppointment = (row) => {
+    const cccd = row[3] ? row[3].trim() : "";
+    const apptDate = row[12] ? row[12].trim() : "";
+    return (cccd.length > 0 || apptDate.length > 0);
+  };
+
+  // Hàm kiểm tra ứng viên thỏa mãn Ô 5: Có lịch hẹn phỏng vấn và tình trạng là Hẹn Phỏng Vấn
+  const checkConfirmedInterview = (row) => {
+    const apptDate = row[12] ? row[12].trim() : "";
+    const status = row[13] ? row[13].trim().toLowerCase() : "";
+    return (apptDate.length > 0 && status === "hẹn phỏng vấn");
+  };
+
+  // Hàm kiểm tra ứng viên thỏa mãn Ô 6: Tình trạng Đã Nhận Việc và có ngày nhận việc
+  const checkHired = (row) => {
+    const status = row[13] ? row[13].trim().toLowerCase() : "";
+    const hireDate = row[16] ? row[16].trim() : "";
+    return (status === "đã nhận việc" && hireDate.length > 0);
+  };
+
+  // Sắp xếp các ngày tăng dần
+  const sortedDates = Object.keys(marketingDays).sort((a, b) => a.localeCompare(b));
+
   const chartData = {
     labels: [],
     spent: [],
     leads: [],
     hires: [],
-    cpl: [],
-    rawBlocks: blocks
+    cpl: []
   };
-  
+
   let totalSpent = 0;
   let totalLeads = 0;
   let totalPhones = 0;
-  let totalCCCD = 0;
-  let totalHires = 0;
-  let totalAppointments = 0;
+  let totalAppointments = 0; // Ô 4 (Lịch hẹn)
+  let totalConfirmedPV = 0;  // Ô 5 (Xác nhận PV)
+  let totalHires = 0;        // Ô 6 (Nhận việc)
   let tableHTML = "";
-  
-  blocks.forEach(item => {
-    const block = item.data;
-    const date = item.displayDate;
-    
-    const spentStr = block[0][colIndex] || '';
-    const leadsStr = block[1][colIndex] || '';
-    const cplStr   = block[2][colIndex] || '';
-    const phonesStr = block[3][colIndex] || '';
-    const cccdStr   = block[4][colIndex] || '';
-    const hiresStr  = block[5][colIndex] || '';
-    // Row 6 (index 6): Lịch xác nhận PV (nếu có trong data)
-    const apptStr   = (block[6] && block[6][colIndex]) ? block[6][colIndex] : '';
-    const apptVal   = cleanNumber(apptStr);
-    
-    const spentVal = cleanNumber(spentStr);
-    const leadsVal = cleanNumber(leadsStr);
-    const phonesVal = cleanNumber(phonesStr);
-    const cccdVal   = cleanNumber(cccdStr);
-    const hiresVal  = cleanNumber(hiresStr);
-    const cplVal    = leadsVal > 0 ? Math.round(spentVal / leadsVal) : 0;
-    
-    // Nếu filter All hoặc trùng ngày được chọn
-    // Lấy thông tin ngày dạng YYYY-MM-DD để so sánh khoảng tùy chỉnh
-    const itemDate = item.date; // YYYY-MM-DD
-    let isMatch = false;
 
-    const viewModeEl = document.getElementById("mkt-view-mode");
-    const mode = viewModeEl ? viewModeEl.value : "day";
+  // Lọc khoảng ngày
+  const viewModeEl = document.getElementById("mkt-view-mode");
+  const mode = viewModeEl ? viewModeEl.value : "day";
+
+  sortedDates.forEach(stdDate => {
+    const dayData = marketingDays[stdDate];
+    let isMatch = false;
 
     if (mode === "custom") {
       const mktStartDateInput = document.getElementById("mkt-custom-start-date");
       const mktEndDateInput = document.getElementById("mkt-custom-end-date");
       const startVal = mktStartDateInput ? mktStartDateInput.value : "";
       const endVal = mktEndDateInput ? mktEndDateInput.value : "";
-
       isMatch = true;
-      if (startVal && itemDate < startVal) isMatch = false;
-      if (endVal && itemDate > endVal) isMatch = false;
+      if (startVal && stdDate < startVal) isMatch = false;
+      if (endVal && stdDate > endVal) isMatch = false;
     } else {
       const mktDateSelect = document.getElementById("mkt-date-select");
       const selectedVal = mktDateSelect ? mktDateSelect.value : "";
       if (selectedVal) {
         if (mode === "day") {
-          isMatch = (itemDate === selectedVal);
+          isMatch = (stdDate === selectedVal);
         } else if (mode === "week") {
           const { monday, sunday } = getWeekRangeSafe(selectedVal);
-          isMatch = (itemDate >= monday && itemDate <= sunday);
+          isMatch = (stdDate >= monday && stdDate <= sunday);
         } else if (mode === "month") {
           const prefix = selectedVal.substring(0, 7); // YYYY-MM
-          isMatch = itemDate.startsWith(prefix);
+          isMatch = stdDate.startsWith(prefix);
         }
       } else {
         isMatch = true;
       }
     }
 
-    if (isMatch) {
-      totalSpent  += spentVal;
-      totalLeads  += leadsVal;
-      totalPhones += phonesVal;
-      totalCCCD   += cccdVal;
-      totalHires  += hiresVal;
-      totalAppointments += apptVal;
+    // Tính toán số liệu marketing cho ngày này tùy vào Tab Nhà Máy được chọn
+    let daySpent = 0;
+    let dayLeads = 0;
+
+    if (colIdxAttr === 'all') {
+      // Tính tổng tất cả nhà máy
+      Object.values(dayData.factories).forEach(fData => {
+        daySpent += fData.spent;
+        dayLeads += fData.leads;
+      });
+    } else {
+      const targetColIdx = parseInt(colIdxAttr);
+      const targetFName = getMappedFactoryName(headerRow[targetColIdx]);
+      if (targetFName && dayData.factories[targetFName]) {
+        daySpent = dayData.factories[targetFName].spent;
+        dayLeads = dayData.factories[targetFName].leads;
+      }
+    }
+
+    // Tính toán số liệu từ candidates (Sale) cho ngày này
+    // Ô 3: Số SĐT đăng ký trong ngày này
+    // Ô 4: Số ứng viên có ngày hẹn PV hoặc có CCCD trong ngày này (Đăng ký ngày này)
+    // Ô 5: Số lịch hẹn PV (Hẹn PV ngày này)
+    // Ô 6: Số người nhận việc (Nhận việc ngày này)
+    let dayPhones = 0;
+    let dayAppts = 0;      // Ô 4
+    let dayConfirmedPV = 0; // Ô 5
+    let dayHired = 0;       // Ô 6
+
+    candidatesData.forEach(row => {
+      if (row.length < 18) return;
+      const rowFactory = row[18] || "";
       
+      // Lọc theo nhà máy
+      if (colIdxAttr !== 'all') {
+        const targetColIdx = parseInt(colIdxAttr);
+        const targetFName = getMappedFactoryName(headerRow[targetColIdx]);
+        if (rowFactory !== targetFName) return;
+      }
+
+      const regDate = normalizeDate(row[0]);
+      const apptDate = normalizeDate(row[12]);
+      const hireDate = normalizeDate(row[16]);
+
+      // Ô 3: Số data (SĐT) - tính theo ngày đăng ký
+      if (regDate === stdDate && row[2] && row[2].trim()) {
+        dayPhones++;
+      }
+
+      // Ô 4: Số lịch hẹn (có CCCD hoặc có ngày hẹn) - tính theo ngày đăng ký
+      if (regDate === stdDate && checkHasAppointment(row)) {
+        dayAppts++;
+      }
+
+      // Ô 5: Số lịch xác nhận PV - tính theo ngày hẹn phỏng vấn
+      if (apptDate === stdDate && checkConfirmedInterview(row)) {
+        dayConfirmedPV++;
+      }
+
+      // Ô 6: Số người nhận việc - tính theo ngày nhận việc
+      if (hireDate === stdDate && checkHired(row)) {
+        dayHired++;
+      }
+    });
+
+    if (isMatch) {
+      totalSpent += daySpent;
+      totalLeads += dayLeads;
+      totalPhones += dayPhones;
+      totalAppointments += dayAppts;
+      totalConfirmedPV += dayConfirmedPV;
+      totalHires += dayHired;
+
+      const dayCPL = dayLeads > 0 ? Math.round(daySpent / dayLeads) : 0;
+
       tableHTML += `
         <tr>
-          <td class="text-center"><strong>${date}</strong></td>
-          <td class="text-right text-cyan font-semibold">${spentVal.toLocaleString('vi-VN')} ₫</td>
-          <td class="text-right text-blue font-semibold">${leadsVal.toLocaleString('vi-VN')}</td>
-          <td class="text-center text-amber font-semibold">${phonesVal}</td>
-          <td class="text-center text-purple font-semibold">${cccdVal}</td>
-          <td class="text-right text-muted">${cplVal.toLocaleString('vi-VN')} ₫</td>
-          <td class="text-center"><span class="badge-orders">${hiresVal}</span></td>
+          <td class="text-center"><strong>${dayData.displayDate}</strong></td>
+          <td class="text-right text-cyan font-semibold">${daySpent.toLocaleString('vi-VN')} ₫</td>
+          <td class="text-right text-blue font-semibold">${dayLeads.toLocaleString('vi-VN')}</td>
+          <td class="text-center text-amber font-semibold">${dayPhones}</td>
+          <td class="text-center text-purple font-semibold">${dayAppts}</td>
+          <td class="text-center text-pink font-semibold">${dayConfirmedPV}</td>
+          <td class="text-center"><span class="badge-orders">${dayHired}</span></td>
+          <td class="text-right text-muted">${dayCPL.toLocaleString('vi-VN')} ₫</td>
         </tr>
       `;
     }
-    
-    chartData.labels.push(date);
-    chartData.spent.push(spentVal);
-    chartData.leads.push(leadsVal);
-    chartData.hires.push(hiresVal);
-    chartData.cpl.push(cplVal);
+
+    chartData.labels.push(dayData.displayDate);
+    chartData.spent.push(daySpent);
+    chartData.leads.push(dayLeads);
+    chartData.hires.push(dayHired);
+    const dayCPL = dayLeads > 0 ? Math.round(daySpent / dayLeads) : 0;
+    chartData.cpl.push(dayCPL);
   });
 
-
+  // Hiển thị KPI Cards
   document.getElementById('mkt-stat-spend').textContent = totalSpent.toLocaleString('vi-VN') + ' đ';
   document.getElementById('mkt-stat-leads').textContent = totalLeads.toLocaleString('vi-VN');
   document.getElementById('mkt-stat-phones').textContent = totalPhones.toLocaleString('vi-VN');
-  document.getElementById('mkt-stat-cccd').textContent = totalCCCD.toLocaleString('vi-VN');
-  const apptEl = document.getElementById('mkt-stat-appointments');
-  if (apptEl) apptEl.textContent = totalAppointments.toLocaleString('vi-VN');
-  document.getElementById('mkt-stat-hires').textContent = totalHires.toLocaleString('vi-VN');
+  document.getElementById('mkt-stat-cccd').textContent = totalAppointments.toLocaleString('vi-VN'); // Ô 4
   
+  const apptEl = document.getElementById('mkt-stat-appointments'); // Ô 5
+  if (apptEl) apptEl.textContent = totalConfirmedPV.toLocaleString('vi-VN');
+  
+  document.getElementById('mkt-stat-hires').textContent = totalHires.toLocaleString('vi-VN'); // Ô 6
+
+  // Ô 7: CPL = Ô 1 / Ô 2 (spent / leads)
   const avgCPL = totalLeads > 0 ? Math.round(totalSpent / totalLeads) : 0;
+  // Ô 8: CPO = Ô 1 / Ô 6 (spent / hires)
   const avgCPO = totalHires > 0 ? Math.round(totalSpent / totalHires) : 0;
-  
+
   document.getElementById("mkt-stat-cpl").textContent = avgCPL.toLocaleString('vi-VN') + " đ";
   document.getElementById("mkt-stat-cpo").textContent = avgCPO.toLocaleString('vi-VN') + " đ";
-  
-  // Tỷ lệ chuyển đổi SĐT/Leads
+
+  // Cập nhật các nhãn tỉ lệ & mô tả phụ
   const phoneRate = totalLeads > 0 ? ((totalPhones / totalLeads) * 100).toFixed(2) : "0.00";
   document.getElementById("mkt-stat-phone-rate").innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Tỷ lệ chuyển đổi: ${phoneRate}%`;
-  
-  // Tỷ lệ chuyển đổi CCCD/SĐT
-  const cccdRate = totalPhones > 0 ? ((totalCCCD / totalPhones) * 100).toFixed(2) : "0.00";
+
+  const cccdRate = totalPhones > 0 ? ((totalAppointments / totalPhones) * 100).toFixed(2) : "0.00";
   document.getElementById("mkt-stat-cccd-rate").innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Tỷ lệ chuyển đổi: ${cccdRate}%`;
-  
-  // CCCD -> Nhận việc & Lead -> Nhận việc
-  const hireRate1 = totalCCCD > 0 ? ((totalHires / totalCCCD) * 100).toFixed(2) : "0.00";
+
+  const apptRate = totalAppointments > 0 ? ((totalConfirmedPV / totalAppointments) * 100).toFixed(2) : "0.00";
+  const apptRateEl = document.getElementById("mkt-stat-appt-rate");
+  if (apptRateEl) {
+    apptRateEl.innerHTML = `<i class="fa-solid fa-arrows-spin"></i> Tỷ lệ xác nhận: ${apptRate}%`;
+  }
+
+  const hireRate1 = totalAppointments > 0 ? ((totalHires / totalAppointments) * 100).toFixed(2) : "0.00";
   const hireRate2 = totalLeads > 0 ? ((totalHires / totalLeads) * 100).toFixed(2) : "0.00";
-  document.getElementById("mkt-stat-hire-rate1").innerHTML = `<i class="fa-solid fa-arrows-spin text-cyan"></i> CCCD &rarr; Nhận việc: ${hireRate1}%`;
-  document.getElementById("mkt-stat-hire-rate2").innerHTML = `<i class="fa-solid fa-arrows-spin text-amber"></i> Tin nhắn/BL &rarr; Nhận việc: ${hireRate2}%`;
-  
-  // CPL Hint
+  document.getElementById("mkt-stat-hire-rate1").innerHTML = `<i class="fa-solid fa-arrows-spin text-cyan"></i> Hẹn &rarr; Nhận việc: ${hireRate1}%`;
+  document.getElementById("mkt-stat-hire-rate2").innerHTML = `<i class="fa-solid fa-arrows-spin text-amber"></i> Lead &rarr; Nhận việc: ${hireRate2}%`;
+
   const cplDesc = document.getElementById("mkt-stat-cpl-desc");
   if (cplDesc) {
-    if (avgCPL === 0) {
-      cplDesc.innerHTML = `<i class="fa-solid fa-tags"></i> Chưa có dữ liệu`;
-    } else if (avgCPL <= 15000) {
-      cplDesc.innerHTML = `<i class="fa-solid fa-circle-check text-emerald"></i> CPL rất rẻ! (< 15k)`;
-    } else if (avgCPL <= 30000) {
-      cplDesc.innerHTML = `<i class="fa-solid fa-circle-info text-cyan"></i> CPL ở mức trung bình.`;
-    } else {
-      cplDesc.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose"></i> CPL đang cao! (> 30k)`;
-    }
+    cplDesc.innerHTML = `<i class="fa-solid fa-tags"></i> Chi phí / Lead`;
   }
 
   const tableBody = document.getElementById("mkt-table-body");
   if (tableBody) {
-    tableBody.innerHTML = tableHTML || `<tr><td colspan="7" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
+    tableBody.innerHTML = tableHTML || `<tr><td colspan="8" class="text-center text-secondary">Không có dữ liệu trong khoảng thời gian này</td></tr>`;
   }
-  
+
   renderMarketingChart(chartData);
 }
 
