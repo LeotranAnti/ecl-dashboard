@@ -1,15 +1,9 @@
 // Google Spreadsheet Export URLs
 // Khi chạy trên localhost (qua server.py), dùng proxy cục bộ để tránh lỗi CORS
 // Khi chạy trong Chrome Extension, gọi trực tiếp Google Sheets
-const IS_CHROME_EXT = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
-const URL_CANDIDATES       = IS_CHROME_EXT
-  ? "https://docs.google.com/spreadsheets/d/1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20/export?format=csv&gid=1671069143"
-  : "/api/candidates";
-const URL_RECRUITMENTS     = IS_CHROME_EXT
-  ? "https://docs.google.com/spreadsheets/d/1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20/export?format=csv&gid=1084935408"
-  : "/api/recruitments";
-// Endpoint lấy màu ô Ngày DK/PV
-const URL_INTERVIEW_COLORS = IS_CHROME_EXT ? null : "/api/interview-colors";
+const URL_CANDIDATES       = "https://docs.google.com/spreadsheets/d/1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20/export?format=csv&gid=1671069143";
+const URL_RECRUITMENTS     = "https://docs.google.com/spreadsheets/d/1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20/export?format=csv&gid=1084935408";
+const URL_INTERVIEW_COLORS = null; // Bỏ qua load color API trên Web Vercel để tránh CORS proxy
 
 // Fallback Storage Helper (Works in Chrome Extension & Standard Web Browsers for easy testing)
 const storage = {
@@ -230,6 +224,59 @@ function deriveStatus(row) {
   return "Chăm sóc tiếp";
 }
 
+// Get Recruiter (ECL Person) and Status dynamically to handle column mixing
+function getRecruiterAndStatus(row) {
+  if (!row) return { recruiter: "Chưa rõ", status: "Chăm sóc tiếp" };
+  
+  const col8Val = row[8] ? row[8].trim() : "";
+  const col13Val = row[13] ? row[13].trim() : "";
+  const col13ValClean = col13Val.toLowerCase();
+  
+  const STATUS_KEYWORDS = [
+    "đã nhận việc", "nhận việc", "đi làm", "nhan viec",
+    "kđl", "kdl", "không đi làm", "ko đi làm", "không làm",
+    "bùng pv", "bùng", "hủy", "bung",
+    "knm", "k nghe", "không nghe", "thuê bao", "tắt máy", "không liên lạc",
+    "blacklist", "chặn",
+    "chuyển nhà máy khác", "chuyển nhà máy", "sang lg", "sang brother",
+    "hẹn phỏng vấn", "hẹn pv", "hẹn phỏng",
+    "ko đủ đk", "ko du dk", "không đạt", "ko đạt",
+    "tranh chấp", "khác", "chăm sóc tiếp", "hãy chọn", "chưa rõ", "hẹn gọi lại"
+  ];
+  
+  let recruiter = "Chưa rõ";
+  let status = "";
+  
+  // Kiểm tra xem cột 13 có phải là trạng thái tuyển dụng hay không
+  const isCol13Status = STATUS_KEYWORDS.some(keyword => col13ValClean === keyword || col13ValClean.includes(keyword)) || col13ValClean === "";
+  
+  if (isCol13Status) {
+    // Nếu cột 13 là trạng thái tuyển dụng:
+    // -> Người chăm sóc nằm ở cột 8
+    // -> Trạng thái tuyển dụng nằm ở cột 13 (hoặc tự suy luận từ ngày nếu cột 13 trống)
+    recruiter = col8Val || "Chưa rõ";
+    status = col13Val || deriveStatus(row);
+  } else {
+    // Nếu cột 13 không phải trạng thái tuyển dụng (tức là chứa tên người chăm sóc như A Long, Hùng, Hồng, Tuấn Anh...):
+    // -> Người chăm sóc nằm ở cột 13
+    // -> Trạng thái tuyển dụng tự động suy luận từ các cột ngày tháng
+    recruiter = col13Val;
+    status = deriveStatus(row);
+  }
+  
+  // Tinh chỉnh hiển thị: Nếu tên người chăm sóc có chứa chữ "CTV" như "CTV (Hồng)", trích xuất lấy tên người chăm sóc chính
+  if (recruiter.toLowerCase().includes("ctv")) {
+    const match = recruiter.match(/\(([^)]+)\)/);
+    if (match && match[1]) {
+      recruiter = match[1].trim();
+    } else {
+      recruiter = recruiter.replace(/ctv/i, "").replace(/[\(\)\-\:\s]+/g, " ").trim();
+    }
+  }
+  
+  return { recruiter: cleanRecruiter(recruiter), status: status };
+}
+
 // Clean and parse numbers for Marketing calculation
 function cleanNumber(str) {
   if (str === undefined || str === null) return 0;
@@ -301,23 +348,34 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
     }
   };
 
+  // Dùng Set lọc trùng ứng viên để đếm chính xác đầu người trên dòng mới nhất (do candidatesRows đã sort giảm dần theo time)
+  const seenActiveKeys = new Set();
+
   // 1. Process candidates sheet (Skip header row 0)
   if (candidatesRows.length > 1) {
     for (let i = 1; i < candidatesRows.length; i++) {
       const row = candidatesRows[i];
       if (row.length < 18) continue;
       
+      const candPhone = row[2] ? row[2].trim() : "";
+      const candName  = row[1] ? row[1].trim() : "";
+      const candKey   = candPhone || candName || `row_${i}`;
+      
+      const isFirstAppearance = !seenActiveKeys.has(candKey);
+      seenActiveKeys.add(candKey);
+
       const regDate      = normalizeDate(row[0]);   // Timestamp (Cột 0)
       const interviewDate = normalizeDate(row[12]);  // Hẹn phỏng vấn (Cột 12)
       const nextCareDate  = normalizeDate(row[14]);  // Ngày CS tiếp theo (Cột 14)
       const hireDate     = normalizeDate(row[16]);  // Nhận Việc (Cột 16)
       const careDate     = normalizeDate(row[17]);  // Ngày CS cuối (Cột 17)
       const source       = cleanSource(row[7]);     // Nguồn data (Cột 7)
-      const recruiter    = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (Cột 13/N - Tình trạng)
-      const status       = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
+      const info         = getRecruiterAndStatus(row);
+      const recruiter    = info.recruiter;
+      const status       = info.status.toLowerCase();
       
-      // Tính toán chăm sóc bị trễ (nextCareDate nhỏ hơn hôm nay, có bất kỳ trạng thái nào, và chưa có ngày CS cuối tương ứng)
-      if (nextCareDate && nextCareDate < todayStr && status) {
+      // Tính toán chăm sóc bị trễ (chỉ tính trên dòng hoạt động mới nhất của ứng viên)
+      if (isFirstAppearance && nextCareDate && nextCareDate < todayStr && status) {
         if (!careDate || careDate < nextCareDate) {
           overdueCareCount++;
         }
@@ -350,11 +408,6 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         }
         dailyStats[careDate].recruitersDaily[recruiter].care++;
       }
-      
-      // Candidate unique key (using Phone or Name)
-      const candPhone = row[2] ? row[2].trim() : "";
-      const candName  = row[1] ? row[1].trim() : "";
-      const candKey   = candPhone || candName || `row_${i}`;
 
       if (candKey) {
         // If the candidate has an invalid status on the sheet, they should not have an active interview date for today/future
@@ -373,7 +426,6 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
         // Vì dữ liệu trên Sheet được sắp xếp giảm dần theo thời gian (dòng mới nhất ở trên cùng),
         // Ta chỉ cho phép dòng đầu tiên duyệt qua (dòng mới nhất của ứng viên) cập nhật trạng thái hoạt động.
         // Các dòng cũ duyệt sau (khi candidateHistory[candKey] đã có dữ liệu từ dòng trước đó) KHÔNG được phép ghi đè làm mất lịch hẹn tương lai.
-        const isFirstAppearance = !candidateHistoryArg[candKey] || (candidateHistory[candKey].interviewDates.length === 0 && candidateHistory[candKey].careDates.length === 0);
         
         if (interviewDate && (status === "hẹn phỏng vấn" || isInterviewStatus) && !isInvalidStatus) {
           if (interviewDate >= todayStr) {
@@ -448,9 +500,10 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       const cn = row[1] ? row[1].trim() : "";
       const key = cp || cn || `row_${i}`;
       if (key === candKey) {
-        recruiter = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (cột 13)
+        const info = getRecruiterAndStatus(row);
+        recruiter = info.recruiter;
         source = cleanSource(row[7]);
-        status = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
+        status = info.status.toLowerCase();
         // Ưu tiên dòng có trạng thái active
         if (status === "hẹn phỏng vấn" || status === "đã nhận việc") {
           break;
@@ -523,9 +576,10 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       if (row.length < 18) continue;
       
       const hireDate  = normalizeDate(row[16]);
-      const status    = deriveStatus(row).toLowerCase(); // Trạng thái tuyển dụng thực tế tự động suy luận
+      const info      = getRecruiterAndStatus(row);
+      const recruiter = info.recruiter;
+      const status    = info.status.toLowerCase();
       const source    = cleanSource(row[7]);
-      const recruiter = cleanRecruiter(row[13]); // Người chăm sóc thực tế của ECL (cột 13)
 
       if (hireDate && status === "đã nhận việc") {
         ensureDateObject(hireDate);
@@ -614,15 +668,16 @@ async function syncData() {
     const fetchPromises = [];
     
     factories.forEach(f => {
-      let candUrl = "";
-      let recUrl = "";
-      if (IS_CHROME_EXT) {
-        candUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].candidates}`;
-        recUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].recruitments}`;
-      } else {
-        candUrl = `/api/candidates?factory=${f}`;
-        recUrl = `/api/recruitments?factory=${f}`;
+      let candUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].candidates}`;
+      let recUrl = `https://docs.google.com/spreadsheets/d/${f === "Pegatron" ? "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20" : f === "Brother" ? "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4" : f === "LG" ? "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk" : f === "Usi" ? "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU" : f === "Wistron" ? "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss" : "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw"}/export?format=csv&gid=${factoryGids[f].recruitments}`;
+      
+      // Kiểm tra môi trường để bypass CORS nếu chạy trên Web thường (Vercel)
+      const isChromeExt = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+      if (!isChromeExt) {
+        candUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(candUrl)}`;
+        recUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(recUrl)}`;
       }
+
       fetchPromises.push(
         fetchWithTimeout(candUrl).then(r => r.text()).then(t => ({ factory: f, type: 'candidates', text: t })),
         fetchWithTimeout(recUrl).then(r => r.text()).then(t => ({ factory: f, type: 'recruitments', text: t }))
@@ -1019,8 +1074,9 @@ function updateUI() {
 
       const name = row[1] ? row[1].trim() : "";
       const phone = row[2] ? row[2].trim() : "";
-      const recruiter = row[8] ? row[8].trim() : "Chưa rõ";
-      const status = row[13] ? row[13].trim() : "";
+      const info = getRecruiterAndStatus(row);
+      const recruiter = info.recruiter;
+      const status = info.status;
       const statusClean = status.toLowerCase();
       const factoryName = row[18] || "Pegatron";
       const cccd = row[3] ? row[3].trim() : "";
@@ -3083,6 +3139,28 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  const btnOpenSheet = document.getElementById("btn-open-sheet");
+  if (btnOpenSheet) {
+    btnOpenSheet.addEventListener("click", () => {
+      const selected = state.selectedFactory || "Pegatron";
+      let sheetId = "1Hk4HgyE1x-lw_awem7iN4f4xg-XNPoBvqvp6LDm8G20"; // Pegatron default
+      
+      if (selected === "Brother") sheetId = "1MQ_M_l_Vugn-_eURR4qmCHylfpiM_pYfPTooJRsAut4";
+      else if (selected === "LG") sheetId = "1Q8VEWGF8odmzf_12i-6qBgaGMfOdNmPlDtOkF92qWVk";
+      else if (selected === "Usi") sheetId = "1539PRjUCZu98VQAQOrMdlcd6OcQftdony2J4wVQAFEU";
+      else if (selected === "Fox QN") sheetId = "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw";
+      else if (selected === "Wistron") sheetId = "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss";
+      
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+      
+      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+        chrome.tabs.create({ url: sheetUrl });
+      } else {
+        window.open(sheetUrl, "_blank");
+      }
+    });
+  }
   
   // Auto-sync immediately when the page becomes active or user switches tabs
   window.addEventListener("focus", () => {
@@ -3129,14 +3207,23 @@ function getCandidatesForType(type, customDates = null) {
   }
 
   const seenKeys = new Set();
+  const seenActiveKeys = new Set();
   for (let i = 1; i < state.candidates.length; i++) {
     const row = state.candidates[i];
     if (row.length < 18) continue;
 
+    const candPhone = row[2] ? row[2].trim() : "";
+    const candName  = row[1] ? row[1].trim() : "";
+    const candKey   = candPhone || candName || `row_${i}`;
+    
+    const isFirstAppearance = !seenActiveKeys.has(candKey);
+    seenActiveKeys.add(candKey);
+
     const name = row[1] ? row[1].trim() : "";
     const phone = row[2] ? row[2].trim() : "";
-    const recruiter = row[13] ? row[13].trim() : "Chưa rõ"; // Người chăm sóc thực tế của ECL (cột 13)
-    const status = deriveStatus(row); // Trạng thái tuyển dụng thực tế tự động suy luận
+    const info = getRecruiterAndStatus(row);
+    const recruiter = info.recruiter;
+    const status = info.status;
     const statusClean = status.toLowerCase();
     const factoryName = row[18] || "Pegatron"; // Default fallback
     
@@ -3228,21 +3315,18 @@ function getCandidatesForType(type, customDates = null) {
         }
       }
     } else if (type === "overdueCare") {
-      if (nextCareDate && nextCareDate < todayStr && statusClean) {
+      if (isFirstAppearance && nextCareDate && nextCareDate < todayStr && statusClean) {
         if (!careDate || careDate < nextCareDate) {
-          if (!seenKeys.has(candKey)) {
-            seenKeys.add(candKey);
-            list.push({
-              name,
-              factory: factoryName,
-              phone,
-              cccd,
-              recruiter,
-              status,
-              dateInfo: `Hẹn CS: ${row[14]} (Trễ hạn)`,
-              rawDate: nextCareDate
-            });
-          }
+          list.push({
+            name,
+            factory: factoryName,
+            phone,
+            cccd,
+            recruiter,
+            status,
+            dateInfo: `Hẹn CS: ${row[14]} (Trễ hạn)`,
+            rawDate: nextCareDate
+          });
         }
       }
     } else if (type === "mktData") {
@@ -4563,13 +4647,15 @@ function renderMarketingDashboard() {
   // Hàm kiểm tra ứng viên thỏa mãn Ô 5: Có lịch hẹn phỏng vấn và tình trạng là Hẹn Phỏng Vấn
   const checkConfirmedInterview = (row) => {
     const apptDate = row[12] ? row[12].trim() : "";
-    const status = row[13] ? row[13].trim().toLowerCase() : "";
+    const info = getRecruiterAndStatus(row);
+    const status = info.status.toLowerCase();
     return (apptDate.length > 0 && status === "hẹn phỏng vấn");
   };
 
   // Hàm kiểm tra ứng viên thỏa mãn Ô 6: Tình trạng Đã Nhận Việc và có ngày nhận việc
   const checkHired = (row) => {
-    const status = row[13] ? row[13].trim().toLowerCase() : "";
+    const info = getRecruiterAndStatus(row);
+    const status = info.status.toLowerCase();
     const hireDate = row[16] ? row[16].trim() : "";
     return (status === "đã nhận việc" && hireDate.length > 0);
   };
