@@ -3270,9 +3270,26 @@ function getCandidatesForType(type, customDates = null) {
 
     const name = row[1] ? row[1].trim() : "";
     const phone = row[2] ? row[2].trim() : "";
-    const info = getRecruiterAndStatus(row);
-    const recruiter = info.recruiter;
-    const status = info.status;
+    
+    // Tìm thông tin recruiter và status đồng bộ theo logic ưu tiên dòng active của ứng viên
+    let recruiter = "Chưa rõ";
+    let status = "";
+    for (let k = 1; k < state.candidates.length; k++) {
+      const r = state.candidates[k];
+      if (r.length < 18) continue;
+      const cp = r[2] ? r[2].trim() : "";
+      const cn = r[1] ? r[1].trim() : "";
+      const key = cp || cn || `row_${k}`;
+      if (key === candKey) {
+        const info = getRecruiterAndStatus(r);
+        recruiter = info.recruiter;
+        status = info.status;
+        const sClean = status.toLowerCase();
+        if (sClean === "hẹn phỏng vấn" || sClean === "đã nhận việc") {
+          break;
+        }
+      }
+    }
     const statusClean = status.toLowerCase();
     const factoryName = row[18] || "Pegatron"; // Default fallback
     
@@ -3462,7 +3479,8 @@ function getCandidatesForType(type, customDates = null) {
       return state.warningList || [];
     } else if (type === "allCallback") {
       const historyItem = state.candidateHistory[candKey];
-      if (historyItem && historyItem.careDates) {
+      const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(statusClean);
+      if (historyItem && historyItem.careDates && !isDoneOrCancelledStatus) {
         historyItem.careDates.forEach(cDate => {
           if (dates.includes(cDate)) {
             // Không phân biệt đã chăm sóc hay chưa, lấy tất cả
@@ -5398,17 +5416,37 @@ function showFinLoading(show) {
 // NHANSU DASHBOARD LOGIC
 // ============================================================================
 
-const NHANSU_TELESALE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_wy9qhm6dnv_pWsk5vrU0wZK60GfBuxtj3ptwt8p3d4/gviz/tq?tqx=out:csv&gid=130238006";
+const NHANSU_TELESALE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_wy9qhm6dnv_pWsk5vrU0wZK60GfBuxtj3ptwt8p3d4/export?format=csv&gid=130238006";
 
 async function fetchNhansuTelesaleData() {
-  const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(NHANSU_TELESALE_SHEET_URL)}`;
+  const isChromeExt = (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
+  let url = NHANSU_TELESALE_SHEET_URL;
+  if (!isChromeExt) {
+    url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+  }
   try {
-    const resp = await fetch(proxyUrl);
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const text = await resp.text();
     const rows = text.trim().split("\n").map(line => {
-      return line.split(",").map(cell => cell.replace(/^"|"$/g, "").trim());
+      // Parse CSV - xử lý cả trường hợp có dấu phẩy trong ngoặc kép
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+          inQuotes = !inQuotes;
+        } else if (line[i] === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += line[i];
+        }
+      }
+      result.push(current.trim());
+      return result;
     });
+    console.log(`[fetchNhansuTelesaleData] Loaded ${rows.length} rows from Telesale sheet`);
     return rows;
   } catch (err) {
     console.error("[fetchNhansuTelesaleData] Lỗi:", err);
