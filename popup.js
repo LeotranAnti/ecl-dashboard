@@ -4495,64 +4495,17 @@ async function fetchMarketingDataForMonth(month) {
   
   const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
   const gid = gids[month] || "1245696062";
-  const originalUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
-
-  let mktUrl = "";
-  if (IS_CHROME_EXT) {
-    mktUrl = originalUrl;
-  } else {
-    // Trên Web, đi thẳng qua public proxy Codetabs để tránh lỗi Vercel Serverless Function 502/522
-    mktUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
-  }
+  const mktUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
   
   mktRawData = [];
   try {
-    let text = "";
     console.log("MKT Fetching URL:", mktUrl);
-    
     const response = await fetch(mktUrl);
-    if (response.ok) {
-      text = await response.text();
-    }
-
-    // Fallback sang các proxy khác nếu proxy đầu tiên thất bại hoặc trả về HTML lỗi
-    if (!IS_CHROME_EXT && (!text || text.includes("<!DOCTYPE html>") || text.includes("error code:"))) {
-      console.warn("MKT Primary URL failed or returned invalid data. Trying fallbacks...");
-      let fetchedText = "";
-      
-      // Thử lại bằng Codetabs Proxy nếu ban đầu chưa dùng nó
-      if (IS_CHROME_EXT) {
-        try {
-          const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
-          const resp1 = await fetch(proxy1);
-          if (resp1.ok) {
-            const t1 = await resp1.text();
-            if (t1 && !t1.includes("error code:")) fetchedText = t1;
-          }
-        } catch (e) {
-          console.warn("MKT Fallback Proxy 1 failed", e);
-        }
-      }
-
-      // Thử ThingProxy
-      if (!fetchedText) {
-        try {
-          const proxy3 = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`;
-          const resp3 = await fetch(proxy3);
-          if (resp3.ok) {
-            const t3 = await resp3.text();
-            if (t3 && !t3.includes("error code:")) fetchedText = t3;
-          }
-        } catch (e) {
-          console.warn("MKT Fallback Proxy 3 failed", e);
-        }
-      }
-
-      if (fetchedText) {
-        text = fetchedText;
-      } else {
-        throw new Error("Không thể kết nối đến Google Sheets qua mọi kênh proxy.");
-      }
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const text = await response.text();
+    
+    if (text.includes("<!DOCTYPE html>") || (!text.includes("ngày") && !text.includes("Ngày"))) {
+      throw new Error("Dữ liệu Google Sheets không đúng định dạng CSV.");
     }
 
     mktRawData = parseCSV(text);
@@ -5912,14 +5865,27 @@ function populateNhansuDateSelector() {
     const todayObj = new Date();
     const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
     
-    // Nếu chưa có nhansuSelectedDate hoặc giá trị hiện tại không khớp, thử ưu tiên chọn ngày hôm nay
-    if (!nhansuSelectedDate || !options.some(opt => opt.dataset.value === nhansuSelectedDate)) {
-      const hasToday = options.some(opt => opt.dataset.value === todayStr);
-      if (hasToday) {
-        nhansuSelectedDate = todayStr;
-      } else {
-        nhansuSelectedDate = options[0].dataset.value;
-      }
+    let defaultTarget = "";
+    if (nhansuViewMode === "day") {
+      defaultTarget = todayStr;
+    } else if (nhansuViewMode === "week") {
+      // Tìm Thứ Hai của tuần chứa hôm nay
+      const day = todayObj.getDay();
+      const diff = todayObj.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(todayObj.setDate(diff));
+      defaultTarget = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+    } else if (nhansuViewMode === "month") {
+      // Tháng chứa hôm nay (yyyy-MM)
+      defaultTarget = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    // Luôn ưu tiên chọn kỳ chứa ngày hôm nay khi chuyển tab/chế độ lọc
+    const hasTarget = options.some(opt => opt.dataset.value === defaultTarget);
+    if (hasTarget) {
+      nhansuSelectedDate = defaultTarget;
+    } else {
+      // Nếu không tìm thấy đúng ngày hôm nay/tuần hôm nay/tháng hôm nay, chọn option đầu tiên có dữ liệu
+      nhansuSelectedDate = options[0].dataset.value;
     }
   }
   syncNhansuCustomDropdown();
@@ -6163,6 +6129,7 @@ async function initNhansuDashboard() {
         item.style.background = "rgba(167, 139, 250, 0.15)";
 
         nhansuViewMode = val;
+        nhansuSelectedDate = ""; // Ép tính toán lại ngày/tuần/tháng mặc định chứa hôm nay
         nhansuVmMenu.style.display = "none";
         if (nhansuVmArrow) nhansuVmArrow.style.transform = "rotate(0deg)";
 
