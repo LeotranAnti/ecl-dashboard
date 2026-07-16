@@ -4433,13 +4433,13 @@ async function handleMktDateChange() {
     if (startVal) {
       const parts = startVal.split("-");
       const month = parseInt(parts[1]).toString();
-      if (state.loadedMktMonth !== month) {
+      if (state.loadedMktMonth !== month || !mktRawData || mktRawData.length === 0) {
         await fetchMarketingDataForMonth(month);
       } else {
         renderMarketingDashboard();
       }
     } else {
-      if (state.loadedMktMonth !== "7") {
+      if (state.loadedMktMonth !== "7" || !mktRawData || mktRawData.length === 0) {
         await fetchMarketingDataForMonth("7");
       } else {
         renderMarketingDashboard();
@@ -4453,7 +4453,7 @@ async function handleMktDateChange() {
   const val = mktDateSelect.value;
   if (!val) {
     // Fallback: tải tháng 7 nếu danh sách ngày rỗng
-    if (state.loadedMktMonth !== "7") {
+    if (state.loadedMktMonth !== "7" || !mktRawData || mktRawData.length === 0) {
       await fetchMarketingDataForMonth("7");
     } else {
       renderMarketingDashboard();
@@ -4464,7 +4464,7 @@ async function handleMktDateChange() {
   const parts = val.split("-");
   if (parts.length >= 2) {
     const month = parseInt(parts[1]).toString();
-    if (state.loadedMktMonth !== month) {
+    if (state.loadedMktMonth !== month || !mktRawData || mktRawData.length === 0) {
       await fetchMarketingDataForMonth(month);
     } else {
       renderMarketingDashboard();
@@ -4477,8 +4477,6 @@ async function fetchMarketingDataForMonth(month) {
   if (tableBody) {
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
   }
-  
-  state.loadedMktMonth = month;
   
   let mktUrl = "";
   if (IS_CHROME_EXT) {
@@ -4537,6 +4535,7 @@ async function fetchMarketingDataForMonth(month) {
     }
 
     mktRawData = parseCSV(text);
+    state.loadedMktMonth = month; // Gán state.loadedMktMonth CHỈ khi fetch & parse thành công
     updateCampaignSelector();
     renderMarketingDashboard();
   } catch (error) {
@@ -4544,6 +4543,8 @@ async function fetchMarketingDataForMonth(month) {
     if (tableBody) {
       tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
     }
+    // Đảm bảo vẽ debug panel hiển thị lỗi
+    renderMarketingDashboard();
   }
 }
 
@@ -5583,14 +5584,75 @@ const NHANSU_TELESALE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_wy9q
 
 async function fetchNhansuTelesaleData() {
   const isChromeExt = (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
-  let url = NHANSU_TELESALE_SHEET_URL;
-  if (!isChromeExt) {
-    url = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-  }
+  const originalUrl = NHANSU_TELESALE_SHEET_URL;
+
+  const fetchWithTimeout = (u, opt = {}, timeout = 10000) => {
+    return Promise.race([
+      fetch(u, opt),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout))
+    ]);
+  };
+
+  const fetchTextWithFallback = async () => {
+    if (isChromeExt) {
+      const resp = await fetchWithTimeout(originalUrl);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      return await resp.text();
+    }
+
+    // 1. Thử API Route nội bộ của Vercel (Không bị CORS, chạy phía Server)
+    try {
+      const vercelApiUrl = `/api/telesale?t=${Date.now()}`;
+      const resp = await fetchWithTimeout(vercelApiUrl);
+      if (resp.ok) {
+        const txt = await resp.text();
+        if (txt && !txt.includes("error code:") && !txt.includes("Error fetching")) return txt;
+      }
+    } catch (e) {
+      console.warn("Vercel Serverless API Proxy for Telesale failed, trying fallback public proxies...", e);
+    }
+
+    // 2. Thử Proxy 1 (Codetabs)
+    try {
+      const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
+      const resp = await fetchWithTimeout(proxy1);
+      if (resp.ok) {
+        const txt = await resp.text();
+        if (txt && !txt.includes("error code:")) return txt;
+      }
+    } catch (e) {
+      console.warn("Proxy 1 (codetabs) failed, trying proxy 2...", e);
+    }
+
+    // 3. Thử Proxy 2 (AllOrigins)
+    try {
+      const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(originalUrl)}&ts=${Date.now()}`;
+      const resp2 = await fetchWithTimeout(proxy2);
+      if (resp2.ok) {
+        const data2 = await resp2.json();
+        if (data2 && data2.contents) return data2.contents;
+      }
+    } catch (e) {
+      console.warn("Proxy 2 (allorigins) failed, trying proxy 3...", e);
+    }
+
+    // 4. Thử Proxy 3 (ThingProxy)
+    try {
+      const proxy3 = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`;
+      const resp3 = await fetchWithTimeout(proxy3);
+      if (resp3.ok) {
+        const txt3 = await resp3.text();
+        if (txt3 && !txt3.includes("error code:")) return txt3;
+      }
+    } catch (e) {
+      console.warn("Proxy 3 (thingproxy) failed...", e);
+    }
+
+    throw new Error("All proxies failed for Telesale Sheet.");
+  };
+
   try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const text = await resp.text();
+    const text = await fetchTextWithFallback();
     const rows = text.trim().split("\n").map(line => {
       // Parse CSV - xử lý cả trường hợp có dấu phẩy trong ngoặc kép
       const result = [];
@@ -5612,7 +5674,7 @@ async function fetchNhansuTelesaleData() {
     console.log(`[fetchNhansuTelesaleData] Loaded ${rows.length} rows from Telesale sheet`);
     return rows;
   } catch (err) {
-    console.error("[fetchNhansuTelesaleData] Lỗi:", err);
+    console.error("[fetchNhansuTelesaleData] Lỗi tải dữ liệu Telesale:", err);
     return null;
   }
 }
