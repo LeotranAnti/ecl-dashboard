@@ -1251,50 +1251,6 @@
             <option value="All">-- Tất cả nhân sự --</option>
           </select>
           
-          <!-- Time filter controls like Sale Tab -->
-          <div class="custom-dropdown" style="position: relative; display: inline-block;">
-            <div id="nhansu-view-mode-trigger" style="font-size: 12px; padding: 6px 16px; height: 30px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; font-weight: bold; box-sizing: border-box;">
-              <span id="nhansu-view-mode-label">Ngày</span>
-              <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="nhansu-view-mode-arrow">▼</span>
-            </div>
-            <div id="nhansu-view-mode-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 120px; z-index: 1000; padding: 4px 0;">
-              <div class="nhansu-view-mode-item active-dropdown-item" data-value="day" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: #a78bfa; font-weight: bold; background: rgba(167, 139, 250, 0.15); transition: background 0.2s;">Ngày</div>
-              <div class="nhansu-view-mode-item" data-value="week" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tuần</div>
-              <div class="nhansu-view-mode-item" data-value="month" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tháng</div>
-              <div class="nhansu-view-mode-item" data-value="custom" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tùy chỉnh</div>
-            </div>
-          </div>
-          
-          <div class="date-spinner-container" style="display: flex; gap: 4px; align-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
-            <button id="nhansu-date-prev-btn" class="spinner-btn" title="Kỳ trước" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">◀</button>
-            <div class="custom-dropdown" style="position: relative; display: inline-block;">
-              <div id="nhansu-dropdown-trigger" style="font-size: 12px; padding: 4px 8px; min-width: 160px; background: transparent; border: none; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
-                <span id="nhansu-dropdown-label">Đang tải...</span>
-                <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="nhansu-dropdown-arrow">▼</span>
-              </div>
-              <div id="nhansu-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 180px; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 4px 0;">
-                <!-- Dynamic options -->
-              </div>
-            </div>
-            <button id="nhansu-date-next-btn" class="spinner-btn" title="Kỳ sau" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">▶</button>
-          </div>
-          
-          <div id="nhansu-custom-date-container" style="display: none; gap: 8px; align-items: center;">
-            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
-              <input type="date" id="nhansu-custom-start-date" class="date-select" style="padding-right: 32px !important;">
-              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
-                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
-              </svg>
-            </div>
-            <span style="color: var(--text-muted); font-size: 12px;">đến</span>
-            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
-              <input type="date" id="nhansu-custom-end-date" class="date-select" style="padding-right: 32px !important;">
-              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
-                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
-              </svg>
-            </div>
-          </div>
-          
           <div style="font-size:11px; color:var(--text-muted);" id="nhansu-sync-status">Đang tải...</div>
         </div>
       </header>

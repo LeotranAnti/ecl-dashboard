@@ -1,27 +1,3 @@
-const https = require("https");
-
-function fetchUrl(url, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirectCount > 5) {
-      return reject(new Error("Too many redirects"));
-    }
-    https.get(url, (res) => {
-      // Tự động chuyển hướng nếu nhận được mã trạng thái 3xx
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return resolve(fetchUrl(res.headers.location, redirectCount + 1));
-      }
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        resolve(data);
-      });
-    }).on("error", (err) => {
-      reject(err);
-    });
-  });
-}
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -44,7 +20,9 @@ module.exports = async (req, res) => {
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;
   
   try {
-    const data = await fetchUrl(url);
+    const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const data = await response.text();
     res.status(200).send(data);
   } catch (error) {
     res.status(502).send(`Error fetching marketing spreadsheet: ${error.message}`);
