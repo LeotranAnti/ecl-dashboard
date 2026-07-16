@@ -4478,42 +4478,48 @@ async function fetchMarketingDataForMonth(month) {
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">Đang tải dữ liệu...</td></tr>`;
   }
   
+  const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
+  const gid = gids[month] || "1245696062";
+  const originalUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
+
   let mktUrl = "";
   if (IS_CHROME_EXT) {
-    const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
-    const gid = gids[month] || "1245696062";
-    mktUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
+    mktUrl = originalUrl;
   } else {
-    mktUrl = `/api/marketing?month=${month}`;
+    // Trên Web, đi thẳng qua public proxy Codetabs để tránh lỗi Vercel Serverless Function 502/522
+    mktUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
   }
   
   mktRawData = [];
   try {
-    const response = await fetch(mktUrl);
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    let text = await response.text();
+    let text = "";
+    console.log("MKT Fetching URL:", mktUrl);
     
-    // Nếu kết quả trả về không hợp lệ (ví dụ: chứa HTML hoặc rỗng) và đang chạy trên Web thường
-    if (!IS_CHROME_EXT && (text.includes("<!DOCTYPE html>") || !text.includes("ngày") && !text.includes("Ngày"))) {
-      console.warn("Vercel Marketing API failed or returned invalid data. Fallback to public proxies...");
-      const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
-      const gid = gids[month] || "1245696062";
-      const originalUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
-      
+    const response = await fetch(mktUrl);
+    if (response.ok) {
+      text = await response.text();
+    }
+
+    // Fallback sang các proxy khác nếu proxy đầu tiên thất bại hoặc trả về HTML lỗi
+    if (!IS_CHROME_EXT && (!text || text.includes("<!DOCTYPE html>") || text.includes("error code:"))) {
+      console.warn("MKT Primary URL failed or returned invalid data. Trying fallbacks...");
       let fetchedText = "";
-      // Thử Codetabs Proxy
-      try {
-        const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
-        const resp1 = await fetch(proxy1);
-        if (resp1.ok) {
-          const t1 = await resp1.text();
-          if (t1 && !t1.includes("error code:")) fetchedText = t1;
-        }
-      } catch (e) {
-        console.warn("MKT Fallback Proxy 1 failed", e);
-      }
       
-      // Thử ThingProxy nếu Proxy 1 thất bại
+      // Thử lại bằng Codetabs Proxy nếu ban đầu chưa dùng nó
+      if (IS_CHROME_EXT) {
+        try {
+          const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
+          const resp1 = await fetch(proxy1);
+          if (resp1.ok) {
+            const t1 = await resp1.text();
+            if (t1 && !t1.includes("error code:")) fetchedText = t1;
+          }
+        } catch (e) {
+          console.warn("MKT Fallback Proxy 1 failed", e);
+        }
+      }
+
+      // Thử ThingProxy
       if (!fetchedText) {
         try {
           const proxy3 = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`;
@@ -5914,6 +5920,12 @@ function renderNhansuDashboard() {
   const normDate = (s) => {
     if (!s) return "";
     s = s.trim();
+    // Hỗ trợ dạng d/M (ví dụ 15/7)
+    const mDec = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if (mDec) {
+      return `2026-${mDec[2].padStart(2,"0")}-${mDec[1].padStart(2,"0")}`;
+    }
+    // Hỗ trợ dạng d/M/yyyy
     const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (m1) return `${m1[3]}-${m1[2].padStart(2,"0")}-${m1[1].padStart(2,"0")}`;
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -5929,10 +5941,23 @@ function renderNhansuDashboard() {
   if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
     for (let i = 1; i < nhansuTelesaleData.length; i++) {
       const row = nhansuTelesaleData[i];
-      if (row.length < 5) continue;
-      const dateGiao = normDate(row[4]);
-      const rowFactory = (row[12] || "Pegatron").trim();
-      const rowRecruiter = cleanRec(row[11] || "");
+      if (row.length < 9) continue;
+      const dateGiao = normDate(row[8]); // Cột Ngày giao việc là index 8
+      
+      // Xác định nhà máy: Ưu tiên cột 11 (Chuyển file nhà máy). Nếu rỗng thì xem Nguồn data (cột 7)
+      let rowFactory = (row[11] || "").trim();
+      if (!rowFactory && row[7]) {
+        const sourceLower = row[7].toLowerCase();
+        if (sourceLower.includes("pegatron")) rowFactory = "Pegatron";
+        else if (sourceLower.includes("brother")) rowFactory = "Brother";
+        else if (sourceLower.includes("lg")) rowFactory = "LG";
+        else if (sourceLower.includes("usi")) rowFactory = "Usi";
+        else if (sourceLower.includes("fox")) rowFactory = "Fox QN";
+        else if (sourceLower.includes("wistron")) rowFactory = "Wistron";
+      }
+      if (!rowFactory) rowFactory = "Pegatron"; // Fallback mặc định
+
+      const rowRecruiter = cleanRec(row[9] || ""); // Cột Người chăm sóc là index 9
       if (rowRecruiter) recruiters.add(rowRecruiter);
 
       // Lọc theo khoảng thời gian được chọn
@@ -5941,9 +5966,9 @@ function renderNhansuDashboard() {
       if (nsRecruiter !== "All" && rowRecruiter !== nsRecruiter) continue;
 
       telesaleCount++;
-      const chuyenVal = (row[13] || "").trim().toLowerCase();
-      if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no") chuyenCount++;
-      tableRows.push({ name: row[1]||"", phone: row[2]||"", factory: rowFactory, recruiter: row[11]||"Chưa rõ", status: row[8]||"Chưa phản hồi", dateGiao: row[4]||"" });
+      const chuyenVal = (row[11] || "").trim().toLowerCase(); // Chuyển file nhà máy cột index 11
+      if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "") chuyenCount++;
+      tableRows.push({ name: row[1]||"", phone: row[2]||"", factory: rowFactory, recruiter: row[9]||"Chưa rõ", status: row[10]||"Chưa phản hồi", dateGiao: row[8]||"" });
     }
   }
 
@@ -5959,7 +5984,7 @@ function renderNhansuDashboard() {
       const p1 = activeDates[0].split("-");
       const p2 = activeDates[6].split("-");
       dateTextLabel = `Tuần: ${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
-    } else if (viewMode === "month") {
+    } else if (nhansuViewMode === "month") {
       const p = activeDates[0].split("-");
       dateTextLabel = `Tháng: ${p[1]}/${p[0]}`;
     } else {
@@ -5970,6 +5995,7 @@ function renderNhansuDashboard() {
   }
   setEl("ns-telesale-status", dateTextLabel);
   setEl("ns-chuyen-count", chuyenCount);
+
 
   // Xử lý data từ state.candidates
   if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
