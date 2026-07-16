@@ -3977,6 +3977,14 @@ let gateVerified = false; // Trạng thái xác thực cổng chính khi vào tr
 let nhansuTelesaleData = null; // Cache dữ liệu sheet Telesale
 let nhansuInitialized = false;
 
+// Time filter states for Nhansu (Báo cáo Hoạt động)
+let nhansuViewMode = "day"; // day, week, month, custom
+let nhansuSelectedDate = "";
+let nhansuCustomStartDate = "";
+let nhansuCustomEndDate = "";
+let nhansuDatesList = []; // Mảng chứa các ngày thuộc kỳ được chọn
+
+
 function setupMainNavigation() {
   const buttons = document.querySelectorAll(".main-tab-btn");
   const sections = document.querySelectorAll(".main-section");
@@ -4443,7 +4451,15 @@ async function handleMktDateChange() {
   const mktDateSelect = document.getElementById("mkt-date-select");
   if (!mktDateSelect) return;
   const val = mktDateSelect.value;
-  if (!val) return;
+  if (!val) {
+    // Fallback: tải tháng 7 nếu danh sách ngày rỗng
+    if (state.loadedMktMonth !== "7") {
+      await fetchMarketingDataForMonth("7");
+    } else {
+      renderMarketingDashboard();
+    }
+    return;
+  }
 
   const parts = val.split("-");
   if (parts.length >= 2) {
@@ -4475,9 +4491,51 @@ async function fetchMarketingDataForMonth(month) {
   
   try {
     const response = await fetch(mktUrl);
-    const text = await response.text();
-    mktRawData = parseCSV(text);
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    let text = await response.text();
     
+    // Nếu kết quả trả về không hợp lệ (ví dụ: chứa HTML hoặc rỗng) và đang chạy trên Web thường
+    if (!IS_CHROME_EXT && (text.includes("<!DOCTYPE html>") || !text.includes("ngày") && !text.includes("Ngày"))) {
+      console.warn("Vercel Marketing API failed or returned invalid data. Fallback to public proxies...");
+      const gids = { "4": "0", "5": "609412597", "6": "1703521677", "7": "1245696062" };
+      const gid = gids[month] || "1245696062";
+      const originalUrl = `https://docs.google.com/spreadsheets/d/1NgDH3ayQ7nE4_mcT1B5HEW1YrMHaJH8xtf0-u0bFNZQ/export?format=csv&gid=${gid}`;
+      
+      let fetchedText = "";
+      // Thử Codetabs Proxy
+      try {
+        const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
+        const resp1 = await fetch(proxy1);
+        if (resp1.ok) {
+          const t1 = await resp1.text();
+          if (t1 && !t1.includes("error code:")) fetchedText = t1;
+        }
+      } catch (e) {
+        console.warn("MKT Fallback Proxy 1 failed", e);
+      }
+      
+      // Thử ThingProxy nếu Proxy 1 thất bại
+      if (!fetchedText) {
+        try {
+          const proxy3 = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`;
+          const resp3 = await fetch(proxy3);
+          if (resp3.ok) {
+            const t3 = await resp3.text();
+            if (t3 && !t3.includes("error code:")) fetchedText = t3;
+          }
+        } catch (e) {
+          console.warn("MKT Fallback Proxy 3 failed", e);
+        }
+      }
+
+      if (fetchedText) {
+        text = fetchedText;
+      } else {
+        throw new Error("Không thể kết nối đến Google Sheets qua mọi kênh proxy.");
+      }
+    }
+
+    mktRawData = parseCSV(text);
     updateCampaignSelector();
     renderMarketingDashboard();
   } catch (error) {
@@ -4493,7 +4551,7 @@ function updateCampaignSelector() {
   const selectBox = document.getElementById('mkt-campaign-select');
   if (!tabsContainer || !mktRawData) return;
 
-  const headerRow = mktRawData.find(row => row && row[0] && row[0].trim() === 'Ngày');
+  const headerRow = mktRawData.find(row => row && row[0] && row[0].toLowerCase().includes('ngày'));
   if (!headerRow) return;
 
   // Build tab buttons
@@ -4703,7 +4761,7 @@ function renderMarketingDashboard() {
   let headerRowIndex = -1;
   for (let i = 0; i < mktRawData.length; i++) {
     const row = mktRawData[i];
-    if (row && row.some(cell => cell && cell.trim() === "Ngày")) {
+    if (row && row.some(cell => cell && cell.toLowerCase().includes("ngày"))) {
       headerRowIndex = i;
       break;
     }
@@ -5532,16 +5590,234 @@ async function fetchNhansuTelesaleData() {
   }
 }
 
+function getNhansuActiveDates() {
+  if (nhansuViewMode === "custom") {
+    const start = nhansuCustomStartDate;
+    const end = nhansuCustomEndDate;
+    if (!start || !end) return [];
+    const dates = [];
+    let curr = new Date(start);
+    const stop = new Date(end);
+    while (curr <= stop) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, "0");
+      const d = String(curr.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${d}`);
+      curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
+  }
+
+  // Đối với các view mode day, week, month
+  if (!nhansuSelectedDate) {
+    if (state.datesList && state.datesList.length > 0) {
+      return [state.datesList[0]]; // Mặc định ngày mới nhất
+    }
+    return [];
+  }
+
+  if (nhansuViewMode === "day") {
+    return [nhansuSelectedDate];
+  } else if (nhansuViewMode === "week") {
+    // Giá trị nhansuSelectedDate là ngày thứ 2 đầu tuần (yyyy-mm-dd)
+    const dates = [];
+    const baseDate = new Date(nhansuSelectedDate);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dy = String(d.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${dy}`);
+    }
+    return dates;
+  } else if (nhansuViewMode === "month") {
+    // Giá trị nhansuSelectedDate là 'yyyy-mm'
+    const dates = [];
+    const parts = nhansuSelectedDate.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+    const d = new Date(year, month, 1);
+    while (d.getMonth() === month) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dy = String(d.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${dy}`);
+      d.setDate(d.getDate() + 1);
+    }
+    return dates;
+  }
+
+  return [];
+}
+
+function syncNhansuCustomDropdown() {
+  const labelEl = document.getElementById("nhansu-dropdown-label");
+  const menuEl = document.getElementById("nhansu-dropdown-menu");
+  if (!labelEl || !menuEl) return;
+
+  if (nhansuViewMode === "custom") {
+    labelEl.textContent = "Tùy chỉnh";
+    return;
+  }
+
+  const items = menuEl.querySelectorAll(".nhansu-dropdown-item");
+  let activeText = "";
+  items.forEach(item => {
+    if (item.dataset.value === nhansuSelectedDate) {
+      item.classList.add("active-dropdown-item");
+      item.style.color = "#a78bfa";
+      item.style.fontWeight = "bold";
+      item.style.background = "rgba(167, 139, 250, 0.15)";
+      activeText = item.textContent;
+    } else {
+      item.classList.remove("active-dropdown-item");
+      item.style.color = "var(--text-primary)";
+      item.style.fontWeight = "normal";
+      item.style.background = "transparent";
+    }
+  });
+
+  if (activeText) {
+    labelEl.textContent = activeText;
+  } else {
+    // Fallback hiển thị label mặc định hoặc giá trị thô
+    labelEl.textContent = nhansuSelectedDate || "Chọn kỳ...";
+  }
+}
+
+function populateNhansuDateSelector() {
+  const menuEl = document.getElementById("nhansu-dropdown-menu");
+  if (!menuEl || !state.datesList || state.datesList.length === 0) return;
+
+  menuEl.innerHTML = "";
+
+  const formatUIDateLocal = (dStr) => {
+    const parts = dStr.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+    return dStr;
+  };
+
+  const getWeekRangeLabelLocal = (monStr) => {
+    const d = new Date(monStr);
+    const sun = new Date(d);
+    sun.setDate(d.getDate() + 6);
+    const format = (date) => `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return `Tuần ${format(d)} - ${format(sun)}`;
+  };
+
+  if (nhansuViewMode === "day") {
+    state.datesList.forEach((date, i) => {
+      const item = document.createElement("div");
+      item.className = "nhansu-dropdown-item";
+      item.dataset.value = date;
+      item.style.padding = "8px 16px";
+      item.style.cursor = "pointer";
+      item.style.fontSize = "12px";
+      item.style.transition = "background 0.2s";
+
+      const label = formatUIDateLocal(date);
+      const todayObj = new Date();
+      const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+      
+      if (date === todayStr) item.textContent = `${label} (Hôm nay)`;
+      else if (i === 0)     item.textContent = `${label} (Mới nhất)`;
+      else                  item.textContent = label;
+
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nhansuSelectedDate = date;
+        menuEl.style.display = "none";
+        const arrow = document.getElementById("nhansu-dropdown-arrow");
+        if (arrow) arrow.style.transform = "rotate(0deg)";
+        syncNhansuCustomDropdown();
+        renderNhansuDashboard();
+      });
+      menuEl.appendChild(item);
+    });
+  } else if (nhansuViewMode === "week") {
+    const seenWeeks = new Set();
+    state.datesList.forEach(date => {
+      // Tìm ngày Thứ 2 đầu tuần của ngày date
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Điều chỉnh nếu Chủ nhật
+      const mon = new Date(d.setDate(diff));
+      const monStr = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+
+      if (!seenWeeks.has(monStr)) {
+        seenWeeks.add(monStr);
+
+        const item = document.createElement("div");
+        item.className = "nhansu-dropdown-item";
+        item.dataset.value = monStr;
+        item.style.padding = "8px 16px";
+        item.style.cursor = "pointer";
+        item.style.fontSize = "12px";
+        item.style.transition = "background 0.2s";
+        item.textContent = getWeekRangeLabelLocal(monStr);
+
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          nhansuSelectedDate = monStr;
+          menuEl.style.display = "none";
+          const arrow = document.getElementById("nhansu-dropdown-arrow");
+          if (arrow) arrow.style.transform = "rotate(0deg)";
+          syncNhansuCustomDropdown();
+          renderNhansuDashboard();
+        });
+        menuEl.appendChild(item);
+      }
+    });
+  } else if (nhansuViewMode === "month") {
+    const seenMonths = new Set();
+    state.datesList.forEach(date => {
+      const parts = date.split("-");
+      const monthStr = `${parts[0]}-${parts[1]}`; // yyyy-mm
+
+      if (!seenMonths.has(monthStr)) {
+        seenMonths.add(monthStr);
+
+        const item = document.createElement("div");
+        item.className = "nhansu-dropdown-item";
+        item.dataset.value = monthStr;
+        item.style.padding = "8px 16px";
+        item.style.cursor = "pointer";
+        item.style.fontSize = "12px";
+        item.style.transition = "background 0.2s";
+        item.textContent = `Tháng ${parts[1]}/${parts[0]}`;
+
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          nhansuSelectedDate = monthStr;
+          menuEl.style.display = "none";
+          const arrow = document.getElementById("nhansu-dropdown-arrow");
+          if (arrow) arrow.style.transform = "rotate(0deg)";
+          syncNhansuCustomDropdown();
+          renderNhansuDashboard();
+        });
+        menuEl.appendChild(item);
+      }
+    });
+  }
+
+  // Khởi tạo giá trị chọn mặc định nếu chưa có hoặc không hợp lệ
+  const options = Array.from(menuEl.children);
+  if (options.length > 0) {
+    const match = options.find(opt => opt.dataset.value === nhansuSelectedDate);
+    if (!match) {
+      nhansuSelectedDate = options[0].dataset.value;
+    }
+  }
+  syncNhansuCustomDropdown();
+}
+
 function renderNhansuDashboard() {
   const nsFactory = (typeof state !== "undefined" && state.nhansuSelectedFactory) || "All";
   const nsRecruiter = (typeof state !== "undefined" && state.nhansuSelectedRecruiter) || "All";
-  const today = (() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const mo = String(d.getMonth() + 1).padStart(2, "0");
-    const dy = String(d.getDate()).padStart(2, "0");
-    return `${y}-${mo}-${dy}`;
-  })();
+  
+  // Lấy dải ngày lọc từ bộ lọc thời gian mới
+  const activeDates = getNhansuActiveDates();
 
   const normDate = (s) => {
     if (!s) return "";
@@ -5566,9 +5842,12 @@ function renderNhansuDashboard() {
       const rowFactory = (row[12] || "Pegatron").trim();
       const rowRecruiter = cleanRec(row[11] || "");
       if (rowRecruiter) recruiters.add(rowRecruiter);
-      if (dateGiao !== today) continue;
+
+      // Lọc theo khoảng thời gian được chọn
+      if (!dateGiao || !activeDates.includes(dateGiao)) continue;
       if (nsFactory !== "All" && rowFactory !== nsFactory) continue;
       if (nsRecruiter !== "All" && rowRecruiter !== nsRecruiter) continue;
+
       telesaleCount++;
       const chuyenVal = (row[13] || "").trim().toLowerCase();
       if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no") chuyenCount++;
@@ -5577,7 +5856,25 @@ function renderNhansuDashboard() {
   }
 
   setEl("ns-telesale-count", telesaleCount);
-  setEl("ns-telesale-status", `Ngày giao: ${today}`);
+  
+  // Cập nhật nhãn trạng thái hiển thị kỳ đã chọn
+  let dateTextLabel = "Đang lọc...";
+  if (nhansuViewMode === "day" && activeDates.length > 0) {
+    const p = activeDates[0].split("-");
+    dateTextLabel = `Ngày: ${p[2]}/${p[1]}`;
+  } else if (nhansuViewMode === "week" && activeDates.length > 0) {
+    const p1 = activeDates[0].split("-");
+    const p2 = activeDates[6].split("-");
+    dateTextLabel = `Tuần: ${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
+  } else if (nhansuViewMode === "month" && activeDates.length > 0) {
+    const p = activeDates[0].split("-");
+    dateTextLabel = `Tháng: ${p[1]}/${p[0]}`;
+  } else if (nhansuViewMode === "custom" && activeDates.length > 0) {
+    const p1 = activeDates[0].split("-");
+    const p2 = activeDates[activeDates.length - 1].split("-");
+    dateTextLabel = `${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
+  }
+  setEl("ns-telesale-status", dateTextLabel);
   setEl("ns-chuyen-count", chuyenCount);
 
   // Xử lý data từ state.candidates
@@ -5587,7 +5884,7 @@ function renderNhansuDashboard() {
       const r = state.candidates[i];
       const d = normDate(r[0] || "");
       const f = (r[r.length - 1] || "").trim();
-      if (d !== today) continue;
+      if (!d || !activeDates.includes(d)) continue;
       if (nsFactory !== "All" && f !== nsFactory) continue;
       cnt++;
     }
@@ -5600,7 +5897,7 @@ function renderNhansuDashboard() {
     for (let i = 1; i < state.candidates.length; i++) {
       const r = state.candidates[i];
       const d = normDate(r[0] || "");
-      if (d !== today) continue;
+      if (!d || !activeDates.includes(d)) continue;
       const cccd = (r[2] || "").trim();
       if (!cccd || cccd === "0" || cccd.length < 9) continue;
       if (seen.has(cccd)) continue;
@@ -5616,7 +5913,7 @@ function renderNhansuDashboard() {
       const r = state.candidates[i];
       const st = (r[4] || "").toLowerCase();
       const d = normDate(r[0] || "");
-      if (d !== today) continue;
+      if (!d || !activeDates.includes(d)) continue;
       if (st.includes("hẹn pv") || st.includes("xác nhận pv") || st.includes("confirm")) cnt++;
     }
     setEl("ns-pv-count", cnt);
@@ -5640,7 +5937,7 @@ function renderNhansuDashboard() {
   const tbody = document.getElementById("ns-telesale-tbody");
   if (tbody) {
     if (tableRows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Không có dữ liệu hôm nay (${today})</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Không có dữ liệu trong kỳ đã chọn</td></tr>`;
     } else {
       tbody.innerHTML = tableRows.map(r => `
         <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
@@ -5660,6 +5957,7 @@ function renderNhansuDashboard() {
 
 async function initNhansuDashboard() {
   if (nhansuInitialized && nhansuTelesaleData) {
+    populateNhansuDateSelector();
     renderNhansuDashboard();
     return;
   }
@@ -5668,7 +5966,136 @@ async function initNhansuDashboard() {
 
   nhansuTelesaleData = await fetchNhansuTelesaleData();
   nhansuInitialized = true;
-  renderNhansuDashboard();
+
+  // Cấu hình các sự kiện cho bộ lọc thời gian của Báo cáo Hoạt động
+  const nhansuVmTrigger = document.getElementById("nhansu-view-mode-trigger");
+  const nhansuVmMenu = document.getElementById("nhansu-view-mode-menu");
+  const nhansuVmArrow = document.getElementById("nhansu-view-mode-arrow");
+
+  if (nhansuVmTrigger && nhansuVmMenu) {
+    nhansuVmTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = nhansuVmMenu.style.display === "block";
+      nhansuVmMenu.style.display = isVisible ? "none" : "block";
+      if (nhansuVmArrow) nhansuVmArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+    });
+
+    nhansuVmMenu.querySelectorAll(".nhansu-view-mode-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const val = item.dataset.value;
+        const text = item.textContent;
+
+        const labelEl = document.getElementById("nhansu-view-mode-label");
+        if (labelEl) labelEl.textContent = text;
+
+        nhansuVmMenu.querySelectorAll(".nhansu-view-mode-item").forEach(i => {
+          i.classList.remove("active-dropdown-item");
+          i.style.color = "var(--text-primary)";
+          i.style.fontWeight = "normal";
+          i.style.background = "transparent";
+        });
+        item.classList.add("active-dropdown-item");
+        item.style.color = "#a78bfa";
+        item.style.fontWeight = "bold";
+        item.style.background = "rgba(167, 139, 250, 0.15)";
+
+        nhansuViewMode = val;
+        nhansuVmMenu.style.display = "none";
+        if (nhansuVmArrow) nhansuVmArrow.style.transform = "rotate(0deg)";
+
+        const customDateCont = document.getElementById("nhansu-custom-date-container");
+        const dateSpinnerCont = document.querySelector("#section-nhansu .date-spinner-container");
+
+        if (val === "custom") {
+          if (customDateCont) customDateCont.style.display = "flex";
+          if (dateSpinnerCont) dateSpinnerCont.style.display = "none";
+
+          // Khởi tạo các ngày custom mặc định nếu chưa có
+          const startInput = document.getElementById("nhansu-custom-start-date");
+          const endInput = document.getElementById("nhansu-custom-end-date");
+          if (startInput && endInput && state.datesList && state.datesList.length > 0) {
+            if (!startInput.value) startInput.value = state.datesList[state.datesList.length - 1];
+            if (!endInput.value) endInput.value = state.datesList[0];
+            nhansuCustomStartDate = startInput.value;
+            nhansuCustomEndDate = endInput.value;
+          }
+        } else {
+          if (customDateCont) customDateCont.style.display = "none";
+          if (dateSpinnerCont) dateSpinnerCont.style.display = "flex";
+        }
+
+        populateNhansuDateSelector();
+        renderNhansuDashboard();
+      });
+    });
+
+    document.addEventListener("click", () => {
+      nhansuVmMenu.style.display = "none";
+      if (nhansuVmArrow) nhansuVmArrow.style.transform = "rotate(0deg)";
+    });
+  }
+
+  // Custom Dropdown Date Select Trigger click
+  const nhansuDropTrigger = document.getElementById("nhansu-dropdown-trigger");
+  const nhansuDropMenu = document.getElementById("nhansu-dropdown-menu");
+  const nhansuDropArrow = document.getElementById("nhansu-dropdown-arrow");
+  if (nhansuDropTrigger && nhansuDropMenu) {
+    nhansuDropTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = nhansuDropMenu.style.display === "block";
+      nhansuDropMenu.style.display = isVisible ? "none" : "block";
+      if (nhansuDropArrow) nhansuDropArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+    });
+
+    document.addEventListener("click", () => {
+      nhansuDropMenu.style.display = "none";
+      if (nhansuDropArrow) nhansuDropArrow.style.transform = "rotate(0deg)";
+    });
+  }
+
+  // Date Spinner Prev / Next click
+  const nhansuPrevBtn = document.getElementById("nhansu-date-prev-btn");
+  if (nhansuPrevBtn) {
+    nhansuPrevBtn.addEventListener("click", () => {
+      const items = Array.from(nhansuDropMenu.children);
+      const activeIdx = items.findIndex(item => item.dataset.value === nhansuSelectedDate);
+      if (activeIdx !== -1 && activeIdx < items.length - 1) {
+        const nextItem = items[activeIdx + 1];
+        nhansuSelectedDate = nextItem.dataset.value;
+        syncNhansuCustomDropdown();
+        renderNhansuDashboard();
+      }
+    });
+  }
+
+  const nhansuNextBtn = document.getElementById("nhansu-date-next-btn");
+  if (nhansuNextBtn) {
+    nhansuNextBtn.addEventListener("click", () => {
+      const items = Array.from(nhansuDropMenu.children);
+      const activeIdx = items.findIndex(item => item.dataset.value === nhansuSelectedDate);
+      if (activeIdx !== -1 && activeIdx > 0) {
+        const prevItem = items[activeIdx - 1];
+        nhansuSelectedDate = prevItem.dataset.value;
+        syncNhansuCustomDropdown();
+        renderNhansuDashboard();
+      }
+    });
+  }
+
+  // Custom date inputs event listeners
+  const startInput = document.getElementById("nhansu-custom-start-date");
+  const endInput = document.getElementById("nhansu-custom-end-date");
+  if (startInput && endInput) {
+    startInput.addEventListener("change", () => {
+      nhansuCustomStartDate = startInput.value;
+      renderNhansuDashboard();
+    });
+    endInput.addEventListener("change", () => {
+      nhansuCustomEndDate = endInput.value;
+      renderNhansuDashboard();
+    });
+  }
 
   // Listeners bộ lọc nhà máy
   document.querySelectorAll(".nhansu-factory-btn").forEach(btn => {
@@ -5690,7 +6117,11 @@ async function initNhansuDashboard() {
       renderNhansuDashboard();
     });
   }
+
+  populateNhansuDateSelector();
+  renderNhansuDashboard();
 }
+
 
 // Listener nút phụ "Báo cáo Nhân sự" trong header Sale + nút Quay lại Sale
 document.addEventListener("DOMContentLoaded", () => {

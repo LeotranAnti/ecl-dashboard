@@ -29,7 +29,7 @@
         <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <button class="section-title-btn active" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📋 Tổng quan hoạt động</button>
-            <button id="sale-to-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Nhân sự</button>
+            <button id="sale-to-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Hoạt động</button>
           </div>
           <!-- Factory Navigation Tabs directly under title -->
           <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
@@ -1235,7 +1235,7 @@
             <button id="nhansu-back-btn" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;">&#8592; Quay lại Sale</button>
             <div style="display: flex; align-items: center; gap: 8px;">
               <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 10px #a78bfa;"></div>
-              <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Nhân Sự</h1>
+              <h1 id="nhansu-title-h1" style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Hoạt Động</h1>
             </div>
           </div>
           <!-- Factory tabs -->
@@ -1243,15 +1243,58 @@
             <button class="nhansu-factory-btn active" data-factory="All" style="font-size: 11px; padding: 4px 12px; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.3); border-radius: 4px; color: #a78bfa; cursor: pointer; font-weight: bold; transition: all 0.2s; outline: none;">Tất cả</button>
             <button class="nhansu-factory-btn" data-factory="Pegatron" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Pegatron</button>
             <button class="nhansu-factory-btn" data-factory="Brother" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Brother</button>
-            <button class="nhansu-factory-btn" data-factory="LG" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">LG</button>
-            <button class="nhansu-factory-btn" data-factory="Usi" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Usi</button>
-            <button class="nhansu-factory-btn" data-factory="Fox QN" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Fox QN</button>
+            <button class="nhansu-factory-btn" data-factory="Wistron" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Wistron</button>
           </div>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <select id="nhansu-recruiter-select" style="font-size:12px;padding:6px 12px;background:#131722;border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
             <option value="All">-- Tất cả nhân sự --</option>
           </select>
+          
+          <!-- Time filter controls like Sale Tab -->
+          <div class="custom-dropdown" style="position: relative; display: inline-block;">
+            <div id="nhansu-view-mode-trigger" style="font-size: 12px; padding: 6px 16px; height: 30px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; font-weight: bold; box-sizing: border-box;">
+              <span id="nhansu-view-mode-label">Ngày</span>
+              <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="nhansu-view-mode-arrow">▼</span>
+            </div>
+            <div id="nhansu-view-mode-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 120px; z-index: 1000; padding: 4px 0;">
+              <div class="nhansu-view-mode-item active-dropdown-item" data-value="day" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: #a78bfa; font-weight: bold; background: rgba(167, 139, 250, 0.15); transition: background 0.2s;">Ngày</div>
+              <div class="nhansu-view-mode-item" data-value="week" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tuần</div>
+              <div class="nhansu-view-mode-item" data-value="month" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tháng</div>
+              <div class="nhansu-view-mode-item" data-value="custom" style="padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.2s;">Tùy chỉnh</div>
+            </div>
+          </div>
+          
+          <div class="date-spinner-container" style="display: flex; gap: 4px; align-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
+            <button id="nhansu-date-prev-btn" class="spinner-btn" title="Kỳ trước" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">◀</button>
+            <div class="custom-dropdown" style="position: relative; display: inline-block;">
+              <div id="nhansu-dropdown-trigger" style="font-size: 12px; padding: 4px 8px; min-width: 160px; background: transparent; border: none; color: var(--text-primary); cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;">
+                <span id="nhansu-dropdown-label">Đang tải...</span>
+                <span style="font-size: 8px; color: var(--text-muted); transition: transform 0.2s;" id="nhansu-dropdown-arrow">▼</span>
+              </div>
+              <div id="nhansu-dropdown-menu" style="display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; background: #131722; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); min-width: 180px; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 4px 0;">
+                <!-- Dynamic options -->
+              </div>
+            </div>
+            <button id="nhansu-date-next-btn" class="spinner-btn" title="Kỳ sau" style="background: transparent; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-weight: bold; transition: all 0.2s; outline: none; font-size: 11px;">▶</button>
+          </div>
+          
+          <div id="nhansu-custom-date-container" style="display: none; gap: 8px; align-items: center;">
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="nhansu-custom-start-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
+            </div>
+            <span style="color: var(--text-muted); font-size: 12px;">đến</span>
+            <div class="custom-date-wrapper" style="position: relative; display: flex; align-items: center;">
+              <input type="date" id="nhansu-custom-end-date" class="date-select" style="padding-right: 32px !important;">
+              <svg class="custom-calendar-icon" viewBox="0 0 24 24" width="16" height="16" style="position: absolute; right: 10px; pointer-events: none;">
+                <path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+              </svg>
+            </div>
+          </div>
+          
           <div style="font-size:11px; color:var(--text-muted);" id="nhansu-sync-status">Đang tải...</div>
         </div>
       </header>
