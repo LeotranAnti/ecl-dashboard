@@ -4752,11 +4752,40 @@ function parseMktDate(dateStr) {
 }
 
 function renderMarketingDashboard() {
-  if (!mktRawData || mktRawData.length === 0) return;
-
   const tabsContainer = document.getElementById('mkt-factory-nav-tabs');
   const activeTab = tabsContainer ? tabsContainer.querySelector('.factory-tab-btn.active') : null;
   const colIdxAttr = activeTab ? activeTab.dataset.colIdx : 'all';
+
+  // Hộp debug hiển thị thông tin trực quan ở đầu hàm
+  const mktDebugDiv = document.getElementById('mkt-debug-info') || document.createElement('div');
+  mktDebugDiv.id = 'mkt-debug-info';
+  mktDebugDiv.style.cssText = 'background:rgba(239,68,68,0.1); border:1px dashed #ef4444; padding:10px; margin-bottom:15px; border-radius:6px; font-size:11px; color:#f87171; font-family:monospace; line-height:1.4;';
+  
+  const mktDateSelectEl = document.getElementById("mkt-date-select");
+  const currentSelVal = mktDateSelectEl ? mktDateSelectEl.value : "N/A";
+  const mktViewModeEl = document.getElementById("mkt-view-mode");
+  const currentMode = mktViewModeEl ? mktViewModeEl.value : "N/A";
+  const rawLength = mktRawData ? mktRawData.length : 0;
+  
+  mktDebugDiv.innerHTML = `
+    <strong>[DEBUG MARKETING]</strong><br/>
+    - Raw CSV Rows: ${rawLength}<br/>
+    - Selected Mode: ${currentMode}<br/>
+    - Selected Date Value: "${currentSelVal}"<br/>
+    - Active Tab Factory Col Idx: ${colIdxAttr}
+  `;
+  
+  const containerSection = document.getElementById('section-marketing');
+  if (containerSection && !document.getElementById('mkt-debug-info')) {
+    containerSection.insertBefore(mktDebugDiv, containerSection.firstChild);
+  } else if (document.getElementById('mkt-debug-info')) {
+    document.getElementById('mkt-debug-info').innerHTML = mktDebugDiv.innerHTML;
+  }
+
+  if (!mktRawData || mktRawData.length === 0) {
+    mktDebugDiv.innerHTML += `<br/><span style="color:#f43f5e; font-weight:bold;">[ERROR] Dữ liệu mktRawData rỗng hoặc chưa nạp!</span>`;
+    return;
+  }
 
   // Xác định dòng 8 (headerRow) để lấy tên nhà máy của từng cột
   let headerRowIndex = -1;
@@ -4769,38 +4798,55 @@ function renderMarketingDashboard() {
   }
 
   if (headerRowIndex === -1) {
+    mktDebugDiv.innerHTML += `<br/><span style="color:#f43f5e; font-weight:bold;">[ERROR] Không tìm thấy dòng tiêu đề chứa chữ 'Ngày'!</span>`;
     console.error("Không tìm thấy dòng tiêu đề 'Ngày' trong dữ liệu Marketing");
     return;
   }
 
   const headerRow = mktRawData[headerRowIndex];
+  
+  // Tích lũy các ngày
+  const marketingDays = {};
+  let currentDisplayDate = "";
+  let currentStdDate = "";
+  // Tìm index bắt đầu dữ liệu
+  const startIndex = headerRowIndex + 1;
+  for (let i = startIndex; i < mktRawData.length; i++) {
+    const row = mktRawData[i];
+    if (!row) continue;
+    const cell0 = row[0] ? row[0].trim() : "";
+    if (cell0 && cell0.includes("/")) {
+      currentDisplayDate = cell0;
+      currentStdDate = parseMktDate(currentDisplayDate);
+    }
+    if (!currentStdDate) continue;
+    const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
+    const isCost = (typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost")) && !typeLabel.includes("tổng");
+    const isLead = (typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan")) && !typeLabel.includes("tổng");
+    if (!isCost && !isLead) continue;
 
-  // Hộp debug hiển thị thông tin trực quan
-  const mktDebugDiv = document.getElementById('mkt-debug-info') || document.createElement('div');
-  mktDebugDiv.id = 'mkt-debug-info';
-  mktDebugDiv.style.cssText = 'background:rgba(239,68,68,0.1); border:1px dashed #ef4444; padding:10px; margin-bottom:15px; border-radius:6px; font-size:11px; color:#f87171; font-family:monospace; line-height:1.4;';
-  
-  const mktDateSelectEl = document.getElementById("mkt-date-select");
-  const currentSelVal = mktDateSelectEl ? mktDateSelectEl.value : "N/A";
-  const mktViewModeEl = document.getElementById("mkt-view-mode");
-  const currentMode = mktViewModeEl ? mktViewModeEl.value : "N/A";
-  
-  mktDebugDiv.innerHTML = `
-    <strong>[DEBUG MARKETING]</strong><br/>
-    - Raw CSV Rows: ${mktRawData.length}<br/>
-    - Header Row Index: ${headerRowIndex}<br/>
-    - Selected Mode: ${currentMode}<br/>
-    - Selected Date Value: "${currentSelVal}"<br/>
-    - Total Parsed Days in CSV: ${Object.keys(marketingDays || {}).length}<br/>
-    - First 3 Parsed Days: ${Object.keys(marketingDays || {}).slice(0, 3).join(', ')}<br/>
-    - Active Tab Factory Col Idx: ${colIdxAttr}
-  `;
-  const containerSection = document.getElementById('section-marketing');
-  if (containerSection && !document.getElementById('mkt-debug-info')) {
-    containerSection.insertBefore(mktDebugDiv, containerSection.firstChild);
-  } else if (document.getElementById('mkt-debug-info')) {
-    document.getElementById('mkt-debug-info').innerHTML = mktDebugDiv.innerHTML;
+    if (!marketingDays[currentStdDate]) {
+      marketingDays[currentStdDate] = { date: currentStdDate, displayDate: currentDisplayDate, factories: {} };
+    }
+    for (let c = 2; c < row.length; c++) {
+      const fName = getMappedFactoryName(headerRow[c]);
+      if (!fName) continue;
+      if (!marketingDays[currentStdDate].factories[fName]) {
+        marketingDays[currentStdDate].factories[fName] = { spent: 0, leads: 0 };
+      }
+      const val = cleanNumber(row[c]);
+      if (isCost) {
+        marketingDays[currentStdDate].factories[fName].spent = val;
+      } else if (isLead) {
+        marketingDays[currentStdDate].factories[fName].leads = val;
+      }
+    }
   }
+
+  mktDebugDiv.innerHTML += `
+    <br/>- Total Parsed Days in CSV: ${Object.keys(marketingDays).length}
+    <br/>- First 3 Parsed Days: ${Object.keys(marketingDays).slice(0, 3).join(', ')}
+  `;
 
   // Map từ vị trí cột (index) sang Tên nhà máy trong báo cáo Sale
   const getMappedFactoryName = (name) => {
@@ -4815,54 +4861,7 @@ function renderMarketingDashboard() {
     return "";
   };
 
-  // Lọc dữ liệu marketing (Ô 1 & Ô 2)
-  // Bỏ qua 7 dòng đầu tiên (hoặc bắt đầu từ dòng ngay sau dòng tiêu đề "Ngày")
-  const startIndex = headerRowIndex + 1;
-  const marketingDays = {};
 
-  let currentDisplayDate = "";
-  let currentStdDate = "";
-
-  for (let i = startIndex; i < mktRawData.length; i++) {
-    const row = mktRawData[i];
-    if (!row) continue;
-
-    // Nếu dòng có điền ngày ở cột 0, cập nhật ngày đang xử lý
-    const cell0 = row[0] ? row[0].trim() : "";
-    if (cell0 && cell0.includes("/")) {
-      currentDisplayDate = cell0;
-      currentStdDate = parseMktDate(currentDisplayDate);
-    }
-
-    // Nếu chưa xác định được ngày thì bỏ qua
-    if (!currentStdDate) continue;
-
-    const typeLabel = row[1] ? row[1].trim().toLowerCase() : "";
-    const isCost = (typeLabel.includes("chi phí") || typeLabel.includes("spent") || typeLabel.includes("cost")) && !typeLabel.includes("tổng");
-    const isLead = (typeLabel.includes("lead") || typeLabel.includes("tin nhắn") || typeLabel.includes("tin nhan")) && !typeLabel.includes("tổng");
-    if (!isCost && !isLead) continue;
-
-    if (!marketingDays[currentStdDate]) {
-      marketingDays[currentStdDate] = { date: currentStdDate, displayDate: currentDisplayDate, factories: {} };
-    }
-
-    // Duyệt qua các cột từ cột 2 trở đi để lấy giá trị cho từng nhà máy
-    for (let c = 2; c < row.length; c++) {
-      const fName = getMappedFactoryName(headerRow[c]);
-      if (!fName) continue;
-
-      if (!marketingDays[currentStdDate].factories[fName]) {
-        marketingDays[currentStdDate].factories[fName] = { spent: 0, leads: 0 };
-      }
-
-      const val = cleanNumber(row[c]);
-      if (isCost) {
-        marketingDays[currentStdDate].factories[fName].spent = val;
-      } else if (isLead) {
-        marketingDays[currentStdDate].factories[fName].leads = val;
-      }
-    }
-  }
 
   // Tích hợp dữ liệu từ báo cáo Sale (Ô 3 đến Ô 6)
   // Duyệt qua tất cả các ứng viên từ state.candidates (dữ liệu đã được gộp/lọc theo nhà máy đang chọn ở Sale)
