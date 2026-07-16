@@ -3206,6 +3206,50 @@ function getCandidatesForType(type, customDates = null) {
     return list;
   }
 
+  if (type === "nsTelesale") {
+    if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
+      const factory = state.nhansuSelectedFactory || "All";
+      const selectedRecruiter = state.nhansuSelectedRecruiter || "All";
+      for (let i = 1; i < nhansuTelesaleData.length; i++) {
+        const row = nhansuTelesaleData[i];
+        if (row.length < 13) continue;
+
+        const dateGiao = normalizeDate(row[4]); // Ngày giao việc
+        const rowRecruiter = cleanRecruiter(row[11] || "");
+        const rowFactory = row[12] ? row[12].trim() : "Pegatron";
+
+        if (dateGiao && dates.includes(dateGiao)) {
+          if (factory !== "All" && rowFactory !== factory) continue;
+          if (selectedRecruiter !== "All" && rowRecruiter !== selectedRecruiter) continue;
+
+          const phone = row[2] ? row[2].trim() : "";
+          const name = row[1] ? row[1].trim() : "";
+          const cccd = row[3] ? row[3].trim() : "";
+          const status = row[8] ? row[8].trim() : "Chưa phản hồi";
+
+          list.push({
+            name,
+            factory: rowFactory,
+            phone,
+            cccd,
+            recruiter: rowRecruiter || "Chưa rõ",
+            status,
+            dateInfo: `Giao việc: ${row[4]}`,
+            rawDate: dateGiao
+          });
+        }
+      }
+    }
+    // Sắp xếp giảm dần theo ngày
+    list.sort((a, b) => {
+      if (!a.rawDate) return 1;
+      if (!b.rawDate) return -1;
+      return b.rawDate.localeCompare(a.rawDate);
+    });
+    console.log(`[getCandidatesForType] Found ${list.length} candidates for type="nsTelesale"`);
+    return list;
+  }
+
   const seenKeys = new Set();
   const seenActiveKeys = new Set();
   for (let i = 1; i < state.candidates.length; i++) {
