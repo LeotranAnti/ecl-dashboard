@@ -537,8 +537,7 @@ function processData(candidatesRows, recruitmentsRows, rowColors = {}, candidate
       }
     }
 
-    const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(status);
-    if (hist.careDates && !isDoneOrCancelledStatus) {
+    if (hist.careDates) {
       hist.careDates.forEach(cDate => {
         ensureDateObject(cDate);
 
@@ -3479,8 +3478,7 @@ function getCandidatesForType(type, customDates = null) {
       return state.warningList || [];
     } else if (type === "allCallback") {
       const historyItem = state.candidateHistory[candKey];
-      const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(statusClean);
-      if (historyItem && historyItem.careDates && !isDoneOrCancelledStatus) {
+      if (historyItem && historyItem.careDates) {
         historyItem.careDates.forEach(cDate => {
           if (dates.includes(cDate)) {
             // Không phân biệt đã chăm sóc hay chưa, lấy tất cả
@@ -3503,9 +3501,7 @@ function getCandidatesForType(type, customDates = null) {
       }
     } else if (type === "unprocessedCallback") {
       const historyItem = state.candidateHistory[candKey];
-      // Loại bỏ các ứng viên có trạng thái kết thúc (KĐL, KNM, Bùng PV, Từ chối, Ko đạt, Đã nhận việc...)
-      const isDoneOrCancelledStatus = ["kđl", "knm", "kdl", "bùng pv", "từ chối", "ko đạt", "đã nhận việc"].includes(statusClean);
-      if (historyItem && historyItem.careDates && !isDoneOrCancelledStatus) {
+      if (historyItem && historyItem.careDates) {
         historyItem.careDates.forEach(cDate => {
           if (dates.includes(cDate)) {
             if (careDate !== cDate) {
