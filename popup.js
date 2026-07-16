@@ -663,7 +663,7 @@ async function syncData() {
       Wistron: { candidates: "159609333", recruitments: "1084935408" }
     };
     
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
+    const factories = ["Pegatron", "Brother", "Wistron"];
     const fetchPromises = [];
     
     factories.forEach(f => {
@@ -672,18 +672,76 @@ async function syncData() {
       
       // Kiểm tra môi trường để bypass CORS nếu chạy trên Web thường (Vercel)
       const isChromeExt = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
-      if (!isChromeExt) {
-        candUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(candUrl)}`;
-        recUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(recUrl)}`;
-      }
+      
+      const fetchTextWithFallback = async (originalUrl) => {
+        if (isChromeExt) {
+          const resp = await fetchWithTimeout(originalUrl);
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          return await resp.text();
+        }
+
+        // 1. Thử Proxy 1 (Codetabs)
+        try {
+          const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
+          const resp = await fetchWithTimeout(proxy1);
+          if (resp.ok) {
+            const txt = await resp.text();
+            if (txt && !txt.includes("error code:")) return txt;
+          }
+        } catch (e) {
+          console.warn("Proxy 1 (codetabs) failed, trying proxy 2...", e);
+        }
+
+        // 2. Thử Proxy 2 (AllOrigins)
+        try {
+          const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(originalUrl)}`;
+          const resp2 = await fetchWithTimeout(proxy2);
+          if (resp2.ok) {
+            const data = await resp2.json();
+            if (data && data.contents) return data.contents;
+          }
+        } catch (e) {
+          console.warn("Proxy 2 (allorigins) failed, trying proxy 3...", e);
+        }
+
+        // 3. Thử Proxy 3 (Cors.sh hoặc AllOrigins Cloudflare bypass)
+        const proxy3 = `https://api.allorigins.win/get?url=${encodeURIComponent(originalUrl)}&ts=${Date.now()}`;
+        const resp3 = await fetchWithTimeout(proxy3);
+        if (!resp3.ok) throw new Error("All proxies failed.");
+        const data3 = await resp3.json();
+        return data3.contents;
+      };
 
       fetchPromises.push(
-        fetchWithTimeout(candUrl).then(r => r.text()).then(t => ({ factory: f, type: 'candidates', text: t })),
-        fetchWithTimeout(recUrl).then(r => r.text()).then(t => ({ factory: f, type: 'recruitments', text: t }))
+        fetchTextWithFallback(candUrl)
+          .then(t => ({ factory: f, type: 'candidates', text: t, success: true }))
+          .catch(err => {
+            console.error(`Error fetching candidates for ${f}:`, err);
+            // Fallback to memory or empty if no cache
+            const cachedVal = localStorage.getItem(`${f}_candidatesCSV`) || "";
+            return { factory: f, type: 'candidates', text: cachedVal, success: false };
+          }),
+        fetchTextWithFallback(recUrl)
+          .then(t => ({ factory: f, type: 'recruitments', text: t, success: true }))
+          .catch(err => {
+            console.error(`Error fetching recruitments for ${f}:`, err);
+            const cachedVal = localStorage.getItem(`${f}_recruitmentsCSV`) || "";
+            return { factory: f, type: 'recruitments', text: cachedVal, success: false };
+          })
       );
     });
     
     const results = await Promise.all(fetchPromises);
+    
+    // Check which factories failed
+    const failedFactoriesSet = new Set();
+    results.forEach(r => {
+      if (!r.success) {
+        failedFactoriesSet.add(r.factory);
+      }
+    });
+    const failedFactoriesList = Array.from(failedFactoriesSet);
+    const hasAnyFailure = failedFactoriesList.length > 0;
     
     // Parse and store raw data in state.factoryData
     results.forEach(res => {
@@ -706,8 +764,13 @@ async function syncData() {
     
     state.lastSync = new Date();
     const timeStr = state.lastSync.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    syncStatus.textContent = `Đã đồng bộ lúc ${timeStr}`;
-    syncStatus.className = "sync-status text-muted";
+    if (hasAnyFailure) {
+      syncStatus.textContent = `Đã đồng bộ lúc ${timeStr} (Lỗi tải: ${failedFactoriesList.join(", ")})`;
+      syncStatus.className = "sync-status text-amber";
+    } else {
+      syncStatus.textContent = `Đã đồng bộ lúc ${timeStr}`;
+      syncStatus.className = "sync-status text-muted";
+    }
     resetCountdown();
   } catch (err) {
     console.error("Sync error:", err);
@@ -729,7 +792,7 @@ function applyFactoryFilter() {
   
   if (selectedFactory === "All") {
     // Merge all candidates sheets (keep only first sheet header, skip others)
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
+    const factories = ["Pegatron", "Brother", "Wistron"];
     factories.forEach((f, fIdx) => {
       const cand = state.factoryData[f].candidates || [];
       const rec = state.factoryData[f].recruitments || [];
@@ -2574,7 +2637,7 @@ function loadCache() {
       state.candidateHistory = {};
     }
     
-    const factories = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
+    const factories = ["Pegatron", "Brother", "Wistron"];
     let hasAllCache = true;
     
     factories.forEach(f => {
