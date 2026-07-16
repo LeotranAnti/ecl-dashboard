@@ -1,3 +1,18 @@
+// Bắt lỗi Runtime để debug trực tiếp trên giao diện
+window.onerror = function(message, source, lineno, colno, error) {
+  const errDiv = document.getElementById('global-js-error-panel') || document.createElement('div');
+  errDiv.id = 'global-js-error-panel';
+  errDiv.style.cssText = 'position:fixed; top:10px; right:10px; background:rgba(239,68,68,0.95); color:white; border:2px solid #f87171; padding:15px; border-radius:8px; z-index:99999; font-family:monospace; font-size:12px; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.5); line-height:1.4; pointer-events:auto;';
+  errDiv.innerHTML = `
+    <div style="font-weight:bold; margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:5px;">⚠️ RUNTIME ERROR</div>
+    - Msg: ${message}<br/>
+    - File: ${source ? source.substring(source.lastIndexOf('/')+1) : 'unknown'}<br/>
+    - Line: ${lineno}:${colno}
+  `;
+  document.body.appendChild(errDiv);
+  return false;
+};
+
 // Google Spreadsheet Export URLs
 // Khi chạy trên localhost (qua server.py), dùng proxy cục bộ để tránh lỗi CORS
 // Khi chạy trong Chrome Extension, gọi trực tiếp Google Sheets
@@ -6012,7 +6027,7 @@ function renderNhansuDashboard() {
     setEl("ns-data-count", cnt);
   }
 
-  // Lịch hẹn dự kiến (Ô 4) - Áp dụng đúng công thức của báo cáo Marketing trên dữ liệu state.candidates
+  // Lịch hẹn dự kiến (Ô 4) - Áp dụng công thức của báo cáo Marketing trên dữ liệu state.candidates (Tính tất cả các nguồn)
   if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
     let cnt = 0; 
     const seen = new Set();
