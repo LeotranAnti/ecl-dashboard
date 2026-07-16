@@ -20,6 +20,7 @@
       <button class="main-tab-btn active" data-section="sale">📊 Báo cáo Sale</button>
       <button class="main-tab-btn" data-section="marketing">🔒 Báo cáo Marketing</button>
       <button class="main-tab-btn" data-section="finance">🔒 Báo cáo Tài chính</button>
+      <button class="main-tab-btn" data-section="nhansu" style="display:none;">🔒 Báo cáo Nhân sự</button>
     </div>
 
     <!-- SECTION 1: SALE REPORT (Original Dashboard) -->
@@ -29,7 +30,7 @@
         <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <button class="section-title-btn active" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📋 Tổng quan hoạt động</button>
-            <button class="section-title-btn" onclick="window.open('https://docs.google.com/spreadsheets', '_blank')" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Nhân sự</button>
+            <button id="sale-to-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Nhân sự</button>
           </div>
           <!-- Factory Navigation Tabs directly under title -->
           <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
@@ -1225,6 +1226,102 @@
       </div>
     </div>
 
-    <script src="popup.js?v=3.1"></script>
+    <!-- SECTION 4: NHANSU REPORT -->
+    <div id="section-nhansu" class="main-section" style="display: none;">
+      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 10px #a78bfa;"></div>
+            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Nhân Sự</h1>
+          </div>
+          <!-- Factory tabs -->
+          <div id="nhansu-factory-tabs" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+            <button class="nhansu-factory-btn active" data-factory="All" style="font-size: 11px; padding: 4px 12px; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.3); border-radius: 4px; color: #a78bfa; cursor: pointer; font-weight: bold; transition: all 0.2s; outline: none;">Tất cả</button>
+            <button class="nhansu-factory-btn" data-factory="Pegatron" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Pegatron</button>
+            <button class="nhansu-factory-btn" data-factory="Brother" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Brother</button>
+            <button class="nhansu-factory-btn" data-factory="LG" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">LG</button>
+            <button class="nhansu-factory-btn" data-factory="Usi" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Usi</button>
+            <button class="nhansu-factory-btn" data-factory="Fox QN" style="font-size: 11px; padding: 4px 12px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; outline: none;">Fox QN</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="nhansu-recruiter-select" style="font-size:12px;padding:6px 12px;background:#131722;border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);outline:none;cursor:pointer;">
+            <option value="All">-- Tất cả nhân sự --</option>
+          </select>
+          <div style="font-size:11px; color:var(--text-muted);" id="nhansu-sync-status">Đang tải...</div>
+        </div>
+      </header>
+
+      <!-- KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px;">
+        <!-- Telesale -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); border-radius: 12px; cursor: pointer;" id="ns-kpi-telesale">
+          <div style="font-size:11px; color:#a78bfa; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">📞 Telesale</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;" id="ns-telesale-count">--</div>
+          <div style="font-size:11px; color:var(--text-muted);" id="ns-telesale-status">Đang tải...</div>
+        </div>
+        <!-- Chuyển nhà máy -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px;" id="ns-kpi-chuyen">
+          <div style="font-size:11px; color:#10b981; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">🏭 Chuyển nhà máy</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;" id="ns-chuyen-count">--</div>
+          <div style="font-size:11px; color:var(--text-muted);">Số hồ sơ chuyển NM</div>
+        </div>
+        <!-- Seeding -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); border-radius: 12px;">
+          <div style="font-size:11px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">🌱 Seeding</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;">--</div>
+          <div style="font-size:11px; color:var(--text-muted); font-style:italic;">Chờ nguồn dữ liệu</div>
+        </div>
+        <!-- Xử lý data -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px;" id="ns-kpi-data">
+          <div style="font-size:11px; color:#3b82f6; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">⚙️ Xử lý data</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;" id="ns-data-count">--</div>
+          <div style="font-size:11px; color:var(--text-muted);">Data đã xử lý hôm nay</div>
+        </div>
+        <!-- Trực page -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.2); border-radius: 12px;">
+          <div style="font-size:11px; color:#f43f5e; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">📱 Trực page</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;">--</div>
+          <div style="font-size:11px; color:var(--text-muted); font-style:italic;">Chờ nguồn dữ liệu</div>
+        </div>
+        <!-- Lịch hẹn dự kiến -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.2); border-radius: 12px;" id="ns-kpi-lichhendukien">
+          <div style="font-size:11px; color:#0ea5e9; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">📅 Lịch hẹn dự kiến</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;" id="ns-lichhendukien-count">--</div>
+          <div style="font-size:11px; color:var(--text-muted);">Theo báo cáo MKT</div>
+        </div>
+        <!-- Lịch xác nhận PV -->
+        <div class="kpi-card" style="padding: 18px; background: rgba(236,72,153,0.08); border: 1px solid rgba(236,72,153,0.2); border-radius: 12px;" id="ns-kpi-pv">
+          <div style="font-size:11px; color:#ec4899; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">✅ Lịch xác nhận PV</div>
+          <div style="font-size:28px; font-weight:800; color:#fff; margin: 8px 0;" id="ns-pv-count">--</div>
+          <div style="font-size:11px; color:var(--text-muted);">Hẹn PV từ báo cáo Sale</div>
+        </div>
+      </div>
+
+      <!-- Table Telesale -->
+      <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+        <div style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px;">📋 Chi tiết Telesale</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Họ tên</th>
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">SĐT</th>
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Nhà máy</th>
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Nhân sự</th>
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Tình trạng</th>
+                <th style="padding:8px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Ngày giao</th>
+              </tr>
+            </thead>
+            <tbody id="ns-telesale-tbody">
+              <tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted);">Đang tải dữ liệu...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- END SECTION 4: NHANSU REPORT -->
+
+    <script src="popup.js?v=3.2"></script>
 </body>
 </html>
