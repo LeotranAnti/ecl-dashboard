@@ -4731,34 +4731,7 @@ function renderMarketingDashboard() {
   const activeTab = tabsContainer ? tabsContainer.querySelector('.factory-tab-btn.active') : null;
   const colIdxAttr = activeTab ? activeTab.dataset.colIdx : 'all';
 
-  // Hộp debug hiển thị thông tin trực quan ở đầu hàm
-  const mktDebugDiv = document.getElementById('mkt-debug-info') || document.createElement('div');
-  mktDebugDiv.id = 'mkt-debug-info';
-  mktDebugDiv.style.cssText = 'background:rgba(239,68,68,0.1); border:1px dashed #ef4444; padding:10px; margin-bottom:15px; border-radius:6px; font-size:11px; color:#f87171; font-family:monospace; line-height:1.4;';
-  
-  const mktDateSelectEl = document.getElementById("mkt-date-select");
-  const currentSelVal = mktDateSelectEl ? mktDateSelectEl.value : "N/A";
-  const mktViewModeEl = document.getElementById("mkt-view-mode");
-  const currentMode = mktViewModeEl ? mktViewModeEl.value : "N/A";
-  const rawLength = mktRawData ? mktRawData.length : 0;
-  
-  mktDebugDiv.innerHTML = `
-    <strong>[DEBUG MARKETING]</strong><br/>
-    - Raw CSV Rows: ${rawLength}<br/>
-    - Selected Mode: ${currentMode}<br/>
-    - Selected Date Value: "${currentSelVal}"<br/>
-    - Active Tab Factory Col Idx: ${colIdxAttr}
-  `;
-  
-  const containerSection = document.getElementById('section-marketing');
-  if (containerSection && !document.getElementById('mkt-debug-info')) {
-    containerSection.insertBefore(mktDebugDiv, containerSection.firstChild);
-  } else if (document.getElementById('mkt-debug-info')) {
-    document.getElementById('mkt-debug-info').innerHTML = mktDebugDiv.innerHTML;
-  }
-
   if (!mktRawData || mktRawData.length === 0) {
-    mktDebugDiv.innerHTML += `<br/><span style="color:#f43f5e; font-weight:bold;">[ERROR] Dữ liệu mktRawData rỗng hoặc chưa nạp!</span>`;
     return;
   }
 
@@ -4773,7 +4746,6 @@ function renderMarketingDashboard() {
   }
 
   if (headerRowIndex === -1) {
-    mktDebugDiv.innerHTML += `<br/><span style="color:#f43f5e; font-weight:bold;">[ERROR] Không tìm thấy dòng tiêu đề chứa chữ 'Ngày'!</span>`;
     console.error("Không tìm thấy dòng tiêu đề 'Ngày' trong dữ liệu Marketing");
     return;
   }
@@ -4831,11 +4803,6 @@ function renderMarketingDashboard() {
     }
   }
 
-  mktDebugDiv.innerHTML += `
-    <br/>- Total Parsed Days in CSV: ${Object.keys(marketingDays).length}
-    <br/>- First 3 Parsed Days: ${Object.keys(marketingDays).slice(0, 3).join(', ')}
-  `;
-
 
 
   // Tích hợp dữ liệu từ báo cáo Sale (Ô 3 đến Ô 6)
@@ -4843,7 +4810,7 @@ function renderMarketingDashboard() {
   const candidatesData = state.candidates || [];
   const factoriesList = ["Pegatron", "Brother", "LG", "Usi", "Fox QN", "Wistron"];
 
-  // Hàm kiểm tra ứng viên có thỏa mãn điều kiện Ô 4: Có CCCD hoặc có lịch hẹn PV
+  // Hàm kiểm tra ứng viên có thỏa mãn điều kiện Ô 4: Có CCCD hoặc có lịch hẹn PV hoặc Nhận việc thành công
   const checkHasAppointment = (row) => {
     const cccd = row[3] ? row[3].trim() : "";
     const apptDate = row[12] ? row[12].trim() : "";
@@ -4851,8 +4818,9 @@ function renderMarketingDashboard() {
     // CCCD hợp lệ khi không rỗng và khác giá trị "0"
     const hasValidCCCD = cccd.length > 0 && cccd !== "0";
     const hasValidAppt = apptDate.length > 0;
+    const isHiredSuccess = checkHired(row);
     
-    return (hasValidCCCD || hasValidAppt);
+    return (hasValidCCCD || hasValidAppt || isHiredSuccess);
   };
 
   // Hàm kiểm tra ứng viên thỏa mãn Ô 5: Có lịch hẹn phỏng vấn và tình trạng là Hẹn Phỏng Vấn
@@ -5901,6 +5869,10 @@ function renderNhansuDashboard() {
   const normDate = (s) => {
     if (!s) return "";
     s = s.trim();
+    // Nếu có chứa giờ phút giây (ví dụ: '16/07/2026 14:30:15'), cắt lấy phần ngày
+    if (s.includes(" ")) {
+      s = s.split(" ")[0];
+    }
     // Hỗ trợ dạng d/M (ví dụ 15/7)
     const mDec = s.match(/^(\d{1,2})\/(\d{1,2})$/);
     if (mDec) {
