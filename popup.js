@@ -1506,11 +1506,6 @@ function updateUI() {
 
   // 9. Render History Table
   renderHistoryTable();
-
-  // 10. Auto-sync and render Activity Report (Báo cáo Hoạt động)
-  if (typeof renderNhansuDashboard === "function") {
-    renderNhansuDashboard();
-  }
 }
 
 // Render Weekly Bar Chart (Từ Thứ 2 đến Chủ nhật của tuần hiện tại)
@@ -5624,76 +5619,227 @@ async function fetchNhansuTelesaleData() {
 }
 
 function getNhansuActiveDates() {
-  const viewModeEl = document.getElementById("dashboard-view-mode");
-  const selectedDateEl = document.getElementById("dashboard-date-select");
-  const customStartEl = document.getElementById("custom-start-date");
-  const customEndEl = document.getElementById("custom-end-date");
-  
-  const viewMode = viewModeEl ? viewModeEl.value : "day";
-  const todayObj = new Date();
-  const formatLocalDate = (d) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  if (nhansuViewMode === "custom") {
+    const start = nhansuCustomStartDate;
+    const end = nhansuCustomEndDate;
+    if (!start || !end) return [];
+    const dates = [];
+    let curr = new Date(start);
+    const stop = new Date(end);
+    while (curr <= stop) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, "0");
+      const d = String(curr.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${d}`);
+      curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
+  }
+
+  // Đối với các view mode day, week, month
+  if (!nhansuSelectedDate) {
+    if (state.datesList && state.datesList.length > 0) {
+      return [state.datesList[0]]; // Mặc định ngày mới nhất
+    }
+    return [];
+  }
+
+  if (nhansuViewMode === "day") {
+    return [nhansuSelectedDate];
+  } else if (nhansuViewMode === "week") {
+    const dates = [];
+    const baseDate = new Date(nhansuSelectedDate);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dy = String(d.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${dy}`);
+    }
+    return dates;
+  } else if (nhansuViewMode === "month") {
+    const dates = [];
+    const parts = nhansuSelectedDate.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+    const d = new Date(year, month, 1);
+    while (d.getMonth() === month) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dy = String(d.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${dy}`);
+      d.setDate(d.getDate() + 1);
+    }
+    return dates;
+  }
+
+  return [];
+}
+
+function syncNhansuCustomDropdown() {
+  const labelEl = document.getElementById("nhansu-dropdown-label");
+  const menuEl = document.getElementById("nhansu-dropdown-menu");
+  if (!labelEl || !menuEl) return;
+
+  if (nhansuViewMode === "custom") {
+    labelEl.textContent = "Tùy chỉnh";
+    return;
+  }
+
+  const items = menuEl.querySelectorAll(".nhansu-dropdown-item");
+  let activeText = "";
+  items.forEach(item => {
+    if (item.dataset.value === nhansuSelectedDate) {
+      item.classList.add("active-dropdown-item");
+      item.style.color = "#a78bfa";
+      item.style.fontWeight = "bold";
+      item.style.background = "rgba(167, 139, 250, 0.15)";
+      activeText = item.textContent;
+    } else {
+      item.classList.remove("active-dropdown-item");
+      item.style.color = "var(--text-primary)";
+      item.style.fontWeight = "normal";
+      item.style.background = "transparent";
+    }
+  });
+
+  if (activeText) {
+    labelEl.textContent = activeText;
+  } else {
+    labelEl.textContent = nhansuSelectedDate || "Chọn kỳ...";
+  }
+}
+
+function populateNhansuDateSelector() {
+  const menuEl = document.getElementById("nhansu-dropdown-menu");
+  if (!menuEl || !state.datesList || state.datesList.length === 0) return;
+
+  menuEl.innerHTML = "";
+
+  const formatUIDateLocal = (dStr) => {
+    const parts = dStr.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+    return dStr;
   };
-  const todayStr = formatLocalDate(todayObj);
-  let targetDateStr = (selectedDateEl && selectedDateEl.value) ? selectedDateEl.value : todayStr;
 
-  let startDate = "";
-  let endDate = "";
+  const getWeekRangeLabelLocal = (monStr) => {
+    const d = new Date(monStr);
+    const sun = new Date(d);
+    sun.setDate(d.getDate() + 6);
+    const format = (date) => `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return `Tuần ${format(d)} - ${format(sun)}`;
+  };
 
-  if (viewMode === "day") {
-    startDate = targetDateStr;
-    endDate = targetDateStr;
-  } else if (viewMode === "week") {
-    const parts = targetDateStr.split("-");
-    const targetObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    const day = targetObj.getDay();
-    const distanceToMonday = day === 0 ? -6 : 1 - day;
-    
-    const monday = new Date(targetObj);
-    monday.setDate(targetObj.getDate() + distanceToMonday);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    
-    startDate = formatLocalDate(monday);
-    endDate = formatLocalDate(sunday);
-  } else if (viewMode === "month") {
-    const parts = targetDateStr.split("-");
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]);
-    
-    startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  } else if (viewMode === "custom") {
-    startDate = customStartEl && customStartEl.value ? customStartEl.value : todayStr;
-    endDate = customEndEl && customEndEl.value ? customEndEl.value : todayStr;
-    if (startDate > endDate) {
-      const tmp = startDate;
-      startDate = endDate;
-      endDate = tmp;
+  if (nhansuViewMode === "day") {
+    state.datesList.forEach((date, i) => {
+      const item = document.createElement("div");
+      item.className = "nhansu-dropdown-item";
+      item.dataset.value = date;
+      item.style.padding = "8px 16px";
+      item.style.cursor = "pointer";
+      item.style.fontSize = "12px";
+      item.style.transition = "background 0.2s";
+
+      const label = formatUIDateLocal(date);
+      const todayObj = new Date();
+      const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+      
+      if (date === todayStr) item.textContent = `${label} (Hôm nay)`;
+      else if (i === 0)     item.textContent = `${label} (Mới nhất)`;
+      else                  item.textContent = label;
+
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nhansuSelectedDate = date;
+        menuEl.style.display = "none";
+        const arrow = document.getElementById("nhansu-dropdown-arrow");
+        if (arrow) arrow.style.transform = "rotate(0deg)";
+        syncNhansuCustomDropdown();
+        renderNhansuDashboard();
+      });
+      menuEl.appendChild(item);
+    });
+  } else if (nhansuViewMode === "week") {
+    const seenWeeks = new Set();
+    state.datesList.forEach(date => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d.setDate(diff));
+      const monStr = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+
+      if (!seenWeeks.has(monStr)) {
+        seenWeeks.add(monStr);
+
+        const item = document.createElement("div");
+        item.className = "nhansu-dropdown-item";
+        item.dataset.value = monStr;
+        item.style.padding = "8px 16px";
+        item.style.cursor = "pointer";
+        item.style.fontSize = "12px";
+        item.style.transition = "background 0.2s";
+        item.textContent = getWeekRangeLabelLocal(monStr);
+
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          nhansuSelectedDate = monStr;
+          menuEl.style.display = "none";
+          const arrow = document.getElementById("nhansu-dropdown-arrow");
+          if (arrow) arrow.style.transform = "rotate(0deg)";
+          syncNhansuCustomDropdown();
+          renderNhansuDashboard();
+        });
+        menuEl.appendChild(item);
+      }
+    });
+  } else if (nhansuViewMode === "month") {
+    const seenMonths = new Set();
+    state.datesList.forEach(date => {
+      const parts = date.split("-");
+      const monthStr = `${parts[0]}-${parts[1]}`;
+
+      if (!seenMonths.has(monthStr)) {
+        seenMonths.add(monthStr);
+
+        const item = document.createElement("div");
+        item.className = "nhansu-dropdown-item";
+        item.dataset.value = monthStr;
+        item.style.padding = "8px 16px";
+        item.style.cursor = "pointer";
+        item.style.fontSize = "12px";
+        item.style.transition = "background 0.2s";
+        item.textContent = `Tháng ${parts[1]}/${parts[0]}`;
+
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          nhansuSelectedDate = monthStr;
+          menuEl.style.display = "none";
+          const arrow = document.getElementById("nhansu-dropdown-arrow");
+          if (arrow) arrow.style.transform = "rotate(0deg)";
+          syncNhansuCustomDropdown();
+          renderNhansuDashboard();
+        });
+        menuEl.appendChild(item);
+      }
+    });
+  }
+
+  const options = Array.from(menuEl.children);
+  if (options.length > 0) {
+    const match = options.find(opt => opt.dataset.value === nhansuSelectedDate);
+    if (!match) {
+      nhansuSelectedDate = options[0].dataset.value;
     }
   }
-
-  // Generate array of dates from startDate to endDate
-  if (!startDate || !endDate) return [];
-  const dates = [];
-  let curr = new Date(startDate);
-  const stop = new Date(endDate);
-  while (curr <= stop) {
-    dates.push(formatLocalDate(curr));
-    curr.setDate(curr.getDate() + 1);
-  }
-  return dates;
+  syncNhansuCustomDropdown();
 }
 
 function renderNhansuDashboard() {
   const nsFactory = (typeof state !== "undefined" && state.nhansuSelectedFactory) || "All";
   const nsRecruiter = (typeof state !== "undefined" && state.nhansuSelectedRecruiter) || "All";
   
-  // Lấy dải ngày lọc từ bộ lọc thời gian của Sale
+  // Lấy dải ngày lọc từ bộ lọc thời gian riêng của Nhân sự
   const activeDates = getNhansuActiveDates();
 
   const normDate = (s) => {
@@ -5737,12 +5883,10 @@ function renderNhansuDashboard() {
   // Cập nhật nhãn trạng thái hiển thị kỳ đã chọn
   let dateTextLabel = "Đang lọc...";
   if (activeDates.length > 0) {
-    const viewModeEl = document.getElementById("dashboard-view-mode");
-    const viewMode = viewModeEl ? viewModeEl.value : "day";
-    if (viewMode === "day") {
+    if (nhansuViewMode === "day") {
       const p = activeDates[0].split("-");
       dateTextLabel = `Ngày: ${p[2]}/${p[1]}`;
-    } else if (viewMode === "week") {
+    } else if (nhansuViewMode === "week") {
       const p1 = activeDates[0].split("-");
       const p2 = activeDates[6].split("-");
       dateTextLabel = `Tuần: ${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
@@ -5838,6 +5982,7 @@ function renderNhansuDashboard() {
 
 async function initNhansuDashboard() {
   if (nhansuInitialized && nhansuTelesaleData) {
+    populateNhansuDateSelector();
     renderNhansuDashboard();
     return;
   }
@@ -5847,6 +5992,56 @@ async function initNhansuDashboard() {
   nhansuTelesaleData = await fetchNhansuTelesaleData();
   nhansuInitialized = true;
 
+  // Cấu hình các sự kiện cho bộ lọc thời gian của Báo cáo Hoạt động (Tím #a78bfa)
+  const nhansuVmTrigger = document.getElementById("nhansu-view-mode-trigger");
+  const nhansuVmMenu = document.getElementById("nhansu-view-mode-menu");
+  const nhansuVmArrow = document.getElementById("nhansu-view-mode-arrow");
+
+  if (nhansuVmTrigger && nhansuVmMenu) {
+    nhansuVmTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = nhansuVmMenu.style.display === "block";
+      nhansuVmMenu.style.display = isVisible ? "none" : "block";
+      if (nhansuVmArrow) nhansuVmArrow.style.transform = isVisible ? "rotate(0deg)" : "rotate(180deg)";
+    });
+
+    nhansuVmMenu.querySelectorAll(".nhansu-view-mode-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const val = item.dataset.value;
+        const text = item.textContent;
+
+        const labelEl = document.getElementById("nhansu-view-mode-label");
+        if (labelEl) labelEl.textContent = text;
+
+        nhansuVmMenu.querySelectorAll(".nhansu-view-mode-item").forEach(i => {
+          i.classList.remove("active-dropdown-item");
+          i.style.color = "var(--text-primary)";
+          i.style.fontWeight = "normal";
+          i.style.background = "transparent";
+        });
+        item.classList.add("active-dropdown-item");
+        item.style.color = "#a78bfa";
+        item.style.fontWeight = "bold";
+        item.style.background = "rgba(167, 139, 250, 0.15)";
+
+        nhansuViewMode = val;
+        nhansuVmMenu.style.display = "none";
+        if (nhansuVmArrow) nhansuVmArrow.style.transform = "rotate(0deg)";
+
+        const customDateCont = document.getElementById("nhansu-custom-date-container");
+        const dateSpinnerCont = document.querySelector("#section-nhansu .date-spinner-container");
+
+        if (val === "custom") {
+          if (customDateCont) customDateCont.style.display = "flex";
+          if (dateSpinnerCont) dateSpinnerCont.style.display = "none";
+
+          const startInput = document.getElementById("nhansu-custom-start-date");
+          const endInput = document.getElementById("nhansu-custom-end-date");
+          if (startInput && endInput && state.datesList && state.datesList.length > 0) {
+            if (!startInput.value) startInput.value = state.datesList[state.datesList.length - 1];
+            if (!endInput.value) endInput.value = state.datesList[0];
+            nhansuCustomStartDate = startInput.value;
             nhansuCustomEndDate = endInput.value;
           }
         } else {
