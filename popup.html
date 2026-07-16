@@ -20,7 +20,6 @@
       <button class="main-tab-btn active" data-section="sale">📊 Báo cáo Sale</button>
       <button class="main-tab-btn" data-section="marketing">🔒 Báo cáo Marketing</button>
       <button class="main-tab-btn" data-section="finance">🔒 Báo cáo Tài chính</button>
-      <button class="main-tab-btn" data-section="nhansu" style="display:none;">🔒 Báo cáo Nhân sự</button>
     </div>
 
     <!-- SECTION 1: SALE REPORT (Original Dashboard) -->
@@ -1226,13 +1225,16 @@
       </div>
     </div>
 
-    <!-- SECTION 4: NHANSU REPORT -->
+    <!-- SECTION 4: NHANSU REPORT (sub-tab of Sale) -->
     <div id="section-nhansu" class="main-section" style="display: none;">
       <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
         <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 10px #a78bfa;"></div>
-            <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Nhân Sự</h1>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button id="nhansu-back-btn" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;">&#8592; Quay lại Sale</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 10px #a78bfa;"></div>
+              <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Báo Cáo Nhân Sự</h1>
+            </div>
           </div>
           <!-- Factory tabs -->
           <div id="nhansu-factory-tabs" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">

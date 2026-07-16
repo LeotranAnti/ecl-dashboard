@@ -3031,14 +3031,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const callbackUnprocessedSpan = e.target.closest(".tc-callback-unprocessed");
       const overdueSpan = e.target.closest(".tc-overdue");
       
+      const todayStr = state.endDate || (state.datesList && state.datesList.length > 0 ? state.datesList[0] : "");
       if (confirmedSpan) {
-        openDetailsModal("interviewConfirmed");
+        openDetailsModal("interviewConfirmed", todayStr ? [todayStr] : null);
       } else if (callbackAllSpan) {
-        openDetailsModal("allCallback");
+        openDetailsModal("allCallback", todayStr ? [todayStr] : null);
       } else if (callbackUnprocessedSpan) {
-        openDetailsModal("unprocessedCallback");
+        openDetailsModal("unprocessedCallback", todayStr ? [todayStr] : null);
       } else if (overdueSpan) {
-        openDetailsModal("overdueCare");
+        openDetailsModal("overdueCare", todayStr ? [todayStr] : null);
       } else if (e.target.closest(".tc-warning")) {
         openDetailsModal("warningAlert");
       }
@@ -3072,28 +3073,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const elMainVal = document.getElementById("metric-interview-today");
   if (elMainVal) {
     elMainVal.addEventListener("click", () => {
-      openDetailsModal("interviewConfirmed");
+      const todayStr = state.endDate || (state.datesList && state.datesList.length > 0 ? state.datesList[0] : "");
+      openDetailsModal("interviewConfirmed", todayStr ? [todayStr] : null);
     });
   }
 
   const elHireVal = document.getElementById("metric-hire-today");
   if (elHireVal) {
     elHireVal.addEventListener("click", () => {
-      openDetailsModal("hireConfirmed");
+      const todayStr = state.endDate || (state.datesList && state.datesList.length > 0 ? state.datesList[0] : "");
+      openDetailsModal("hireConfirmed", todayStr ? [todayStr] : null);
     });
   }
 
   const elNewVal = document.getElementById("metric-new-today");
   if (elNewVal) {
     elNewVal.addEventListener("click", () => {
-      openDetailsModal("newCandidates");
+      const todayStr = state.endDate || (state.datesList && state.datesList.length > 0 ? state.datesList[0] : "");
+      openDetailsModal("newCandidates", todayStr ? [todayStr] : null);
     });
   }
 
   const elProcVal = document.getElementById("metric-processed-today");
   if (elProcVal) {
     elProcVal.addEventListener("click", () => {
-      openDetailsModal("processedCandidates");
+      const todayStr = state.endDate || (state.datesList && state.datesList.length > 0 ? state.datesList[0] : "");
+      openDetailsModal("processedCandidates", todayStr ? [todayStr] : null);
     });
   }
 
@@ -3890,13 +3895,11 @@ function setupMainNavigation() {
   let pendingButton = null;
   let isGateAuth = true; // Trạng thái đang xác thực cổng chính vào trang
 
-  // Thiết lập ẩn 3 tab MKT, Tài chính, Nhân sự từ đầu
+  // Thiết lập ẩn 2 tab MKT và Tài chính từ đầu
   const mktBtn = document.querySelector('.main-tab-btn[data-section="marketing"]');
   const finBtn = document.querySelector('.main-tab-btn[data-section="finance"]');
-  const nsBtn  = document.querySelector('.main-tab-btn[data-section="nhansu"]');
   if (mktBtn) mktBtn.style.display = "none";
   if (finBtn) finBtn.style.display = "none";
-  if (nsBtn)  nsBtn.style.display  = "none";
 
   // Khi vừa load trang, kích hoạt cổng xác thực password chính
   setTimeout(() => {
@@ -3940,12 +3943,6 @@ function setupMainNavigation() {
         } else {
           showPasswordPrompt("finance", clickedBtn);
         }
-      } else if (section === "nhansu") {
-        if (unlockedSections.nhansu || unlockedSections.fullAccess) {
-          switchSection("nhansu", clickedBtn);
-        } else {
-          showPasswordPrompt("nhansu", clickedBtn);
-        }
       }
     });
   });
@@ -3983,8 +3980,8 @@ function setupMainNavigation() {
     if (pwdCancel) pwdCancel.style.display = "block";
     if (pwdClose) pwdClose.style.display = "block";
 
-    document.getElementById("password-modal-title").textContent = `Mở khóa Báo Cáo ${sect === 'marketing' ? 'Marketing' : sect === 'nhansu' ? 'Nhân Sự' : 'Tài Chính'}`;
-    document.getElementById("password-prompt-text").textContent = `Vui lòng nhập mã PIN bảo mật để truy cập Báo cáo ${sect === 'marketing' ? 'Marketing' : sect === 'nhansu' ? 'Nhân Sự' : 'Tài Chính'}.`;
+    document.getElementById("password-modal-title").textContent = `Mở khóa Báo Cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}`;
+    document.getElementById("password-prompt-text").textContent = `Vui lòng nhập mã PIN bảo mật để truy cập Báo cáo ${sect === 'marketing' ? 'Marketing' : 'Tài Chính'}.`;
     
     pwdInput.value = "";
     pwdError.style.display = "none";
@@ -4006,7 +4003,7 @@ function setupMainNavigation() {
         if (mktBtn) mktBtn.style.display = "none";
         if (finBtn) finBtn.style.display = "none";
       } else if (pin === "879394") {
-        // Hiển thị cả 4 tab, xem tự do không cần hỏi lại mã PIN phụ
+        // Hiển thị cả 3 tab, xem tự do không cần hỏi lại mã PIN phụ
         gateVerified = true;
         isCorrect = true;
         unlockedSections.fullAccess = true;
@@ -4014,7 +4011,7 @@ function setupMainNavigation() {
         unlockedSections.finance = true;
         unlockedSections.nhansu = true;
         
-        // Hiện các tab Marketing, Tài chính, Nhân sự
+        // Hiện các tab Marketing, Tài chính
         if (mktBtn) {
           mktBtn.style.display = "inline-flex";
           mktBtn.textContent = "📢 Báo cáo Marketing";
@@ -4022,10 +4019,6 @@ function setupMainNavigation() {
         if (finBtn) {
           finBtn.style.display = "inline-flex";
           finBtn.textContent = "💰 Báo cáo Tài chính";
-        }
-        if (nsBtn) {
-          nsBtn.style.display = "inline-flex";
-          nsBtn.textContent = "👥 Báo cáo Nhân sự";
         }
       }
     } else {
@@ -4038,11 +4031,6 @@ function setupMainNavigation() {
         isCorrect = true;
         unlockedSections.finance = true;
         pendingButton.textContent = "💰 Báo cáo Tài chính";
-      } else if (targetSection === "nhansu" && pin === "777777") {
-        isCorrect = true;
-        unlockedSections.nhansu = true;
-        if (nsBtn) { nsBtn.style.display = "inline-flex"; nsBtn.textContent = "👥 Báo cáo Nhân sự"; }
-        pendingButton.textContent = "👥 Báo cáo Nhân sự";
       }
     }
     
@@ -5588,13 +5576,40 @@ async function initNhansuDashboard() {
   }
 }
 
-// Listener nút phụ "Báo cáo Nhân sự" trong header Sale
+// Listener nút phụ "Báo cáo Nhân sự" trong header Sale + nút Quay lại Sale
 document.addEventListener("DOMContentLoaded", () => {
+  // Nút "Báo cáo Nhân sự" trong Sale header: chuyển sang section-nhansu (sub-tab của Sale)
   const toNhansuBtn = document.getElementById("sale-to-nhansu-btn");
   if (toNhansuBtn) {
     toNhansuBtn.addEventListener("click", () => {
-      const nsBtnMain = document.querySelector('.main-tab-btn[data-section="nhansu"]');
-      if (nsBtnMain) nsBtnMain.dispatchEvent(new Event("click"));
+      if (!gateVerified) return; // Chỉ cho phép nếu đã xác thực cổng chính
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
+      // Highlight nút section-title-btn Nhân sự
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      toNhansuBtn.style.background = "rgba(167,139,250,0.15)"; toNhansuBtn.style.borderColor = "rgba(167,139,250,0.4)"; toNhansuBtn.style.color = "#a78bfa"; toNhansuBtn.classList.add("active");
+      initNhansuDashboard();
+    });
+  }
+
+  // Nút "Quay lại Sale" trong header section-nhansu
+  const backToSaleBtn = document.getElementById("nhansu-back-btn");
+  if (backToSaleBtn) {
+    backToSaleBtn.addEventListener("click", () => {
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
+      // Reset highlight nút section-title-btn về Tổng quan
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      const tongquanBtn = document.querySelector(".section-title-btn:first-child");
+      if (tongquanBtn) { tongquanBtn.style.background = "rgba(59,130,246,0.15)"; tongquanBtn.style.borderColor = "rgba(59,130,246,0.4)"; tongquanBtn.style.color = "#ffffff"; tongquanBtn.classList.add("active"); }
     });
   }
 });
