@@ -5941,8 +5941,9 @@ function renderNhansuDashboard() {
   if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
     for (let i = 1; i < nhansuTelesaleData.length; i++) {
       const row = nhansuTelesaleData[i];
-      if (row.length < 9) continue;
-      const dateGiao = normDate(row[8]); // Cột Ngày giao việc là index 8
+      if (row.length < 13) continue;
+      const dateGiao = row[8] ? row[8].trim() : ""; 
+      const dateLastCare = normDate(row[12]); // Cột Ngày CS cuối là index 12
       
       // Xác định nhà máy: Ưu tiên cột 11 (Chuyển file nhà máy). Nếu rỗng thì xem Nguồn data (cột 7)
       let rowFactory = (row[11] || "").trim();
@@ -5960,15 +5961,15 @@ function renderNhansuDashboard() {
       const rowRecruiter = cleanRec(row[9] || ""); // Cột Người chăm sóc là index 9
       if (rowRecruiter) recruiters.add(rowRecruiter);
 
-      // Lọc theo khoảng thời gian được chọn
-      if (!dateGiao || !activeDates.includes(dateGiao)) continue;
+      // Lọc theo ngày chăm sóc cuối cùng (Ngày CS cuối)
+      if (!dateLastCare || !activeDates.includes(dateLastCare)) continue;
       if (nsFactory !== "All" && rowFactory !== nsFactory) continue;
       if (nsRecruiter !== "All" && rowRecruiter !== nsRecruiter) continue;
 
       telesaleCount++;
       const chuyenVal = (row[11] || "").trim().toLowerCase(); // Chuyển file nhà máy cột index 11
       if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "") chuyenCount++;
-      tableRows.push({ name: row[1]||"", phone: row[2]||"", factory: rowFactory, recruiter: row[9]||"Chưa rõ", status: row[10]||"Chưa phản hồi", dateGiao: row[8]||"" });
+      tableRows.push({ name: row[1]||"", phone: row[2]||"", factory: rowFactory, recruiter: row[9]||"Chưa rõ", status: row[10]||"Chưa phản hồi", dateGiao: dateGiao });
     }
   }
 
@@ -6011,17 +6012,42 @@ function renderNhansuDashboard() {
     setEl("ns-data-count", cnt);
   }
 
-  // Lịch hẹn dự kiến (logic ô 4 MKT - CCCD hợp lệ)
+  // Lịch hẹn dự kiến (Ô 4) - Áp dụng đúng công thức của báo cáo Marketing trên dữ liệu state.candidates
   if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
-    let cnt = 0; const seen = new Set();
+    let cnt = 0; 
+    const seen = new Set();
+
+    const checkHasAppointmentLocal = (row) => {
+      // index 3 là CCCD, index 12 là ngày hẹn PV
+      const cccd = row[3] ? row[3].trim() : "";
+      const apptDate = row[12] ? row[12].trim() : "";
+      
+      const hasValidCCCD = cccd.length > 0 && cccd !== "0";
+      const hasValidAppt = apptDate.length > 0;
+      
+      return (hasValidCCCD || hasValidAppt);
+    };
+
     for (let i = 1; i < state.candidates.length; i++) {
       const r = state.candidates[i];
-      const d = normDate(r[0] || "");
-      if (!d || !activeDates.includes(d)) continue;
-      const cccd = (r[2] || "").trim();
-      if (!cccd || cccd === "0" || cccd.length < 9) continue;
-      if (seen.has(cccd)) continue;
-      seen.add(cccd); cnt++;
+      if (r.length < 13) continue;
+
+      const regDate = normDate(r[0] || ""); // Ngày đăng ký (cột index 0)
+      if (!regDate || !activeDates.includes(regDate)) continue;
+
+      // Lọc theo nhà máy đang chọn ở tab Báo cáo Hoạt động
+      const f = (r[r.length - 1] || "").trim();
+      if (nsFactory !== "All" && f !== nsFactory) continue;
+
+      if (checkHasAppointmentLocal(r)) {
+        const candPhone = r[2] ? r[2].trim() : "";
+        const candName  = r[1] ? r[1].trim() : "";
+        const candKey   = candPhone || candName;
+        if (candKey && !seen.has(candKey)) {
+          seen.add(candKey);
+          cnt++;
+        }
+      }
     }
     setEl("ns-lichhendukien-count", cnt);
   }
@@ -6034,6 +6060,7 @@ function renderNhansuDashboard() {
       const st = (r[4] || "").toLowerCase();
       const d = normDate(r[0] || "");
       if (!d || !activeDates.includes(d)) continue;
+      if (nsFactory !== "All" && (r[r.length - 1] || "").trim() !== nsFactory) continue;
       if (st.includes("hẹn pv") || st.includes("xác nhận pv") || st.includes("confirm")) cnt++;
     }
     setEl("ns-pv-count", cnt);
