@@ -5827,9 +5827,17 @@ function populateNhansuDateSelector() {
 
   const options = Array.from(menuEl.children);
   if (options.length > 0) {
-    const match = options.find(opt => opt.dataset.value === nhansuSelectedDate);
-    if (!match) {
-      nhansuSelectedDate = options[0].dataset.value;
+    const todayObj = new Date();
+    const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+    
+    // Nếu chưa có nhansuSelectedDate hoặc giá trị hiện tại không khớp, thử ưu tiên chọn ngày hôm nay
+    if (!nhansuSelectedDate || !options.some(opt => opt.dataset.value === nhansuSelectedDate)) {
+      const hasToday = options.some(opt => opt.dataset.value === todayStr);
+      if (hasToday) {
+        nhansuSelectedDate = todayStr;
+      } else {
+        nhansuSelectedDate = options[0].dataset.value;
+      }
     }
   }
   syncNhansuCustomDropdown();
