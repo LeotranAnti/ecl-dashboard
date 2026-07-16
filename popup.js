@@ -4778,6 +4778,19 @@ function renderMarketingDashboard() {
     return;
   }
 
+  // Map từ vị trí cột (index) sang Tên nhà máy trong báo cáo Sale
+  const getMappedFactoryName = (name) => {
+    if (!name) return "";
+    const clean = name.trim().toUpperCase();
+    if (clean.includes("PEGATRON") || clean.includes("PGT")) return "Pegatron";
+    if (clean.includes("BROTHER")) return "Brother";
+    if (clean.includes("LG")) return "LG";
+    if (clean.includes("USI")) return "Usi";
+    if (clean.includes("FOX")) return "Fox QN";
+    if (clean.includes("WISTRON")) return "Wistron";
+    return "";
+  };
+
   const headerRow = mktRawData[headerRowIndex];
   
   // Tích lũy các ngày
@@ -4822,19 +4835,6 @@ function renderMarketingDashboard() {
     <br/>- Total Parsed Days in CSV: ${Object.keys(marketingDays).length}
     <br/>- First 3 Parsed Days: ${Object.keys(marketingDays).slice(0, 3).join(', ')}
   `;
-
-  // Map từ vị trí cột (index) sang Tên nhà máy trong báo cáo Sale
-  const getMappedFactoryName = (name) => {
-    if (!name) return "";
-    const clean = name.trim().toUpperCase();
-    if (clean.includes("PEGATRON") || clean.includes("PGT")) return "Pegatron";
-    if (clean.includes("BROTHER")) return "Brother";
-    if (clean.includes("LG")) return "LG";
-    if (clean.includes("USI")) return "Usi";
-    if (clean.includes("FOX")) return "Fox QN";
-    if (clean.includes("WISTRON")) return "Wistron";
-    return "";
-  };
 
 
 
@@ -5993,41 +5993,41 @@ function renderNhansuDashboard() {
     setEl("ns-data-count", cnt);
   }
 
-  // Lịch hẹn dự kiến (Ô 4) - Áp dụng công thức của báo cáo Marketing trên dữ liệu state.candidates (Tính tất cả các nguồn)
+  // Lịch hẹn dự kiến (Ô 4) - Lấy theo Ngày hẹn PV hoặc Ngày đăng ký nếu có CCCD, tính cho tất cả các nguồn
   if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
     let cnt = 0; 
     const seen = new Set();
-
-    const checkHasAppointmentLocal = (row) => {
-      // index 3 là CCCD, index 12 là ngày hẹn PV
-      const cccd = row[3] ? row[3].trim() : "";
-      const apptDate = row[12] ? row[12].trim() : "";
-      
-      const hasValidCCCD = cccd.length > 0 && cccd !== "0";
-      const hasValidAppt = apptDate.length > 0;
-      
-      return (hasValidCCCD || hasValidAppt);
-    };
 
     for (let i = 1; i < state.candidates.length; i++) {
       const r = state.candidates[i];
       if (r.length < 13) continue;
 
-      const regDate = normDate(r[0] || ""); // Ngày đăng ký (cột index 0)
-      if (!regDate || !activeDates.includes(regDate)) continue;
+      const apptDateStr = r[12] ? r[12].trim() : ""; // Ngày hẹn PV là cột M (index 12)
+      const cccd = r[3] ? r[3].trim() : ""; // CCCD là cột D (index 3)
+      const regDateStr = r[0] ? r[0].trim() : ""; // Ngày đăng ký là cột A (index 0)
+
+      let matchDate = "";
+      if (apptDateStr) {
+        matchDate = normDate(apptDateStr);
+      } else if (cccd && cccd !== "0") {
+        matchDate = normDate(regDateStr);
+      }
+
+      // Nếu không xác định được ngày so khớp hoặc ngày đó không nằm trong activeDates
+      if (!matchDate || !activeDates.includes(matchDate)) continue;
 
       // Lọc theo nhà máy đang chọn ở tab Báo cáo Hoạt động
       const f = (r[r.length - 1] || "").trim();
       if (nsFactory !== "All" && f !== nsFactory) continue;
 
-      if (checkHasAppointmentLocal(r)) {
-        const candPhone = r[2] ? r[2].trim() : "";
-        const candName  = r[1] ? r[1].trim() : "";
-        const candKey   = candPhone || candName;
-        if (candKey && !seen.has(candKey)) {
-          seen.add(candKey);
-          cnt++;
-        }
+      const candPhone = r[2] ? r[2].trim() : "";
+      const candName  = r[1] ? r[1].trim() : "";
+      const candKey   = candPhone || candName;
+      
+      // Chỉ tính 1 lần cho mỗi ứng viên duy nhất
+      if (candKey && !seen.has(candKey)) {
+        seen.add(candKey);
+        cnt++;
       }
     }
     setEl("ns-lichhendukien-count", cnt);
