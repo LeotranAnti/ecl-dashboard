@@ -20,6 +20,9 @@ module.exports = async (req, res) => {
   } else if (factory === "Fox QN") {
     spreadsheetId = "1QS41MPzfsv5-_nNqjlTX4YDtze5jtM-UqZTnT-NwoQw";
     gid = "1975095216";
+  } else if (factory === "Wistron") {
+    spreadsheetId = "1Z__ek4edK1dRvwL9I-i36hlegslbTCft3zOWD7Mq7Ss";
+    gid = "159609333";
   }
   
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;

@@ -673,14 +673,26 @@ async function syncData() {
       // Kiểm tra môi trường để bypass CORS nếu chạy trên Web thường (Vercel)
       const isChromeExt = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
       
-      const fetchTextWithFallback = async (originalUrl) => {
+      const fetchTextWithFallback = async (originalUrl, type) => {
         if (isChromeExt) {
           const resp = await fetchWithTimeout(originalUrl);
           if (!resp.ok) throw new Error("HTTP " + resp.status);
           return await resp.text();
         }
 
-        // 1. Thử Proxy 1 (Codetabs)
+        // 1. Thử API Route nội bộ của Vercel (Giải pháp triệt để, không bị CORS, chạy phía Server)
+        try {
+          const vercelApiUrl = `/api/${type}?factory=${encodeURIComponent(f)}&t=${Date.now()}`;
+          const resp = await fetchWithTimeout(vercelApiUrl);
+          if (resp.ok) {
+            const txt = await resp.text();
+            if (txt && !txt.includes("error code:") && !txt.includes("Error fetching")) return txt;
+          }
+        } catch (e) {
+          console.warn("Vercel Serverless API Proxy failed, trying fallback public proxies...", e);
+        }
+
+        // 2. Thử Proxy 1 (Codetabs)
         try {
           const proxy1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`;
           const resp = await fetchWithTimeout(proxy1);
@@ -692,7 +704,7 @@ async function syncData() {
           console.warn("Proxy 1 (codetabs) failed, trying proxy 2...", e);
         }
 
-        // 2. Thử Proxy 2 (AllOrigins)
+        // 3. Thử Proxy 2 (AllOrigins)
         try {
           const proxy2 = `https://api.allorigins.win/get?url=${encodeURIComponent(originalUrl)}`;
           const resp2 = await fetchWithTimeout(proxy2);
@@ -704,16 +716,23 @@ async function syncData() {
           console.warn("Proxy 2 (allorigins) failed, trying proxy 3...", e);
         }
 
-        // 3. Thử Proxy 3 (Cors.sh hoặc AllOrigins Cloudflare bypass)
-        const proxy3 = `https://api.allorigins.win/get?url=${encodeURIComponent(originalUrl)}&ts=${Date.now()}`;
-        const resp3 = await fetchWithTimeout(proxy3);
-        if (!resp3.ok) throw new Error("All proxies failed.");
-        const data3 = await resp3.json();
-        return data3.contents;
+        // 4. Thử Proxy 3 (ThingProxy)
+        try {
+          const proxy3 = `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`;
+          const resp3 = await fetchWithTimeout(proxy3);
+          if (resp3.ok) {
+            const txt3 = await resp3.text();
+            if (txt3 && !txt3.includes("error code:")) return txt3;
+          }
+        } catch (e) {
+          console.warn("Proxy 3 (thingproxy) failed...", e);
+        }
+
+        throw new Error("All proxies failed.");
       };
 
       fetchPromises.push(
-        fetchTextWithFallback(candUrl)
+        fetchTextWithFallback(candUrl, 'candidates')
           .then(t => ({ factory: f, type: 'candidates', text: t, success: true }))
           .catch(err => {
             console.error(`Error fetching candidates for ${f}:`, err);
@@ -721,7 +740,7 @@ async function syncData() {
             const cachedVal = localStorage.getItem(`${f}_candidatesCSV`) || "";
             return { factory: f, type: 'candidates', text: cachedVal, success: false };
           }),
-        fetchTextWithFallback(recUrl)
+        fetchTextWithFallback(recUrl, 'recruitments')
           .then(t => ({ factory: f, type: 'recruitments', text: t, success: true }))
           .catch(err => {
             console.error(`Error fetching recruitments for ${f}:`, err);
