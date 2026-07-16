@@ -2608,18 +2608,6 @@ function loadCache() {
 // Initialization and Event Listeners
 document.addEventListener("DOMContentLoaded", () => {
   setupMainNavigation();
-
-  // Nút chuyển hướng phụ từ Sale sang Nhân sự
-  const toNhansuBtn = document.getElementById("sale-to-nhansu-btn");
-  if (toNhansuBtn) {
-    toNhansuBtn.addEventListener("click", () => {
-      const nhansuTabBtn = document.querySelector('.main-tab-btn[data-section="nhansu"]');
-      if (nhansuTabBtn) {
-        nhansuTabBtn.dispatchEvent(new Event("click"));
-      }
-    });
-  }
-
   // Tab Navigation switching
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
