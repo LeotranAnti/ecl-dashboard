@@ -5951,19 +5951,8 @@ function renderNhansuDashboard() {
   setEl("ns-chuyen-count", chuyenCount);
 
 
-  // Xử lý data từ state.candidates
-  if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
-    let cnt = 0;
-    for (let i = 1; i < state.candidates.length; i++) {
-      const r = state.candidates[i];
-      const d = normDate(r[0] || "");
-      const f = (r[r.length - 1] || "").trim();
-      if (!d || !activeDates.includes(d)) continue;
-      if (nsFactory !== "All" && f !== nsFactory) continue;
-      cnt++;
-    }
-    setEl("ns-data-count", cnt);
-  }
+  // Xử lý data (Ô 4) - Đồng bộ 100% với ô Đã xử lý ở báo cáo Sale (tính theo số hồ sơ telesale được chăm sóc trong kỳ lọc)
+  setEl("ns-data-count", telesaleCount);
 
   // Lịch hẹn dự kiến (Ô 4) - Lấy theo Ngày hẹn PV hoặc Ngày đăng ký nếu có CCCD, tính cho tất cả các nguồn
   if (typeof state !== "undefined" && state.candidates && state.candidates.length > 1) {
