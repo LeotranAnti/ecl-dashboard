@@ -804,6 +804,7 @@ async function syncData() {
     
     if (telesaleResult) {
       nhansuTelesaleData = telesaleResult;
+      nhansuDatesList = generateContinuousDates();
     }
     
     // Check which factories failed
@@ -6308,22 +6309,8 @@ async function initNhansuDashboard() {
 
   nhansuTelesaleData = await fetchNhansuTelesaleData();
   
-  // Trích xuất danh sách ngày thực tế xuất hiện trong sheet Telesale
-  if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
-    const allDates = new Set();
-    for (let i = 1; i < nhansuTelesaleData.length; i++) {
-      const row = nhansuTelesaleData[i];
-      if (row.length > 12 && row[12]) {
-        const d = normDate(row[12]);
-        if (d) allDates.add(d);
-      }
-      if (row.length > 8 && row[8]) {
-        const d = normDate(row[8]);
-        if (d) allDates.add(d);
-      }
-    }
-    nhansuDatesList = Array.from(allDates).filter(Boolean).sort((a, b) => b.localeCompare(a));
-  }
+  // Tự động sinh ra danh sách ngày liên tục từ 01/02/2026 tới ngày hôm nay + 6 tháng
+  nhansuDatesList = generateContinuousDates();
   
   // Mặc định chọn ngày hôm nay khi mở ra
   if (!nhansuSelectedDate) {
