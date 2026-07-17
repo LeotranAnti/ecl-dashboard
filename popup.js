@@ -3441,31 +3441,24 @@ function getCandidatesForType(type, customDates = null) {
         if (row.length < 13) continue;
 
         const dateLastCare = normDate(row[12]); // Cột Ngày CS cuối là index 12
-        
-        let rowFactory = (row[11] || "").trim();
-        if (!rowFactory && row[7]) {
-          const sourceLower = row[7].toLowerCase();
-          if (sourceLower.includes("pegatron")) rowFactory = "Pegatron";
-          else if (sourceLower.includes("brother")) rowFactory = "Brother";
-          else if (sourceLower.includes("lg")) rowFactory = "LG";
-          else if (sourceLower.includes("usi")) rowFactory = "Usi";
-          else if (sourceLower.includes("fox")) rowFactory = "Fox QN";
-          else if (sourceLower.includes("wistron")) rowFactory = "Wistron";
-        }
-        if (!rowFactory) rowFactory = "Pegatron";
+
+        // Cột Tình trạng (index 10) — điều kiện chính để tính "Chuyển đổi"
+        const tinhTrang = (row[10] || "").trim().toLowerCase();
+        const hasConverted = tinhTrang.includes("có nhu cầu đi làm");
+
+        // Cột Nhà máy (index 11) — chỉ dùng để lọc & hiển thị, không dùng để xác định chuyển đổi
+        const rowFactory = (row[11] || "").trim() || "Chưa có";
 
         const rowRecruiter = cleanRec(row[9] || "");
-        const chuyenVal = (row[11] || "").trim().toLowerCase();
-        const hasConverted = chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "";
 
         if (hasConverted && dateLastCare && dates.includes(dateLastCare)) {
+          // Lọc theo nhà máy: nếu chọn "All" thì bỏ qua filter, ngược lại lọc theo nhà máy
           if (factory !== "All" && rowFactory !== factory) continue;
           if (selectedRecruiter !== "All" && rowRecruiter !== selectedRecruiter) continue;
 
           const phone = row[2] ? row[2].trim() : "";
           const name = row[1] ? row[1].trim() : "";
           const cccd = row[3] ? row[3].trim() : "";
-          const status = row[10] ? row[10].trim() : "Chưa phản hồi";
           const dateGiao = row[8] ? row[8].trim() : "";
 
           list.push({
@@ -3474,7 +3467,7 @@ function getCandidatesForType(type, customDates = null) {
             phone,
             cccd,
             recruiter: row[9] || "Chưa rõ",
-            status,
+            status: row[10] ? row[10].trim() : "Chưa phản hồi",
             dateInfo: `CS cuối: ${row[12]} (Giao: ${dateGiao})`,
             rawDate: dateLastCare
           });
@@ -3489,6 +3482,7 @@ function getCandidatesForType(type, customDates = null) {
     console.log(`[getCandidatesForType] Found ${list.length} candidates for type="nsConverted"`);
     return list;
   }
+
 
   if (type === "nsTelesale") {
     if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
@@ -6093,18 +6087,8 @@ function renderNhansuDashboard() {
       const dateGiao = row[8] ? row[8].trim() : ""; 
       const dateLastCare = normDate(row[12]); // Cột Ngày CS cuối là index 12
       
-      // Xác định nhà máy: Ưu tiên cột 11 (Chuyển file nhà máy). Nếu rỗng thì xem Nguồn data (cột 7)
-      let rowFactory = (row[11] || "").trim();
-      if (!rowFactory && row[7]) {
-        const sourceLower = row[7].toLowerCase();
-        if (sourceLower.includes("pegatron")) rowFactory = "Pegatron";
-        else if (sourceLower.includes("brother")) rowFactory = "Brother";
-        else if (sourceLower.includes("lg")) rowFactory = "LG";
-        else if (sourceLower.includes("usi")) rowFactory = "Usi";
-        else if (sourceLower.includes("fox")) rowFactory = "Fox QN";
-        else if (sourceLower.includes("wistron")) rowFactory = "Wistron";
-      }
-      if (!rowFactory) rowFactory = "Pegatron"; // Fallback mặc định
+      // Cột Nhà máy (index 11): chỉ dùng để lọc & hiển thị, nếu rỗng là 'Chưa có'
+      const rowFactory = (row[11] || "").trim() || "Chưa có";
 
       const rowRecruiter = cleanRec(row[9] || ""); // Cột Người chăm sóc là index 9
       if (rowRecruiter) recruiters.add(rowRecruiter);
@@ -6115,8 +6099,9 @@ function renderNhansuDashboard() {
       if (nsRecruiter !== "All" && rowRecruiter !== nsRecruiter) continue;
 
       telesaleCount++;
-      const chuyenVal = (row[11] || "").trim().toLowerCase(); // Chuyển file nhà máy cột index 11
-      if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "") chuyenCount++;
+      // Tính Chuyển đổi: cột Tình trạng (index 10) = 'Có nhu cầu đi làm'
+      const tinhTrangVal = (row[10] || "").trim().toLowerCase();
+      if (tinhTrangVal.includes("có nhu cầu đi làm")) chuyenCount++;
       tableRows.push({
         name: row[1] || "",
         phone: row[2] || "",
