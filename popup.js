@@ -6471,6 +6471,7 @@ function resetMainTabsActive() {
 // DANH SACH NHAN SU - CRUD LOGIC
 // ============================================================================
 let dsNhansuList = [];
+let dsEditIndex = -1;
 
 function initDsNhansu() {
   // Lấy dữ liệu từ localStorage
@@ -6486,15 +6487,8 @@ function initDsNhansu() {
     dsNhansuList = [];
   }
 
-  // Gắn sự kiện click cho nút Lưu nhân sự
-  const saveBtn = document.getElementById("ds-save-btn");
-  if (saveBtn) {
-    // Clone nút để tránh gắn trùng lặp listener
-    const newSaveBtn = saveBtn.cloneNode(true);
-    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-    newSaveBtn.addEventListener("click", addDsNhansu);
-  }
-
+  // Đảm bảo đưa form về chế độ Thêm mới ban đầu
+  cancelEditDsNhansu();
   renderDsNhansu();
 }
 
@@ -6520,17 +6514,28 @@ function renderDsNhansu() {
       <td style="padding: 10px;"><span class="status-badge" style="background: rgba(14,165,233,0.1); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.2); font-size: 11px; padding: 2px 6px; border-radius: 4px;">${ns.dept || "-"}</span></td>
       <td style="padding: 10px; color: var(--text-secondary);">${ns.role || "-"}</td>
       <td style="padding: 10px; text-align: center;">
+        <button class="edit-ns-btn" data-index="${index}" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; border-radius: 4px; padding: 4px 8px; cursor: pointer; transition: all 0.2s; font-size: 11px; margin-right: 6px;">Sửa</button>
         <button class="delete-ns-btn" data-index="${index}" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 4px; padding: 4px 8px; cursor: pointer; transition: all 0.2s; font-size: 11px;">Xóa</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Gắn sự kiện xóa cho các nút Xóa
+  // Gắn sự kiện xóa
   tbody.querySelectorAll(".delete-ns-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const idx = parseInt(btn.getAttribute("data-index"));
       deleteDsNhansu(idx);
+    });
+  });
+
+  // Gắn sự kiện sửa
+  tbody.querySelectorAll(".edit-ns-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.getAttribute("data-index"));
+      startEditDsNhansu(idx);
     });
   });
 }
@@ -6565,8 +6570,104 @@ function addDsNhansu() {
   renderDsNhansu();
 }
 
+function startEditDsNhansu(index) {
+  dsEditIndex = index;
+  const ns = dsNhansuList[index];
+
+  const nameInput = document.getElementById("ds-input-name");
+  const phoneInput = document.getElementById("ds-input-phone");
+  const deptInput = document.getElementById("ds-input-dept");
+  const roleInput = document.getElementById("ds-input-role");
+
+  if (nameInput) nameInput.value = ns.name || "";
+  if (phoneInput) phoneInput.value = ns.phone || "";
+  if (deptInput) deptInput.value = ns.dept || "";
+  if (roleInput) roleInput.value = ns.role || "";
+
+  // Thay đổi tiêu đề form
+  const formTitle = document.getElementById("ds-form-title");
+  if (formTitle) formTitle.innerHTML = "✏️ Sửa Thông Tin Nhân Sự";
+
+  // Thay đổi nút Lưu -> Cập nhật & Hủy
+  const actionCont = document.getElementById("ds-action-container");
+  if (actionCont) {
+    actionCont.innerHTML = `
+      <button id="ds-update-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
+        💾 Cập nhật
+      </button>
+      <button id="ds-cancel-btn" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-secondary); font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
+        ❌ Hủy
+      </button>
+    `;
+
+    document.getElementById("ds-update-btn").addEventListener("click", saveEditDsNhansu);
+    document.getElementById("ds-cancel-btn").addEventListener("click", cancelEditDsNhansu);
+  }
+}
+
+function saveEditDsNhansu() {
+  if (dsEditIndex === -1) return;
+
+  const nameInput = document.getElementById("ds-input-name");
+  const phoneInput = document.getElementById("ds-input-phone");
+  const deptInput = document.getElementById("ds-input-dept");
+  const roleInput = document.getElementById("ds-input-role");
+
+  const name = nameInput ? nameInput.value.trim() : "";
+  const phone = phoneInput ? phoneInput.value.trim() : "";
+  const dept = deptInput ? deptInput.value.trim() : "";
+  const role = roleInput ? roleInput.value.trim() : "";
+
+  if (!name) {
+    alert("Vui lòng nhập Họ và tên nhân sự!");
+    return;
+  }
+
+  // Cập nhật thông tin phần tử
+  dsNhansuList[dsEditIndex] = { name, phone, dept, role };
+
+  localStorage.setItem("ecl_danhsach_nhansu", JSON.stringify(dsNhansuList));
+
+  cancelEditDsNhansu();
+  renderDsNhansu();
+}
+
+function cancelEditDsNhansu() {
+  dsEditIndex = -1;
+
+  const nameInput = document.getElementById("ds-input-name");
+  const phoneInput = document.getElementById("ds-input-phone");
+  const deptInput = document.getElementById("ds-input-dept");
+  const roleInput = document.getElementById("ds-input-role");
+
+  if (nameInput) nameInput.value = "";
+  if (phoneInput) phoneInput.value = "";
+  if (deptInput) deptInput.value = "";
+  if (roleInput) roleInput.value = "";
+
+  // Trả về tiêu đề thêm mới
+  const formTitle = document.getElementById("ds-form-title");
+  if (formTitle) formTitle.innerHTML = "➕ Thêm Nhân Sự Mới";
+
+  // Trả về nút Lưu
+  const actionCont = document.getElementById("ds-action-container");
+  if (actionCont) {
+    actionCont.innerHTML = `
+      <button id="ds-save-btn" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
+        💾 Lưu nhân sự
+      </button>
+    `;
+
+    document.getElementById("ds-save-btn").addEventListener("click", addDsNhansu);
+  }
+}
+
 function deleteDsNhansu(index) {
   if (confirm(`Bạn có chắc chắn muốn xóa nhân sự "${dsNhansuList[index].name}" khỏi danh sách?`)) {
+    // Nếu đang sửa chính người này thì hủy trạng thái sửa trước
+    if (dsEditIndex === index) {
+      cancelEditDsNhansu();
+    }
     dsNhansuList.splice(index, 1);
     localStorage.setItem("ecl_danhsach_nhansu", JSON.stringify(dsNhansuList));
     renderDsNhansu();

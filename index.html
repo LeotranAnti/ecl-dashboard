@@ -1408,7 +1408,7 @@
       <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
         <!-- Form thêm nhân sự -->
         <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
-          <div style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">➕ Thêm Nhân Sự Mới</div>
+          <div id="ds-form-title" style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">➕ Thêm Nhân Sự Mới</div>
           
           <div style="display: flex; flex-direction: column; gap: 6px;">
             <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Họ và tên</label>
@@ -1430,9 +1430,11 @@
             <input type="text" id="ds-input-role" placeholder="Ví dụ: Nhân viên, Trưởng nhóm..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
           </div>
           
-          <button id="ds-save-btn" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px;">
-            💾 Lưu nhân sự
-          </button>
+          <div id="ds-action-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <button id="ds-save-btn" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
+              💾 Lưu nhân sự
+            </button>
+          </div>
         </div>
 
         <!-- Bảng hiển thị danh sách -->
