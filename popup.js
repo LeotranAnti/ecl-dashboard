@@ -6071,6 +6071,7 @@ const normDate = (s) => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   return "";
 };
+const cleanRec = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
 function renderNhansuDashboard() {
   const nsFactory = (typeof state !== "undefined" && state.nhansuSelectedFactory) || "All";
@@ -6079,7 +6080,6 @@ function renderNhansuDashboard() {
   // Lấy dải ngày lọc từ bộ lọc thời gian riêng của Nhân sự
   const activeDates = getNhansuActiveDates();
 
-  const cleanRec = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
   let telesaleCount = 0, chuyenCount = 0;
