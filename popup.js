@@ -6324,8 +6324,60 @@ async function initNhansuDashboard() {
     });
   }
 
+  // Listener nút đồng bộ bằng tay nhansu-refresh-btn
+  const nhansuRefreshBtn = document.getElementById("nhansu-refresh-btn");
+  if (nhansuRefreshBtn) {
+    nhansuRefreshBtn.addEventListener("click", async () => {
+      await syncNhansuData();
+    });
+  }
+
   populateNhansuDateSelector();
   renderNhansuDashboard();
+  startNhansuCountdown();
+}
+
+let nhansuCountdownSeconds = 300;
+let nhansuRefreshTimer = null;
+
+function updateNhansuCountdownDisplay() {
+  const syncStatus = document.getElementById("nhansu-sync-status");
+  if (!syncStatus) return;
+  if (syncStatus.textContent && syncStatus.textContent.startsWith("Đang")) return;
+  const timeStr = state.lastSync ? state.lastSync.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  syncStatus.textContent = `Cập nhật lúc ${timeStr}`;
+}
+
+function startNhansuCountdown() {
+  if (nhansuRefreshTimer) clearInterval(nhansuRefreshTimer);
+  nhansuCountdownSeconds = 300;
+  nhansuRefreshTimer = setInterval(async () => {
+    nhansuCountdownSeconds--;
+    if (nhansuCountdownSeconds <= 0) {
+      await syncNhansuData();
+    }
+  }, 1000);
+}
+
+async function syncNhansuData() {
+  const syncStatus = document.getElementById("nhansu-sync-status");
+  const refreshBtn = document.getElementById("nhansu-refresh-btn");
+  
+  if (syncStatus) syncStatus.textContent = "Đang đồng bộ...";
+  if (refreshBtn) refreshBtn.style.animation = "spin 1.2s linear infinite";
+  
+  try {
+    nhansuTelesaleData = await fetchNhansuTelesaleData();
+    renderNhansuDashboard();
+    state.lastSync = new Date();
+  } catch (err) {
+    console.error("Nhansu sync error:", err);
+    if (syncStatus) syncStatus.textContent = "Đồng bộ lỗi";
+  } finally {
+    if (refreshBtn) refreshBtn.style.animation = "none";
+    nhansuCountdownSeconds = 300;
+    updateNhansuCountdownDisplay();
+  }
 }
 
 
