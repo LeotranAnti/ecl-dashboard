@@ -656,9 +656,19 @@ async function syncData() {
   const syncStatus = document.getElementById("sync-status");
   const refreshBtn = document.getElementById("refresh-btn");
   
+  const nhansuSyncStatus = document.getElementById("nhansu-sync-status");
+  const nhansuRefreshBtn = document.getElementById("nhansu-refresh-btn");
+  
   syncStatus.textContent = "Đang đồng bộ...";
   syncStatus.className = "sync-status text-cyan";
   refreshBtn.classList.add("spinning");
+  
+  if (nhansuSyncStatus) {
+    nhansuSyncStatus.textContent = "Đang đồng bộ...";
+  }
+  if (nhansuRefreshBtn) {
+    nhansuRefreshBtn.classList.add("spinning");
+  }
   
   try {
     const fetchWithTimeout = (url, options = {}, timeout = 15000) => {
@@ -835,6 +845,10 @@ async function syncData() {
     syncStatus.className = "sync-status text-amber";
   } finally {
     refreshBtn.classList.remove("spinning");
+    const nhansuRefreshBtn = document.getElementById("nhansu-refresh-btn");
+    if (nhansuRefreshBtn) {
+      nhansuRefreshBtn.classList.remove("spinning");
+    }
   }
 }
 
@@ -3353,6 +3367,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
       if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
       resetMainTabsActive();
+    });
+  }
+
+  // Sự kiện click nút refresh của Báo cáo Hoạt động
+  const nhansuRefreshBtn = document.getElementById("nhansu-refresh-btn");
+  if (nhansuRefreshBtn) {
+    nhansuRefreshBtn.addEventListener("click", () => {
+      syncData();
     });
   }
 
