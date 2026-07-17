@@ -3292,6 +3292,70 @@ document.addEventListener("DOMContentLoaded", () => {
     syncData();
   });
   
+  // Lắng nghe sự kiện chuyển sub-tab trong Sale
+  const toNhansuBtn = document.getElementById("sale-to-nhansu-btn");
+  if (toNhansuBtn) {
+    toNhansuBtn.addEventListener("click", () => {
+      if (!gateVerified) return;
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      toNhansuBtn.style.background = "rgba(167,139,250,0.15)"; toNhansuBtn.style.borderColor = "rgba(167,139,250,0.4)"; toNhansuBtn.style.color = "#a78bfa"; toNhansuBtn.classList.add("active");
+      initNhansuDashboard();
+    });
+  }
+
+  const toDsNhansuBtn = document.getElementById("sale-to-danhsach-nhansu-btn");
+  if (toDsNhansuBtn) {
+    toDsNhansuBtn.addEventListener("click", () => {
+      if (!gateVerified) return;
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.add("active"); dsNhansuSection.style.display = "flex"; }
+      
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      toDsNhansuBtn.style.background = "rgba(14,165,233,0.15)"; toDsNhansuBtn.style.borderColor = "rgba(14,165,233,0.4)"; toDsNhansuBtn.style.color = "#0ea5e9"; toDsNhansuBtn.classList.add("active");
+      initDsNhansu();
+    });
+  }
+
+  const backToSaleBtn = document.getElementById("nhansu-back-btn");
+  if (backToSaleBtn) {
+    backToSaleBtn.addEventListener("click", () => {
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
+      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
+      resetMainTabsActive();
+    });
+  }
+
+  const dsBackToSaleBtn = document.getElementById("ds-nhansu-back-btn");
+  if (dsBackToSaleBtn) {
+    dsBackToSaleBtn.addEventListener("click", () => {
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
+      resetMainTabsActive();
+    });
+  }
+
   // Load cache and start timer
   loadCache();
   startCountdown();
@@ -6359,74 +6423,7 @@ function updateNhansuCountdownDisplay() {
 }
 
 
-  // Nút "Báo cáo Nhân sự" trong Sale header: chuyển sang section-nhansu (sub-tab của Sale)
-  const toNhansuBtn = document.getElementById("sale-to-nhansu-btn");
-  if (toNhansuBtn) {
-    toNhansuBtn.addEventListener("click", () => {
-      if (!gateVerified) return; // Chỉ cho phép nếu đã xác thực cổng chính
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
-      if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
-      // Highlight nút section-title-btn Nhân sự
-      document.querySelectorAll(".section-title-btn").forEach(b => {
-        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
-      });
-      toNhansuBtn.style.background = "rgba(167,139,250,0.15)"; toNhansuBtn.style.borderColor = "rgba(167,139,250,0.4)"; toNhansuBtn.style.color = "#a78bfa"; toNhansuBtn.classList.add("active");
-      initNhansuDashboard();
-    });
-  }
 
-  // Nút "Danh sách Nhân sự" trong Sale header
-  const toDsNhansuBtn = document.getElementById("sale-to-danhsach-nhansu-btn");
-  if (toDsNhansuBtn) {
-    toDsNhansuBtn.addEventListener("click", () => {
-      if (!gateVerified) return;
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
-      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.add("active"); dsNhansuSection.style.display = "flex"; }
-      
-      document.querySelectorAll(".section-title-btn").forEach(b => {
-        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
-      });
-      toDsNhansuBtn.style.background = "rgba(14,165,233,0.15)"; toDsNhansuBtn.style.borderColor = "rgba(14,165,233,0.4)"; toDsNhansuBtn.style.color = "#0ea5e9"; toDsNhansuBtn.classList.add("active");
-      initDsNhansu();
-    });
-  }
-
-  // Nút "Quay lại Sale" trong header section-nhansu
-  const backToSaleBtn = document.getElementById("nhansu-back-btn");
-  if (backToSaleBtn) {
-    backToSaleBtn.addEventListener("click", () => {
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
-      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
-      resetMainTabsActive();
-    });
-  }
-
-  // Nút "Quay lại Sale" trong header section-danhsach-nhansu
-  const dsBackToSaleBtn = document.getElementById("ds-nhansu-back-btn");
-  if (dsBackToSaleBtn) {
-    dsBackToSaleBtn.addEventListener("click", () => {
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
-      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
-      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
-      resetMainTabsActive();
-    });
-  }
-});
 
 function resetMainTabsActive() {
   document.querySelectorAll(".section-title-btn").forEach(b => {
