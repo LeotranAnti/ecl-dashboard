@@ -5883,9 +5883,9 @@ function syncNhansuCustomDropdown() {
   items.forEach(item => {
     if (item.dataset.value === nhansuSelectedDate) {
       item.classList.add("active-dropdown-item");
-      item.style.color = "#a78bfa";
+      item.style.color = "#10b981";
       item.style.fontWeight = "bold";
-      item.style.background = "rgba(167, 139, 250, 0.15)";
+      item.style.background = "rgba(16, 185, 129, 0.15)";
       activeText = item.textContent;
     } else {
       item.classList.remove("active-dropdown-item");
@@ -6320,9 +6320,9 @@ async function initNhansuDashboard() {
           i.style.background = "transparent";
         });
         item.classList.add("active-dropdown-item");
-        item.style.color = "#a78bfa";
+        item.style.color = "#10b981";
         item.style.fontWeight = "bold";
-        item.style.background = "rgba(167, 139, 250, 0.15)";
+        item.style.background = "rgba(16, 185, 129, 0.15)";
 
         nhansuViewMode = val;
         nhansuSelectedDate = ""; // Ép tính toán lại ngày/tuần/tháng mặc định chứa hôm nay
