@@ -3313,9 +3313,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!gateVerified) return;
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
       if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
       if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
       document.querySelectorAll(".section-title-btn").forEach(b => {
         b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
@@ -3325,45 +3323,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const toDsNhansuBtn = document.getElementById("sale-to-danhsach-nhansu-btn");
-  if (toDsNhansuBtn) {
-    toDsNhansuBtn.addEventListener("click", () => {
-      if (!gateVerified) return;
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
-      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.add("active"); dsNhansuSection.style.display = "flex"; }
-      
-      document.querySelectorAll(".section-title-btn").forEach(b => {
-        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
-      });
-      toDsNhansuBtn.style.background = "rgba(14,165,233,0.15)"; toDsNhansuBtn.style.borderColor = "rgba(14,165,233,0.4)"; toDsNhansuBtn.style.color = "#0ea5e9"; toDsNhansuBtn.classList.add("active");
-      initDsNhansu();
-    });
-  }
-
   const backToSaleBtn = document.getElementById("nhansu-back-btn");
   if (backToSaleBtn) {
     backToSaleBtn.addEventListener("click", () => {
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
-      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
-      resetMainTabsActive();
-    });
-  }
-
-  const dsBackToSaleBtn = document.getElementById("ds-nhansu-back-btn");
-  if (dsBackToSaleBtn) {
-    dsBackToSaleBtn.addEventListener("click", () => {
-      const saleSection = document.getElementById("section-sale");
-      const nhansuSection = document.getElementById("section-nhansu");
-      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
-      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
       if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
       if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
       resetMainTabsActive();
@@ -5555,7 +5519,16 @@ function initFinanceDashboard() {
       clickedBtn.classList.add("active");
       
       document.querySelectorAll(".finance-tab-content").forEach(p => p.style.display = "none");
-      document.getElementById(`fin-tab-${targetTab}`).style.display = "block";
+      
+      const targetPanel = document.getElementById(`fin-tab-${targetTab}`);
+      if (targetPanel) {
+        if (targetTab === "staff") {
+          targetPanel.style.display = "flex";
+          initDsNhansu();
+        } else {
+          targetPanel.style.display = "block";
+        }
+      }
     });
   });
 

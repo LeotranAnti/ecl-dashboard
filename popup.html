@@ -30,7 +30,6 @@
           <div style="display: flex; align-items: center; gap: 8px;">
             <button class="section-title-btn active" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📋 Tổng quan hoạt động</button>
             <button id="sale-to-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Hoạt động</button>
-            <button id="sale-to-danhsach-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Danh sách Nhân sự</button>
           </div>
           <!-- Factory Navigation Tabs directly under title -->
           <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
@@ -836,6 +835,7 @@
           <button class="finance-tab-btn active" data-tab="overview" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">📊 Tổng quan</button>
           <button class="finance-tab-btn" data-tab="candidates" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">👥 Danh sách nhận việc</button>
           <button class="finance-tab-btn" data-tab="pricing" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">💲 Đơn giá &amp; Chi phí</button>
+          <button class="finance-tab-btn" data-tab="staff" style="font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none;">👥 Danh sách Nhân sự</button>
         </div>
         <div class="header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <button class="sync-btn" id="fin-sync-btn" title="Đồng bộ Google Sheets" style="font-size:11px; padding: 6px 12px; border-radius:6px; cursor:pointer;">
@@ -1126,6 +1126,68 @@
       </div>
 
       <!-- Tab 3: Pricing & Expenses (Tab 4: Reconcile was removed) -->
+      
+      <!-- Tab 4: Staff List -->
+      <div id="fin-tab-staff" class="finance-tab-content" style="display: none; flex-direction: column; margin-top: 1.5rem;">
+        <!-- Main Layout: Form bên trái, Bảng bên phải -->
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
+          <!-- Form thêm nhân sự -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+            <div id="ds-form-title" style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">➕ Thêm Nhân Sự Mới</div>
+            
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Họ và tên</label>
+              <input type="text" id="ds-input-name" placeholder="Nhập họ và tên..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Số điện thoại</label>
+              <input type="text" id="ds-input-phone" placeholder="Nhập số điện thoại..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Bộ phận</label>
+              <input type="text" id="ds-input-dept" placeholder="Ví dụ: Tuyển dụng, Marketing, Telesale..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Vị trí</label>
+              <input type="text" id="ds-input-role" placeholder="Ví dụ: Nhân viên, Trưởng nhóm..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
+            </div>
+            
+            <div id="ds-action-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+              <button id="ds-save-btn" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
+                💾 Lưu nhân sự
+              </button>
+            </div>
+          </div>
+
+          <!-- Bảng hiển thị danh sách -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <span>📋 Danh Sách Nhân Sự</span>
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;" id="ds-total-lbl">Tổng số: 0</span>
+            </div>
+            
+            <div style="overflow-x: auto; max-height: 400px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                  <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; color: var(--text-secondary);">
+                    <th style="padding: 10px; font-weight: 600;">Họ tên</th>
+                    <th style="padding: 10px; font-weight: 600;">Số điện thoại</th>
+                    <th style="padding: 10px; font-weight: 600;">Bộ phận</th>
+                    <th style="padding: 10px; font-weight: 600;">Vị trí</th>
+                    <th style="padding: 10px; font-weight: 600; text-align: center;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="ds-nhansu-tbody">
+                  <!-- Chèn động bằng JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Password Modal Gate for Locked Tabs -->
@@ -1390,80 +1452,7 @@
     </div>
     <!-- END SECTION 4: NHANSU REPORT -->
 
-    <!-- SECTION 5: DANH SACH NHAN SU -->
-    <div id="section-danhsach-nhansu" class="main-section" style="display: none; flex-direction: column;">
-      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-        <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <button id="ds-nhansu-back-btn" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;">&#8592; Quay lại Sale</button>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #0ea5e9; box-shadow: 0 0 10px #0ea5e9;"></div>
-              <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #0ea5e9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Quản Lý Danh Sách Nhân Sự</h1>
-            </div>
-          </div>
-        </div>
-      </header>
 
-      <!-- Main Layout: Form bên trái, Bảng bên phải -->
-      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
-        <!-- Form thêm nhân sự -->
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
-          <div id="ds-form-title" style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">➕ Thêm Nhân Sự Mới</div>
-          
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Họ và tên</label>
-            <input type="text" id="ds-input-name" placeholder="Nhập họ và tên..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Số điện thoại</label>
-            <input type="text" id="ds-input-phone" placeholder="Nhập số điện thoại..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Bộ phận</label>
-            <input type="text" id="ds-input-dept" placeholder="Ví dụ: Tuyển dụng, Marketing, Telesale..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-          </div>
-          
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Vị trí</label>
-            <input type="text" id="ds-input-role" placeholder="Ví dụ: Nhân viên, Trưởng nhóm..." style="font-size: 12px; padding: 8px 12px; background: #131722; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); outline: none;">
-          </div>
-          
-          <div id="ds-action-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-            <button id="ds-save-btn" style="background: rgba(14,165,233,0.15); border: 1px solid rgba(14,165,233,0.3); color: #0ea5e9; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;">
-              💾 Lưu nhân sự
-            </button>
-          </div>
-        </div>
-
-        <!-- Bảng hiển thị danh sách -->
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px;">
-          <div style="font-size: 14px; font-weight: 700; color: #0ea5e9; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
-            <span>📋 Danh Sách Nhân Sự</span>
-            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;" id="ds-total-lbl">Tổng số: 0</span>
-          </div>
-          
-          <div style="overflow-x: auto; max-height: 400px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; color: var(--text-secondary);">
-                  <th style="padding: 10px; font-weight: 600;">Họ tên</th>
-                  <th style="padding: 10px; font-weight: 600;">Số điện thoại</th>
-                  <th style="padding: 10px; font-weight: 600;">Bộ phận</th>
-                  <th style="padding: 10px; font-weight: 600;">Vị trí</th>
-                  <th style="padding: 10px; font-weight: 600; text-align: center;">Hành động</th>
-                </tr>
-              </thead>
-              <tbody id="ds-nhansu-tbody">
-                <!-- Chèn động bằng JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- END SECTION 5: DANH SACH NHAN SU -->
 
     <script src="popup.js?v=3.4"></script>
 </body>
