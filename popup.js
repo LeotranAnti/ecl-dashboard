@@ -6458,9 +6458,10 @@ async function initNhansuDashboard() {
   }
 
   // Sự kiện click mở popup chi tiết Chuyển đổi thành công
-  const nsKpiTelesale = document.getElementById("ns-kpi-telesale");
-  if (nsKpiTelesale) {
-    nsKpiTelesale.addEventListener("click", () => {
+  const nsConvertedBtn = document.getElementById("ns-telesale-converted-btn");
+  if (nsConvertedBtn) {
+    nsConvertedBtn.addEventListener("click", (e) => {
+      e.stopPropagation(); // Tránh lan truyền sự kiện
       const activeDates = getNhansuActiveDates();
       openDetailsModal("nsConverted", activeDates);
     });
