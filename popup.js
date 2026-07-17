@@ -2651,7 +2651,7 @@ function renderHistoryTable() {
   }
   
   filteredDates.forEach(date => {
-    const s = state.dailyStats[date];
+    const s = state.dailyStats[date] || { newCount: 0, interviewCount: 0, hireCount: 0, processedCount: 0 };
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><strong>${formatUIDate(date)}</strong></td>
