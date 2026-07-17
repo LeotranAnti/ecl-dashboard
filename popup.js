@@ -6053,6 +6053,25 @@ function populateNhansuDateSelector() {
   syncNhansuCustomDropdown();
 }
 
+const normDate = (s) => {
+  if (!s) return "";
+  s = s.trim();
+  // Nếu có chứa giờ phút giây (ví dụ: '16/07/2026 14:30:15'), cắt lấy phần ngày
+  if (s.includes(" ")) {
+    s = s.split(" ")[0];
+  }
+  // Hỗ trợ dạng d/M (ví dụ 15/7)
+  const mDec = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (mDec) {
+    return `2026-${mDec[2].padStart(2,"0")}-${mDec[1].padStart(2,"0")}`;
+  }
+  // Hỗ trợ dạng d/M/yyyy
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,"0")}-${m1[1].padStart(2,"0")}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return "";
+};
+
 function renderNhansuDashboard() {
   const nsFactory = (typeof state !== "undefined" && state.nhansuSelectedFactory) || "All";
   const nsRecruiter = (typeof state !== "undefined" && state.nhansuSelectedRecruiter) || "All";
@@ -6060,24 +6079,6 @@ function renderNhansuDashboard() {
   // Lấy dải ngày lọc từ bộ lọc thời gian riêng của Nhân sự
   const activeDates = getNhansuActiveDates();
 
-  const normDate = (s) => {
-    if (!s) return "";
-    s = s.trim();
-    // Nếu có chứa giờ phút giây (ví dụ: '16/07/2026 14:30:15'), cắt lấy phần ngày
-    if (s.includes(" ")) {
-      s = s.split(" ")[0];
-    }
-    // Hỗ trợ dạng d/M (ví dụ 15/7)
-    const mDec = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-    if (mDec) {
-      return `2026-${mDec[2].padStart(2,"0")}-${mDec[1].padStart(2,"0")}`;
-    }
-    // Hỗ trợ dạng d/M/yyyy
-    const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m1) return `${m1[3]}-${m1[2].padStart(2,"0")}-${m1[1].padStart(2,"0")}`;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    return "";
-  };
   const cleanRec = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
