@@ -5926,29 +5926,72 @@ function renderNhansuDashboard() {
     }
   }
 
-  setEl("ns-telesale-count", telesaleCount);
-  
-  // Cập nhật nhãn trạng thái hiển thị kỳ đã chọn
-  let dateTextLabel = "Đang lọc...";
-  if (activeDates.length > 0) {
-    if (nhansuViewMode === "day") {
-      const p = activeDates[0].split("-");
-      dateTextLabel = `Ngày: ${p[2]}/${p[1]}`;
-    } else if (nhansuViewMode === "week") {
-      const p1 = activeDates[0].split("-");
-      const p2 = activeDates[6].split("-");
-      dateTextLabel = `Tuần: ${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
-    } else if (nhansuViewMode === "month") {
-      const p = activeDates[0].split("-");
-      dateTextLabel = `Tháng: ${p[1]}/${p[0]}`;
-    } else {
-      const p1 = activeDates[0].split("-");
-      const p2 = activeDates[activeDates.length - 1].split("-");
-      dateTextLabel = `${p1[2]}/${p1[1]} - ${p2[2]}/${p2[1]}`;
+  // Tính toán số lượng được giao (cột index 8 - Ngày giao) trong cùng kỳ lọc
+  let giaoCount = 0;
+  if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
+    for (let i = 1; i < nhansuTelesaleData.length; i++) {
+      const row = nhansuTelesaleData[i];
+      if (row.length < 13) continue;
+      
+      const parsedDateGiao = normDate(row[8] || "");
+      
+      let rowFactory = (row[11] || "").trim();
+      if (!rowFactory && row[7]) {
+        const sourceLower = row[7].toLowerCase();
+        if (sourceLower.includes("pegatron")) rowFactory = "Pegatron";
+        else if (sourceLower.includes("brother")) rowFactory = "Brother";
+        else if (sourceLower.includes("lg")) rowFactory = "LG";
+        else if (sourceLower.includes("usi")) rowFactory = "Usi";
+        else if (sourceLower.includes("fox")) rowFactory = "Fox QN";
+        else if (sourceLower.includes("wistron")) rowFactory = "Wistron";
+      }
+      if (!rowFactory) rowFactory = "Pegatron";
+
+      const rowRecruiter = cleanRec(row[9] || "");
+      
+      if (!parsedDateGiao || !activeDates.includes(parsedDateGiao)) continue;
+      if (nsFactory !== "All" && rowFactory !== nsFactory) continue;
+      if (nsRecruiter !== "All" && rowRecruiter !== nsRecruiter) continue;
+      
+      giaoCount++;
     }
   }
-  setEl("ns-telesale-status", dateTextLabel);
-  setEl("ns-chuyen-count", chuyenCount);
+
+  // 1. Cập nhật Số lượng (Đã chăm sóc / Được giao) và đổi màu xanh/đỏ
+  const elCared = document.getElementById("ns-telesale-cared");
+  const elAssigned = document.getElementById("ns-telesale-assigned");
+  const elMainQty = document.getElementById("ns-telesale-main-qty");
+  
+  if (elCared) elCared.textContent = telesaleCount;
+  if (elAssigned) elAssigned.textContent = giaoCount;
+  
+  if (elMainQty) {
+    if (telesaleCount >= giaoCount) {
+      elMainQty.style.color = "#10b981"; // Xanh lá
+    } else {
+      elMainQty.style.color = "#ef4444"; // Đỏ
+    }
+  }
+
+  // 2. Cập nhật số Chuyển đổi
+  const elConverted = document.getElementById("ns-telesale-converted");
+  if (elConverted) elConverted.textContent = chuyenCount;
+
+  // 3. Tính tỉ lệ chuyển đổi và tô màu theo mốc
+  const elStatus = document.getElementById("ns-telesale-status");
+  if (elStatus) {
+    const ratio = telesaleCount > 0 ? (chuyenCount / telesaleCount * 100) : 0;
+    const ratioStr = ratio.toFixed(1) + "%";
+    
+    let ratioColor = "#ef4444"; // Đỏ (<= 5%)
+    if (ratio > 5 && ratio < 10) {
+      ratioColor = "#fbbf24"; // Vàng (> 5% và < 10%)
+    } else if (ratio >= 10) {
+      ratioColor = "#10b981"; // Xanh (>= 10%)
+    }
+    
+    elStatus.innerHTML = `Tỉ lệ chuyển đổi: <span style="color: ${ratioColor}; font-weight: 800; font-size: 12px;">${ratioStr}</span>`;
+  }
 
 
   // Xử lý data (Ô 4) - Đồng bộ 100% với ô Đã xử lý ở báo cáo Sale (tính theo processedCount từ dailyStats)
