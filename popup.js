@@ -112,6 +112,24 @@ function parseCSV(text) {
   return lines;
 }
 
+function generateContinuousDates() {
+  const start = new Date("2026-02-01");
+  const end = new Date();
+  end.setMonth(end.getMonth() + 6); // Hôm nay + 6 tháng
+  
+  const dates = [];
+  let curr = new Date(start);
+  while (curr <= end) {
+    const y = curr.getFullYear();
+    const m = String(curr.getMonth() + 1).padStart(2, '0');
+    const d = String(curr.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
+    curr.setDate(curr.getDate() + 1);
+  }
+  // Sắp xếp giảm dần để ngày mới nhất nằm trên cùng
+  return dates.reverse();
+}
+
 // Date Normalizer - returns 'YYYY-MM-DD' or null. Default year is 2026.
 function normalizeDate(dateStr) {
   if (!dateStr) return null;
@@ -927,7 +945,7 @@ function applyFactoryFilter() {
   // Re-process metrics
   const processed = processData(state.candidates, state.recruitments, {}, state.candidateHistory, state.hasColorData);
   state.dailyStats = processed.dailyStats;
-  state.datesList = processed.datesList;
+  state.datesList = generateContinuousDates();
   state.candidateHistory = processed.candidateHistory;
   state.overdueCareCount = processed.overdueCareCount || 0;
   
