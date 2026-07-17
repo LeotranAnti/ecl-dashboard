@@ -5829,8 +5829,8 @@ function getNhansuActiveDates() {
 
   // Đối với các view mode day, week, month
   if (!nhansuSelectedDate) {
-    if (state.datesList && state.datesList.length > 0) {
-      return [state.datesList[0]]; // Mặc định ngày mới nhất
+    if (nhansuDatesList && nhansuDatesList.length > 0) {
+      return [nhansuDatesList[0]]; // Mặc định ngày mới nhất
     }
     return [];
   }
@@ -5904,7 +5904,7 @@ function syncNhansuCustomDropdown() {
 
 function populateNhansuDateSelector() {
   const menuEl = document.getElementById("nhansu-dropdown-menu");
-  if (!menuEl || !state.datesList || state.datesList.length === 0) return;
+  if (!menuEl || !nhansuDatesList || nhansuDatesList.length === 0) return;
 
   menuEl.innerHTML = "";
 
@@ -5923,7 +5923,7 @@ function populateNhansuDateSelector() {
   };
 
   if (nhansuViewMode === "day") {
-    state.datesList.forEach((date, i) => {
+    nhansuDatesList.forEach((date, i) => {
       const item = document.createElement("div");
       item.className = "nhansu-dropdown-item";
       item.dataset.value = date;
@@ -5953,7 +5953,7 @@ function populateNhansuDateSelector() {
     });
   } else if (nhansuViewMode === "week") {
     const seenWeeks = new Set();
-    state.datesList.forEach(date => {
+    nhansuDatesList.forEach(date => {
       const d = new Date(date);
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -5986,7 +5986,7 @@ function populateNhansuDateSelector() {
     });
   } else if (nhansuViewMode === "month") {
     const seenMonths = new Set();
-    state.datesList.forEach(date => {
+    nhansuDatesList.forEach(date => {
       const parts = date.split("-");
       const monthStr = `${parts[0]}-${parts[1]}`;
 
@@ -6289,6 +6289,35 @@ async function initNhansuDashboard() {
   if (syncEl) syncEl.textContent = "Đang tải dữ liệu Telesale...";
 
   nhansuTelesaleData = await fetchNhansuTelesaleData();
+  
+  // Trích xuất danh sách ngày thực tế xuất hiện trong sheet Telesale
+  if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
+    const allDates = new Set();
+    for (let i = 1; i < nhansuTelesaleData.length; i++) {
+      const row = nhansuTelesaleData[i];
+      if (row.length > 12 && row[12]) {
+        const d = normDate(row[12]);
+        if (d) allDates.add(d);
+      }
+      if (row.length > 8 && row[8]) {
+        const d = normDate(row[8]);
+        if (d) allDates.add(d);
+      }
+    }
+    nhansuDatesList = Array.from(allDates).filter(Boolean).sort((a, b) => b.localeCompare(a));
+  }
+  
+  // Mặc định chọn ngày hôm nay khi mở ra
+  if (!nhansuSelectedDate) {
+    const todayObj = new Date();
+    const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,'0')}-${String(todayObj.getDate()).padStart(2,'0')}`;
+    if (nhansuDatesList.includes(todayStr)) {
+      nhansuSelectedDate = todayStr;
+    } else if (nhansuDatesList.length > 0) {
+      nhansuSelectedDate = nhansuDatesList[0]; // Fallback về ngày mới nhất có dữ liệu
+    }
+  }
+  
   nhansuInitialized = true;
 
   // Cấu hình các sự kiện cho bộ lọc thời gian của Báo cáo Hoạt động (Tím #a78bfa)
@@ -6338,9 +6367,9 @@ async function initNhansuDashboard() {
 
           const startInput = document.getElementById("nhansu-custom-start-date");
           const endInput = document.getElementById("nhansu-custom-end-date");
-          if (startInput && endInput && state.datesList && state.datesList.length > 0) {
-            if (!startInput.value) startInput.value = state.datesList[state.datesList.length - 1];
-            if (!endInput.value) endInput.value = state.datesList[0];
+          if (startInput && endInput && nhansuDatesList && nhansuDatesList.length > 0) {
+            if (!startInput.value) startInput.value = nhansuDatesList[nhansuDatesList.length - 1];
+            if (!endInput.value) endInput.value = nhansuDatesList[0];
             nhansuCustomStartDate = startInput.value;
             nhansuCustomEndDate = endInput.value;
           }
