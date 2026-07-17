@@ -6091,7 +6091,14 @@ function renderNhansuDashboard() {
       telesaleCount++;
       const chuyenVal = (row[11] || "").trim().toLowerCase(); // Chuyển file nhà máy cột index 11
       if (chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "") chuyenCount++;
-      tableRows.push({ name: row[1]||"", phone: row[2]||"", factory: rowFactory, recruiter: row[9]||"Chưa rõ", status: row[10]||"Chưa phản hồi", dateGiao: dateGiao });
+      tableRows.push({
+        name: row[1] || "",
+        phone: row[2] || "",
+        sourceData: row[7] ? row[7].trim() : "",
+        recruiter: row[9] || "Chưa rõ",
+        status: row[10] || "Chưa phản hồi",
+        dateGiao: dateGiao
+      });
     }
   }
 
@@ -6249,7 +6256,7 @@ function renderNhansuDashboard() {
         <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
           <td style="padding:8px 10px;color:#eef4ff;">${r.name}</td>
           <td style="padding:8px 10px;color:var(--text-secondary);">${r.phone}</td>
-          <td style="padding:8px 10px;color:#10b981;">${r.factory}</td>
+          <td style="padding:8px 10px;color:#10b981;">${r.sourceData || "-"}</td>
           <td style="padding:8px 10px;color:#a78bfa;">${r.recruiter}</td>
           <td style="padding:8px 10px;color:var(--text-muted);">${r.status}</td>
           <td style="padding:8px 10px;color:var(--text-muted);">${r.dateGiao}</td>
