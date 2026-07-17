@@ -6359,8 +6359,6 @@ function updateNhansuCountdownDisplay() {
 }
 
 
-// Listener nút phụ "Báo cáo Nhân sự" trong header Sale + nút Quay lại Sale
-document.addEventListener("DOMContentLoaded", () => {
   // Nút "Báo cáo Nhân sự" trong Sale header: chuyển sang section-nhansu (sub-tab của Sale)
   const toNhansuBtn = document.getElementById("sale-to-nhansu-btn");
   if (toNhansuBtn) {
@@ -6368,7 +6366,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!gateVerified) return; // Chỉ cho phép nếu đã xác thực cổng chính
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
       if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
       if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
       // Highlight nút section-title-btn Nhân sự
       document.querySelectorAll(".section-title-btn").forEach(b => {
@@ -6379,23 +6379,173 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Nút "Danh sách Nhân sự" trong Sale header
+  const toDsNhansuBtn = document.getElementById("sale-to-danhsach-nhansu-btn");
+  if (toDsNhansuBtn) {
+    toDsNhansuBtn.addEventListener("click", () => {
+      if (!gateVerified) return;
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.add("active"); dsNhansuSection.style.display = "flex"; }
+      
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      toDsNhansuBtn.style.background = "rgba(14,165,233,0.15)"; toDsNhansuBtn.style.borderColor = "rgba(14,165,233,0.4)"; toDsNhansuBtn.style.color = "#0ea5e9"; toDsNhansuBtn.classList.add("active");
+      initDsNhansu();
+    });
+  }
+
   // Nút "Quay lại Sale" trong header section-nhansu
   const backToSaleBtn = document.getElementById("nhansu-back-btn");
   if (backToSaleBtn) {
     backToSaleBtn.addEventListener("click", () => {
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
+      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
+      resetMainTabsActive();
+    });
+  }
+
+  // Nút "Quay lại Sale" trong header section-danhsach-nhansu
+  const dsBackToSaleBtn = document.getElementById("ds-nhansu-back-btn");
+  if (dsBackToSaleBtn) {
+    dsBackToSaleBtn.addEventListener("click", () => {
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const dsNhansuSection = document.getElementById("section-danhsach-nhansu");
+      if (dsNhansuSection) { dsNhansuSection.classList.remove("active"); dsNhansuSection.style.display = "none"; }
       if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
       if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
-      // Reset highlight nút section-title-btn về Tổng quan
-      document.querySelectorAll(".section-title-btn").forEach(b => {
-        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
-      });
-      const tongquanBtn = document.querySelector(".section-title-btn:first-child");
-      if (tongquanBtn) { tongquanBtn.style.background = "rgba(59,130,246,0.15)"; tongquanBtn.style.borderColor = "rgba(59,130,246,0.4)"; tongquanBtn.style.color = "#ffffff"; tongquanBtn.classList.add("active"); }
+      resetMainTabsActive();
     });
   }
 });
+
+function resetMainTabsActive() {
+  document.querySelectorAll(".section-title-btn").forEach(b => {
+    b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+  });
+  const tongquanBtn = document.querySelector(".section-title-btn:first-child");
+  if (tongquanBtn) { 
+    tongquanBtn.style.background = "rgba(59,130,246,0.15)"; 
+    tongquanBtn.style.borderColor = "rgba(59,130,246,0.4)"; 
+    tongquanBtn.style.color = "#ffffff"; 
+    tongquanBtn.classList.add("active"); 
+  }
+}
+
+// ============================================================================
+// DANH SACH NHAN SU - CRUD LOGIC
+// ============================================================================
+let dsNhansuList = [];
+
+function initDsNhansu() {
+  // Lấy dữ liệu từ localStorage
+  const localData = localStorage.getItem("ecl_danhsach_nhansu");
+  if (localData) {
+    try {
+      dsNhansuList = JSON.parse(localData);
+    } catch (e) {
+      console.error("Lỗi parse dữ liệu danh sách nhân sự:", e);
+      dsNhansuList = [];
+    }
+  } else {
+    dsNhansuList = [];
+  }
+
+  // Gắn sự kiện click cho nút Lưu nhân sự
+  const saveBtn = document.getElementById("ds-save-btn");
+  if (saveBtn) {
+    // Clone nút để tránh gắn trùng lặp listener
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    newSaveBtn.addEventListener("click", addDsNhansu);
+  }
+
+  renderDsNhansu();
+}
+
+function renderDsNhansu() {
+  const tbody = document.getElementById("ds-nhansu-tbody");
+  const totalLbl = document.getElementById("ds-total-lbl");
+  if (!tbody) return;
+
+  if (totalLbl) totalLbl.textContent = `Tổng số: ${dsNhansuList.length}`;
+  tbody.innerHTML = "";
+
+  if (dsNhansuList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 20px;">Chưa có nhân sự nào trong danh sách.</td></tr>`;
+    return;
+  }
+
+  dsNhansuList.forEach((ns, index) => {
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid rgba(255,255,255,0.04)";
+    tr.innerHTML = `
+      <td style="padding: 10px;"><strong>${ns.name}</strong></td>
+      <td style="padding: 10px; font-family: monospace;">${ns.phone || "-"}</td>
+      <td style="padding: 10px;"><span class="status-badge" style="background: rgba(14,165,233,0.1); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.2); font-size: 11px; padding: 2px 6px; border-radius: 4px;">${ns.dept || "-"}</span></td>
+      <td style="padding: 10px; color: var(--text-secondary);">${ns.role || "-"}</td>
+      <td style="padding: 10px; text-align: center;">
+        <button class="delete-ns-btn" data-index="${index}" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 4px; padding: 4px 8px; cursor: pointer; transition: all 0.2s; font-size: 11px;">Xóa</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Gắn sự kiện xóa cho các nút Xóa
+  tbody.querySelectorAll(".delete-ns-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const idx = parseInt(btn.getAttribute("data-index"));
+      deleteDsNhansu(idx);
+    });
+  });
+}
+
+function addDsNhansu() {
+  const nameInput = document.getElementById("ds-input-name");
+  const phoneInput = document.getElementById("ds-input-phone");
+  const deptInput = document.getElementById("ds-input-dept");
+  const roleInput = document.getElementById("ds-input-role");
+
+  const name = nameInput ? nameInput.value.trim() : "";
+  const phone = phoneInput ? phoneInput.value.trim() : "";
+  const dept = deptInput ? deptInput.value.trim() : "";
+  const role = roleInput ? roleInput.value.trim() : "";
+
+  if (!name) {
+    alert("Vui lòng nhập Họ và tên nhân sự!");
+    return;
+  }
+
+  const newNs = { name, phone, dept, role };
+  dsNhansuList.push(newNs);
+
+  localStorage.setItem("ecl_danhsach_nhansu", JSON.stringify(dsNhansuList));
+
+  // Reset form
+  if (nameInput) nameInput.value = "";
+  if (phoneInput) phoneInput.value = "";
+  if (deptInput) deptInput.value = "";
+  if (roleInput) roleInput.value = "";
+
+  renderDsNhansu();
+}
+
+function deleteDsNhansu(index) {
+  if (confirm(`Bạn có chắc chắn muốn xóa nhân sự "${dsNhansuList[index].name}" khỏi danh sách?`)) {
+    dsNhansuList.splice(index, 1);
+    localStorage.setItem("ecl_danhsach_nhansu", JSON.stringify(dsNhansuList));
+    renderDsNhansu();
+  }
+}
 function loadFinCandidates() {
   showFinLoading(true);
   fetch(finSheetCsvUrl(FIN_GID_CANDIDATES))
