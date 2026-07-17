@@ -1431,8 +1431,10 @@
 
       <!-- Table Telesale -->
       <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
-        <div style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px;">📋 Chi tiết Telesale</div>
-        <div style="overflow-x:auto;">
+        <div id="ns-telesale-title-toggle" style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px; cursor:pointer; display:flex; align-items:center; user-select:none; width:fit-content;">
+          📋 Chi tiết Telesale <span id="ns-telesale-toggle-arrow" style="margin-left:6px; transition:transform 0.2s;">▼</span>
+        </div>
+        <div id="ns-telesale-table-container" style="display: none; overflow-x:auto;">
           <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
               <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">

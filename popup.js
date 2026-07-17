@@ -3376,6 +3376,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Sự kiện click đóng/mở (toggle) bảng chi tiết Telesale
+  const nsTelesaleToggle = document.getElementById("ns-telesale-title-toggle");
+  if (nsTelesaleToggle) {
+    nsTelesaleToggle.addEventListener("click", () => {
+      const container = document.getElementById("ns-telesale-table-container");
+      const arrow = document.getElementById("ns-telesale-toggle-arrow");
+      if (container && arrow) {
+        if (container.style.display === "none") {
+          container.style.display = "block";
+          arrow.textContent = "▲";
+        } else {
+          container.style.display = "none";
+          arrow.textContent = "▼";
+        }
+      }
+    });
+  }
+
   // Load cache and start timer
   loadCache();
   startCountdown();
