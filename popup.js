@@ -3313,7 +3313,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!gateVerified) return;
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
+      const kpiSection = document.getElementById("section-kpi-nhansu");
       if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (kpiSection) { kpiSection.classList.remove("active"); kpiSection.style.display = "none"; }
       if (nhansuSection) { nhansuSection.classList.add("active"); nhansuSection.style.display = "flex"; }
       document.querySelectorAll(".section-title-btn").forEach(b => {
         b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
@@ -3323,12 +3325,44 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const toKpiNhansuBtn = document.getElementById("sale-to-kpi-nhansu-btn");
+  if (toKpiNhansuBtn) {
+    toKpiNhansuBtn.addEventListener("click", () => {
+      if (!gateVerified) return;
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const kpiSection = document.getElementById("section-kpi-nhansu");
+      if (saleSection) { saleSection.classList.remove("active"); saleSection.style.display = "none"; }
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (kpiSection) { kpiSection.classList.add("active"); kpiSection.style.display = "flex"; }
+      document.querySelectorAll(".section-title-btn").forEach(b => {
+        b.style.background = "rgba(255,255,255,0.04)"; b.style.borderColor = "rgba(255,255,255,0.08)"; b.style.color = "var(--text-secondary)"; b.classList.remove("active");
+      });
+      toKpiNhansuBtn.style.background = "rgba(251,146,60,0.15)"; toKpiNhansuBtn.style.borderColor = "rgba(251,146,60,0.4)"; toKpiNhansuBtn.style.color = "#fb923c"; toKpiNhansuBtn.classList.add("active");
+    });
+  }
+
   const backToSaleBtn = document.getElementById("nhansu-back-btn");
   if (backToSaleBtn) {
     backToSaleBtn.addEventListener("click", () => {
       const saleSection = document.getElementById("section-sale");
       const nhansuSection = document.getElementById("section-nhansu");
+      const kpiSection = document.getElementById("section-kpi-nhansu");
       if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (kpiSection) { kpiSection.classList.remove("active"); kpiSection.style.display = "none"; }
+      if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
+      resetMainTabsActive();
+    });
+  }
+
+  const kpiBackToSaleBtn = document.getElementById("kpi-nhansu-back-btn");
+  if (kpiBackToSaleBtn) {
+    kpiBackToSaleBtn.addEventListener("click", () => {
+      const saleSection = document.getElementById("section-sale");
+      const nhansuSection = document.getElementById("section-nhansu");
+      const kpiSection = document.getElementById("section-kpi-nhansu");
+      if (nhansuSection) { nhansuSection.classList.remove("active"); nhansuSection.style.display = "none"; }
+      if (kpiSection) { kpiSection.classList.remove("active"); kpiSection.style.display = "none"; }
       if (saleSection) { saleSection.classList.add("active"); saleSection.style.display = "flex"; }
       resetMainTabsActive();
     });

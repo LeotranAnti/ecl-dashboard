@@ -30,6 +30,7 @@
           <div style="display: flex; align-items: center; gap: 8px;">
             <button class="section-title-btn active" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📋 Tổng quan hoạt động</button>
             <button id="sale-to-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">👥 Báo cáo Hoạt động</button>
+            <button id="sale-to-kpi-nhansu-btn" class="section-title-btn" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-family: var(--font-title); font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">📊 KPI Nhân sự</button>
           </div>
           <!-- Factory Navigation Tabs directly under title -->
           <div class="factory-nav-tabs" style="display: flex; gap: 4px; margin-top: 6px; padding: 2px; background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); width: fit-content; flex-wrap: wrap;">
@@ -1451,6 +1452,25 @@
       </div>
     </div>
     <!-- END SECTION 4: NHANSU REPORT -->
+
+    <!-- SECTION 6: KPI NHAN SU (sub-tab of Sale) -->
+    <div id="section-kpi-nhansu" class="main-section" style="display: none; flex-direction: column;">
+      <header class="app-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <div class="brand" style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button id="kpi-nhansu-back-btn" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;">&#8592; Quay lại Sale</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="logo-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #fb923c; box-shadow: 0 0 10px #fb923c;"></div>
+              <h1 style="margin: 0; font-family: var(--font-title); font-size: 18px; font-weight: 700; background: linear-gradient(135deg, #ffffff 40%, #fb923c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">KPI Nhân Sự</h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 30px; text-align: center; color: var(--text-muted); font-size: 14px; font-style: italic; display: flex; align-items: center; justify-content: center; min-height: 200px;">
+        ⚙️ Hệ thống đang chuẩn bị cấu hình KPI nhân sự. Dữ liệu và các báo cáo tương ứng sẽ hiển thị tại đây sau khi được thiết lập.
+      </div>
+    </div>
 
 
 
