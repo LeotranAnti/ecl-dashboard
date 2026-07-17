@@ -3307,6 +3307,64 @@ function getCandidatesForType(type, customDates = null) {
     return list;
   }
 
+  if (type === "nsConverted") {
+    if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
+      const factory = state.nhansuSelectedFactory || "All";
+      const selectedRecruiter = state.nhansuSelectedRecruiter || "All";
+      for (let i = 1; i < nhansuTelesaleData.length; i++) {
+        const row = nhansuTelesaleData[i];
+        if (row.length < 13) continue;
+
+        const dateLastCare = normDate(row[12]); // Cột Ngày CS cuối là index 12
+        
+        let rowFactory = (row[11] || "").trim();
+        if (!rowFactory && row[7]) {
+          const sourceLower = row[7].toLowerCase();
+          if (sourceLower.includes("pegatron")) rowFactory = "Pegatron";
+          else if (sourceLower.includes("brother")) rowFactory = "Brother";
+          else if (sourceLower.includes("lg")) rowFactory = "LG";
+          else if (sourceLower.includes("usi")) rowFactory = "Usi";
+          else if (sourceLower.includes("fox")) rowFactory = "Fox QN";
+          else if (sourceLower.includes("wistron")) rowFactory = "Wistron";
+        }
+        if (!rowFactory) rowFactory = "Pegatron";
+
+        const rowRecruiter = cleanRec(row[9] || "");
+        const chuyenVal = (row[11] || "").trim().toLowerCase();
+        const hasConverted = chuyenVal && chuyenVal !== "không" && chuyenVal !== "no" && chuyenVal !== "";
+
+        if (hasConverted && dateLastCare && dates.includes(dateLastCare)) {
+          if (factory !== "All" && rowFactory !== factory) continue;
+          if (selectedRecruiter !== "All" && rowRecruiter !== selectedRecruiter) continue;
+
+          const phone = row[2] ? row[2].trim() : "";
+          const name = row[1] ? row[1].trim() : "";
+          const cccd = row[3] ? row[3].trim() : "";
+          const status = row[10] ? row[10].trim() : "Chưa phản hồi";
+          const dateGiao = row[8] ? row[8].trim() : "";
+
+          list.push({
+            name,
+            factory: rowFactory,
+            phone,
+            cccd,
+            recruiter: row[9] || "Chưa rõ",
+            status,
+            dateInfo: `CS cuối: ${row[12]} (Giao: ${dateGiao})`,
+            rawDate: dateLastCare
+          });
+        }
+      }
+    }
+    list.sort((a, b) => {
+      if (!a.rawDate) return 1;
+      if (!b.rawDate) return -1;
+      return b.rawDate.localeCompare(a.rawDate);
+    });
+    console.log(`[getCandidatesForType] Found ${list.length} candidates for type="nsConverted"`);
+    return list;
+  }
+
   if (type === "nsTelesale") {
     if (nhansuTelesaleData && nhansuTelesaleData.length > 1) {
       const factory = state.nhansuSelectedFactory || "All";
@@ -3679,6 +3737,8 @@ function openDetailsModal(type, customDates = null) {
     title = "Danh sách ứng viên từ Ads (Lịch PV Xác Nhận)";
   } else if (type === "mktHires") {
     title = "Danh sách ứng viên từ Ads (Đã Nhận Việc)";
+  } else if (type === "nsConverted") {
+    title = "Danh sách ứng viên Chuyển Nhà Máy thành công (Telesale)";
   }
   
   // Nếu là bộ lọc Marketing và không truyền customDates, lấy khoảng ngày hiện hành của Marketing
@@ -6252,6 +6312,15 @@ async function initNhansuDashboard() {
     recSelect.addEventListener("change", () => {
       if (typeof state !== "undefined") state.nhansuSelectedRecruiter = recSelect.value;
       renderNhansuDashboard();
+    });
+  }
+
+  // Sự kiện click mở popup chi tiết Chuyển đổi thành công
+  const nsKpiTelesale = document.getElementById("ns-kpi-telesale");
+  if (nsKpiTelesale) {
+    nsKpiTelesale.addEventListener("click", () => {
+      const activeDates = getNhansuActiveDates();
+      openDetailsModal("nsConverted", activeDates);
     });
   }
 
